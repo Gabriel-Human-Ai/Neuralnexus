@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   Archive,
   BarChart3,
@@ -8,20 +9,21 @@ import {
   Boxes,
   Check,
   ChevronRight,
-  CircleDollarSign,
   Compass,
   Database,
+  Download,
   FileText,
   Layers3,
   Lock,
   Plus,
   Settings,
   Sparkles,
-  Workflow,
-  Zap,
 } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
-import { SettingsModal } from "@/components/SettingsModal";
+
+const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
+  ssr: false,
+});
 
 type Project = {
   id: string;
@@ -38,6 +40,16 @@ type Skill = {
   instructions?: string;
 };
 
+type ModelRun = {
+  id?: string;
+  provider?: string;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  costUsd?: number;
+  createdAt?: string;
+};
+
 type WorkspaceMode = {
   id: string;
   label: string;
@@ -50,6 +62,13 @@ type WorkspaceMode = {
 
 type View = "home" | "workspaces" | "skills" | "templates" | "knowledge" | "usage" | "settings";
 type WorkspacePanel = "overview" | "workflow" | "outputs" | "client";
+type CommandItem = {
+  id: string;
+  label: string;
+  group: string;
+  hint: string;
+  action: () => void;
+};
 
 const workspaceModes: WorkspaceMode[] = [
   {
@@ -169,6 +188,69 @@ function inferMode(project?: Project) {
   return workspaceModes.find((mode) => source.includes(mode.id) || source.includes(mode.label.toLowerCase().split(" ")[0])) ?? workspaceModes[1];
 }
 
+function formatUsd(value: number) {
+  return `$${value.toFixed(value >= 1 ? 2 : 4)}`;
+}
+
+function sameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function fuzzyScore(query: string, text: string) {
+  const q = query.trim().toLowerCase();
+  const t = text.toLowerCase();
+  if (!q) return 1;
+  if (t.includes(q)) return 100 - t.indexOf(q);
+  let score = 0;
+  let cursor = 0;
+  for (const char of q) {
+    const found = t.indexOf(char, cursor);
+    if (found === -1) return 0;
+    score += Math.max(1, 12 - (found - cursor));
+    cursor = found + 1;
+  }
+  return score;
+}
+
+function buildUsageAnalytics(runs: ModelRun[]) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = runs.filter((run) => run.createdAt && new Date(run.createdAt) >= dayStart).reduce((sum, run) => sum + Number(run.costUsd ?? 0), 0);
+  const month = runs.filter((run) => !run.createdAt || new Date(run.createdAt) >= monthStart).reduce((sum, run) => sum + Number(run.costUsd ?? 0), 0);
+  const modelMap = new Map<string, { model: string; provider: string; calls: number; inputTokens: number; outputTokens: number; cost: number }>();
+  for (const run of runs) {
+    const model = run.model || "Unknown model";
+    const current = modelMap.get(model) ?? { model, provider: run.provider || "auto", calls: 0, inputTokens: 0, outputTokens: 0, cost: 0 };
+    current.calls += 1;
+    current.inputTokens += Number(run.inputTokens ?? 0);
+    current.outputTokens += Number(run.outputTokens ?? 0);
+    current.cost += Number(run.costUsd ?? 0);
+    if (run.provider) current.provider = run.provider;
+    modelMap.set(model, current);
+  }
+  const models = Array.from(modelMap.values()).sort((a, b) => b.cost - a.cost);
+  const maxCostPerCall = models.length ? Math.max(...models.map((model) => model.cost / Math.max(1, model.calls))) : 0;
+  const estimatedSavings = Math.max(0, runs.reduce((sum, run) => sum + Math.max(0, maxCostPerCall - Number(run.costUsd ?? 0)), 0));
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(now);
+    date.setDate(now.getDate() - (6 - index));
+    const cost = runs
+      .filter((run) => run.createdAt && sameDay(new Date(run.createdAt), date))
+      .reduce((sum, run) => sum + Number(run.costUsd ?? 0), 0);
+    return {
+      label: date.toLocaleDateString("en", { weekday: "short" }),
+      iso: date.toISOString().slice(0, 10),
+      cost,
+    };
+  });
+  return { today, month, models, days, estimatedSavings };
+}
+
+function ProviderDot({ provider }: { provider?: string }) {
+  return <span className="provider-dot" data-provider={provider || "auto"} aria-hidden="true" />;
+}
+
 function WorkspaceObject({ mode, featured = false }: { mode: WorkspaceMode; featured?: boolean }) {
   return (
     <div className={`workspace-object ${featured ? "workspace-object-featured" : ""}`}>
@@ -239,6 +321,10 @@ export default function Home() {
   const [clientMode, setClientMode] = useState(false);
   const [clientState, setClientState] = useState<"idle" | "loading" | "complete">("idle");
   const [sessionState, setSessionState] = useState<"idle" | "loading" | "complete">("idle");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [commandIndex, setCommandIndex] = useState(0);
+  const [recentCommands, setRecentCommands] = useState<string[]>([]);
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -247,10 +333,54 @@ export default function Home() {
   const selectedWorkspace = projects.find((project) => project.id === selectedWorkspaceId) ?? projects[0];
   const selectedWorkspaceMode = inferMode(selectedWorkspace);
   const hasWorkspaces = projects.length > 0;
+  const runs = useMemo(() => (costs.runs ?? []) as ModelRun[], [costs.runs]);
+  const usage = useMemo(() => buildUsageAnalytics(runs), [runs]);
 
   useEffect(() => {
     void loadData();
+    try {
+      const stored = window.localStorage.getItem("CMDK_RECENT");
+      if (stored) setRecentCommands(JSON.parse(stored).slice(0, 3));
+    } catch {
+      setRecentCommands([]);
+    }
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("CMDK_RECENT", JSON.stringify(recentCommands.slice(0, 3)));
+    } catch {
+      // Recent commands are a convenience only; the app should not fail if storage is unavailable.
+    }
+  }, [recentCommands]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey;
+      if (mod && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+        setCommandQuery("");
+        setCommandIndex(0);
+        return;
+      }
+      if (!commandOpen) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setCommandOpen(false);
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setCommandIndex((index) => index + 1);
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setCommandIndex((index) => Math.max(0, index - 1));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [commandOpen]);
 
   useEffect(() => {
     const mode = workspaceModes.find((item) => item.id === selectedModeId);
@@ -259,6 +389,10 @@ export default function Home() {
     setWorkspaceAudience(mode.audience);
     setWorkspaceIntent(mode.purpose);
   }, [selectedModeId]);
+
+  useEffect(() => {
+    document.title = keys.BRAND_NAME?.trim() || "NeuralNexus";
+  }, [keys.BRAND_NAME]);
 
   async function loadData() {
     const [projectData, skillData, costData, settingsData] = await Promise.all([
@@ -270,7 +404,7 @@ export default function Home() {
     if (Array.isArray(projectData)) setProjects(projectData);
     if (Array.isArray(skillData)) setSkills(skillData);
     if (costData?.runs) setCosts(costData);
-    if (settingsData?.keys) setKeys(settingsData.keys);
+    if (settingsData && !settingsData.error) setKeys(settingsData);
   }
 
   async function buildWorkspace() {
@@ -327,6 +461,33 @@ export default function Home() {
     }, 650);
   }
 
+  function rememberCommand(id: string) {
+    setRecentCommands((current) => [id, ...current.filter((item) => item !== id)].slice(0, 3));
+  }
+
+  function exportUsageCsv() {
+    const rows = [
+      ["model", "provider", "calls", "input_tokens", "output_tokens", "cost_usd", "share"],
+      ...usage.models.map((model) => [
+        model.model,
+        model.provider,
+        String(model.calls),
+        String(model.inputTokens),
+        String(model.outputTokens),
+        model.cost.toFixed(6),
+        costs.total ? `${((model.cost / costs.total) * 100).toFixed(2)}%` : "0%",
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "neuralnexus-usage.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const navigation = [
     { id: "home", label: "Home", icon: Compass },
     { id: "workspaces", label: "Workspaces", icon: Layers3 },
@@ -337,13 +498,101 @@ export default function Home() {
     { id: "settings", label: "Settings", icon: Settings },
   ] as const;
 
+  const commandItems = useMemo<CommandItem[]>(() => {
+    const navigate = (target: View): (() => void) => () => {
+      if (target === "settings") setSettingsOpen(true);
+      setView(target);
+    };
+    return [
+      ...navigation.map((item) => ({
+        id: `nav-${item.id}`,
+        label: item.label,
+        group: "Navigation",
+        hint: item.id === "home" ? "Return to the workspace stage" : `Open ${item.label}`,
+        action: navigate(item.id as View),
+      })),
+      {
+        id: "create-workspace",
+        label: "Create workspace",
+        group: "Actions",
+        hint: "Open the workspace builder",
+        action: () => setWizardOpen(true),
+      },
+      {
+        id: "export-usage",
+        label: "Export usage CSV",
+        group: "Actions",
+        hint: "Download model usage as CSV",
+        action: exportUsageCsv,
+      },
+      ...projects.map((project) => ({
+        id: `workspace-${project.id}`,
+        label: project.name,
+        group: "Workspaces",
+        hint: "Open workspace detail",
+        action: () => {
+          setSelectedWorkspaceId(project.id);
+          setView("workspaces");
+          setWorkspacePanel("overview");
+        },
+      })),
+      ...skills.map((skill) => ({
+        id: `skill-${skill.id}`,
+        label: skill.name,
+        group: "Skills",
+        hint: skill.description || "Open skills library",
+        action: () => setView("skills"),
+      })),
+      ...templateCards.map((template) => ({
+        id: `template-${template.name}`,
+        label: template.name,
+        group: "Templates",
+        hint: "Use this template",
+        action: () => {
+          const match = workspaceModes.find((mode) => template.name.toLowerCase().includes(mode.id)) ?? workspaceModes[0];
+          setSelectedModeId(match.id);
+          setWizardOpen(true);
+        },
+      })),
+    ];
+  }, [costs.total, projects, skills, usage.models]);
+
+  const filteredCommands = useMemo(() => {
+    const query = commandQuery.trim();
+    const scored = commandItems
+      .map((item) => ({ item, score: fuzzyScore(query, `${item.label} ${item.group} ${item.hint}`) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.item);
+    if (!query && recentCommands.length) {
+      const recent = recentCommands
+        .map((id) => commandItems.find((item) => item.id === id))
+        .filter((item): item is CommandItem => Boolean(item));
+      return [...recent, ...scored.filter((item) => !recentCommands.includes(item.id))].slice(0, 12);
+    }
+    return scored.slice(0, 12);
+  }, [commandItems, commandQuery, recentCommands]);
+
+  useEffect(() => {
+    setCommandIndex((index) => Math.min(index, Math.max(0, filteredCommands.length - 1)));
+  }, [filteredCommands.length]);
+
+  function runCommand(item?: CommandItem) {
+    if (!item) return;
+    rememberCommand(item.id);
+    item.action();
+    setCommandOpen(false);
+    setCommandQuery("");
+    setCommandIndex(0);
+  }
+
   return (
     <main className="nn-shell">
       <aside className="nn-sidebar">
         <button className="brand-lockup" onClick={() => setView("home")}>
           <span className="brand-mark">N</span>
           <span>
-            <strong>NeuralNexus</strong>
+            <strong>{keys.BRAND_NAME?.trim() || "NeuralNexus"}</strong>
             <small>Workspace Builder</small>
           </span>
         </button>
@@ -375,6 +624,11 @@ export default function Home() {
       </aside>
 
       <section className="nn-stage">
+        <button className="command-launcher" onClick={() => setCommandOpen(true)} aria-label="Open command center">
+          <span>Command</span>
+          <kbd>⌘K</kbd>
+        </button>
+        <div key={view} className="view-fade">
         {view === "home" && (
           <div className="nn-home">
             <section className="home-hero">
@@ -699,25 +953,62 @@ export default function Home() {
                 <h1>Cost clarity for serious work</h1>
                 <p>Understand model usage, budget posture and cost per workspace output.</p>
               </div>
+              <button className="secondary-pill" onClick={exportUsageCsv} disabled={usage.models.length === 0}>
+                <Download size={16} /> Export CSV
+              </button>
             </header>
             <div className="usage-grid">
-              <Stat label="Today" value="$0.0000" />
-              <Stat label="This month" value={`$${(costs.total ?? 0).toFixed(4)}`} />
-              <Stat label="Tracked runs" value={`${costs.runs?.length ?? 0}`} />
-              <Stat label="Budget mode" value="Balanced" />
+              <Stat label="Today" value={formatUsd(usage.today)} />
+              <Stat label="This month" value={formatUsd(usage.month)} />
+              <Stat label="Estimated Auto-Routing Savings" value={formatUsd(usage.estimatedSavings)} />
             </div>
-            <div className="liquid-panel usage-panel">
-              <span className="object-label">TOP MODELS</span>
-              {(costs.runs ?? []).slice(0, 6).map((run, index) => (
-                <div key={`${run.id ?? run.model}-${index}`} className="usage-row">
-                  <span>{run.model ?? "Model"}</span>
-                  <strong>${Number(run.costUsd ?? 0).toFixed(4)}</strong>
+            <div className="usage-layout">
+              <div className="liquid-panel usage-panel">
+                <div className="section-head">
+                  <span>7-DAY COSTS</span>
+                  <small>Estimated from tracked model runs</small>
                 </div>
-              ))}
-              {costs.runs?.length === 0 && <p>No model runs tracked yet. Usage appears here once workspaces generate live outputs.</p>}
+                <UsageBars days={usage.days} />
+              </div>
+              <div className="liquid-panel usage-panel">
+                <div className="section-head">
+                  <span>MODEL DISTRIBUTION</span>
+                  <small>{usage.models.length} models</small>
+                </div>
+                {usage.models.length > 0 ? (
+                  <div className="model-table">
+                    <div className="model-table-head">
+                      <span>Model</span>
+                      <span>Calls</span>
+                      <span>Tokens</span>
+                      <span>Cost</span>
+                      <span>Share</span>
+                    </div>
+                    {usage.models.map((model) => {
+                      const share = costs.total ? (model.cost / costs.total) * 100 : 0;
+                      return (
+                        <div key={model.model} className="model-row">
+                          <span><ProviderDot provider={model.provider} /> {model.model}</span>
+                          <span>{model.calls}</span>
+                          <span>{model.inputTokens + model.outputTokens}</span>
+                          <strong>{formatUsd(model.cost)}</strong>
+                          <span>{share.toFixed(1)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="empty-inline">
+                    <BarChart3 size={22} />
+                    <p>No model runs tracked yet. Usage appears here once workspaces generate live outputs.</p>
+                    <button className="secondary-pill" onClick={() => setView("workspaces")}>Open workspaces</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
+        </div>
       </section>
 
       {wizardOpen && (
@@ -764,6 +1055,55 @@ export default function Home() {
         </div>
       )}
 
+      {commandOpen && (
+        <div className="command-backdrop" role="dialog" aria-modal="true" aria-label="Command center" onClick={() => setCommandOpen(false)}>
+          <div className="command-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="command-input-row">
+              <Sparkles size={18} />
+              <input
+                autoFocus
+                value={commandQuery}
+                onChange={(event) => {
+                  setCommandQuery(event.target.value);
+                  setCommandIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    runCommand(filteredCommands[commandIndex]);
+                  }
+                }}
+                placeholder="Search workspaces, skills, templates and actions"
+              />
+              <kbd>Esc</kbd>
+            </div>
+            <div className="command-list">
+              {filteredCommands.length > 0 ? (
+                filteredCommands.map((item, index) => (
+                  <button
+                    key={`${item.group}-${item.id}`}
+                    className={`command-item ${index === commandIndex ? "is-active" : ""}`}
+                    onMouseEnter={() => setCommandIndex(index)}
+                    onClick={() => runCommand(item)}
+                  >
+                    <span>
+                      <small>{item.group}</small>
+                      <strong>{item.label}</strong>
+                    </span>
+                    <em>{item.hint}</em>
+                  </button>
+                ))
+              ) : (
+                <div className="empty-inline command-empty">
+                  <Sparkles size={22} />
+                  <p>No command found. Try “workspace”, “usage” or “template”.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <SettingsModal
         open={settingsOpen}
         onClose={() => {
@@ -800,6 +1140,33 @@ function CollectionScreen({
         </div>
       </header>
       <div className="collection-grid">{children}</div>
+    </div>
+  );
+}
+
+function UsageBars({ days }: { days: { label: string; iso: string; cost: number }[] }) {
+  const max = Math.max(0.0001, ...days.map((day) => day.cost));
+  return (
+    <div className="usage-chart" aria-label="Seven day usage chart">
+      <svg viewBox="0 0 700 220" role="img">
+        <title>Seven day model costs</title>
+        {days.map((day, index) => {
+          const width = 58;
+          const gap = 42;
+          const x = 36 + index * (width + gap);
+          const height = Math.max(8, (day.cost / max) * 150);
+          const y = 166 - height;
+          return (
+            <g key={day.iso}>
+              <rect className="chart-track" x={x} y={16} width={width} height={150} rx={18} />
+              <rect className="chart-bar" x={x} y={y} width={width} height={height} rx={18}>
+                <title>{`${day.label}: ${formatUsd(day.cost)}`}</title>
+              </rect>
+              <text x={x + width / 2} y={198} textAnchor="middle">{day.label}</text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
