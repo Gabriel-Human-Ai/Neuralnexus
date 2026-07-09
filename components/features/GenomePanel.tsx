@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { POSITIONING_UI } from "@/lib/positioning";
+import { GenomeConstellation } from "@/components/immersive/GenomeConstellation";
 
 export function GenomePanel({ skill, onClose }: { skill: { id: string; name: string; version?: number }; onClose: () => void }) {
   const [rules, setRules] = useState<any[]>([]);
@@ -16,6 +18,7 @@ export function GenomePanel({ skill, onClose }: { skill: { id: string; name: str
   return (
     <div className="feature-sheet">
       <div className="floating-wizard-head"><span>{skill.name} v{skill.version ?? 1}</span><button onClick={onClose}><X size={15} /></button></div>
+      <GenomeConstellation rules={rules} version={skill.version ?? 1} onRuleAction={act} />
       <section>
         <span className="object-label">PROPOSED</span>
         {proposed.length ? proposed.map((rule) => (
@@ -24,7 +27,7 @@ export function GenomePanel({ skill, onClose }: { skill: { id: string; name: str
             <small>{rule.provenance ? `Learned from "${rule.provenance.stepName}" · ${new Date(rule.createdAt).toLocaleDateString()}` : "Learned from an edit"}</small>
             <div><button onClick={() => act(rule.id, "accept")}>Accept</button><button onClick={() => act(rule.id, "reject")}>Reject</button></div>
           </div>
-        )) : <p>Learning you can read: every rule came from an edit you made, and nothing activates without you.</p>}
+        )) : <p>{POSITIONING_UI.microcopy.genome}</p>}
       </section>
       <section>
         <span className="object-label">ACTIVE</span>

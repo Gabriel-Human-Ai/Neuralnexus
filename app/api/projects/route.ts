@@ -21,6 +21,9 @@ export async function POST(req: Request) {
       name: body.name.trim(),
       goal: body.goal ?? "", techStack: body.techStack ?? "", rules: body.rules ?? "",
     }});
+    if (Array.isArray(body.steps)) {
+      await db.setting.upsert({ where: { key: `WORKSPACE_STEPS_${p.id}` }, create: { key: `WORKSPACE_STEPS_${p.id}`, value: JSON.stringify(body.steps.slice(0, 8)) }, update: { value: JSON.stringify(body.steps.slice(0, 8)) } });
+    }
     return NextResponse.json(p);
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }

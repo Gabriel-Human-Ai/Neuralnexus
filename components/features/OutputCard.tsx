@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, GitFork, RefreshCcw, WandSparkles } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
 import { QualityGateReport } from "@/components/features/QualityGateReport";
+import { POSITIONING_UI } from "@/lib/positioning";
 import type { QualityReport } from "@/lib/types";
 
 export type OutputCardOutput = {
@@ -43,7 +44,7 @@ export function OutputCard({ output, onRefine, onRegenerate, onFinalize, onFork 
       <div className="output-actions">
         <button onClick={() => navigator.clipboard.writeText(content).then(() => { setSaved(true); setTimeout(() => setSaved(false), 900); })}>{saved ? <Check size={14} /> : <Copy size={14} />} Copy</button>
         <button onClick={onRegenerate}><RefreshCcw size={14} /> Regenerate</button>
-        <button onClick={() => onFork({ type: "model", value: "gpt-4o-mini" })} aria-label="Fork this output, change one variable, compare." title="Fork this output, change one variable, compare."><GitFork size={14} /> Fork model</button>
+        <button onClick={() => onFork({ type: "model", value: "gpt-4o-mini" })} aria-label={POSITIONING_UI.microcopy.fork} title={POSITIONING_UI.microcopy.fork}><GitFork size={14} /> Fork model</button>
       </div>
       <div className="refine-row">
         <input value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="Refine instruction" />

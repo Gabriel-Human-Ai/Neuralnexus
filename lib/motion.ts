@@ -8,6 +8,8 @@ export const MOTION = {
   easeOut: [0.22, 1, 0.36, 1],
   easeIn: [0.4, 0, 1, 1],
   stagger: 0.045,
+  draw: 0.5,
+  flare: 0.6,
   rise: 12,
   lift: 2,
 } as const;

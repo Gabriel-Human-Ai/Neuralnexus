@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
-import { POSITIONING } from "@/lib/positioning";
+import { POSITIONING, POSITIONING_UI } from "@/lib/positioning";
 
 export function WhySheet({ open, hasWorkspaces, onClose, onCreate }: {
   open: boolean;
@@ -20,11 +20,11 @@ export function WhySheet({ open, hasWorkspaces, onClose, onCreate }: {
   };
 
   return (
-    <div className="why-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Why NeuralNexus" onClick={onClose}>
+    <div className="why-sheet-backdrop" role="dialog" aria-modal="true" aria-label={POSITIONING_UI.whySheet.ariaLabel} onClick={onClose}>
       <aside className="why-sheet" onClick={(event) => event.stopPropagation()}>
         <div className="floating-wizard-head">
-          <span>WHY NEURALNEXUS</span>
-          <button onClick={onClose} aria-label="Close Why NeuralNexus"><X size={15} /></button>
+          <span>{POSITIONING_UI.whySheet.eyebrow}</span>
+          <button onClick={onClose} aria-label={POSITIONING_UI.whySheet.closeAriaLabel}><X size={15} /></button>
         </div>
         <header className="why-sheet-hero">
           <h2>{POSITIONING.oneLiner}</h2>
@@ -41,7 +41,7 @@ export function WhySheet({ open, hasWorkspaces, onClose, onCreate }: {
           ))}
         </section>
         <section className="why-compare">
-          <span className="object-label">COMPARED HONESTLY</span>
+          <span className="object-label">{POSITIONING_UI.whySheet.compareLabel}</span>
           {POSITIONING.compare.map((item) => (
             <article key={item.them}>
               <strong>{item.them}</strong>
@@ -58,7 +58,7 @@ export function WhySheet({ open, hasWorkspaces, onClose, onCreate }: {
             else onCreate();
           }}
         >
-          {hasWorkspaces ? "Back to work" : "Create your first workspace"}
+          {hasWorkspaces ? POSITIONING_UI.whySheet.backCta : POSITIONING_UI.whySheet.createCta}
         </button>
       </aside>
     </div>

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, KeyRound, ShieldCheck, BarChart3, GitBranch, Monitor, Tag, Database, Search, X, Check, Sparkles } from "lucide-react";
+import { POSITIONING_UI } from "@/lib/positioning";
 
 type Keys = Record<string, string>;
 
@@ -186,8 +187,8 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                 {active === "models" && (
                   <>
                     <p className="text-xs text-mist py-2">
-                      Bring keys from any provider — OpenAI, Anthropic, OpenRouter, Google, DeepSeek.<br />
-                      NeuralNexus stays neutral: the right model per step, and proof when a cheaper one matches your quality.
+                      {POSITIONING_UI.connectKey.bodyLine1}<br />
+                      {POSITIONING_UI.connectKey.bodyLine2}
                     </p>
                     {KEY_FIELDS.map(f => (
                       <div key={f.k} className="py-2.5 border-b border-white/8">

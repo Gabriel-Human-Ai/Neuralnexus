@@ -75,3 +75,40 @@ export const POSITIONING = {
     },
   ],
 } as const;
+
+export const POSITIONING_UI = {
+  home: {
+    firstTimeSentence: "Let's turn your method into a workspace.",
+    firstTimeSubLine: "Encode it once. It runs, learns, and meets your bar.",
+    whyLabel: "Why NeuralNexus",
+  },
+  onboarding: {
+    typeHeading: "What method are you turning into a system?",
+    reviewLine: "This is yours — it improves with every run.",
+  },
+  connectKey: {
+    bodyLine1: "Bring keys from any provider — OpenAI, Anthropic, OpenRouter, Google, DeepSeek.",
+    bodyLine2: "NeuralNexus stays neutral: the right model per step, and proof when a cheaper one matches your quality.",
+  },
+  emptyStates: {
+    workspaces: "Your first workspace turns a method you already use into an asset that compounds.",
+    skills: "A skill is your method, packaged — with rules the workspace learns from your edits.",
+    knowledge: "Notes, PDFs and frameworks make outputs sound like you, not like a model.",
+    outputs: "Run a step. Everything you produce keeps its lineage — nothing dies in the scroll.",
+  },
+  microcopy: {
+    qualityGates: "Quality Gates — revised until it meets your bar.",
+    genome: "Learning you can read: every rule came from an edit you made, and nothing activates without you.",
+    autopilot: "Autopilot tests cheaper models against your real runs. Recommendations come with proof — nothing switches without your tap.",
+    fork: "Fork this output, change one variable, compare.",
+    extractor: "Steps, skills and knowledge — extracted from your material, not invented.",
+  },
+  whySheet: {
+    eyebrow: "WHY NEURALNEXUS",
+    compareLabel: "COMPARED HONESTLY",
+    ariaLabel: "Why NeuralNexus",
+    closeAriaLabel: "Close Why NeuralNexus",
+    createCta: "Create your first workspace",
+    backCta: "Back to work",
+  },
+} as const;

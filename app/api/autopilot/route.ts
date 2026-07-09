@@ -25,12 +25,16 @@ export async function GET(req: Request) {
     if (policies.some((policy) => policy.stepName === latest.stepName && policy.model === latest.challengerModel)) return [];
     const avgPrimary = items.reduce((sum, item) => sum + item.primaryCostUsd, 0) / runsCount;
     const avgChallenger = items.reduce((sum, item) => sum + item.challengerCostUsd, 0) / runsCount;
+    const scoreRows = items.slice(0, 8).reverse();
     return [{
       stepName: latest.stepName,
       fromModel: latest.primaryModel,
       toModel: latest.challengerModel,
       runs: runsCount,
       avgScore: Number(avgScore.toFixed(1)),
+      scores: scoreRows.map((item) => item.similarityScore),
+      avgPrimaryCostUsd: Number(avgPrimary.toFixed(6)),
+      avgChallengerCostUsd: Number(avgChallenger.toFixed(6)),
       projectedMonthlySavingUsd: Math.max(0, avgPrimary - avgChallenger) * Math.max(1, userRuns.length),
       samples: items.slice(0, 3).map((item) => item.id),
     }];

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Upload, X } from "lucide-react";
+import { POSITIONING_UI } from "@/lib/positioning";
 
 export function ExtractorSheet({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (projectId: string) => void }) {
   const [text, setText] = useState("");
@@ -32,7 +33,7 @@ export function ExtractorSheet({ open, onClose, onDone }: { open: boolean; onClo
         <div className="floating-wizard-head"><span>INSTANT WORKSPACE</span><button onClick={onClose}><X size={15} /></button></div>
         {status === "input" && <>
           <h2>Drop your method. Get a running system.</h2>
-          <p>Steps, skills and knowledge — extracted from your material, not invented.</p>
+          <p>{POSITIONING_UI.microcopy.extractor}</p>
           <label className="file-drop-zone"><Upload size={20} /><span>Drop .pdf .txt .md</span><input type="file" accept=".pdf,.txt,.md" onChange={(event) => {
             const file = event.target.files?.[0];
             if (file && file.type.startsWith("text")) void file.text().then(setText);

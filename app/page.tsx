@@ -35,12 +35,11 @@ import { FloatingWizard } from "@/components/FloatingWizard";
 import { WhySheet } from "@/components/WhySheet";
 import { AutopilotCard } from "@/components/features/AutopilotCard";
 import { ExtractorSheet } from "@/components/features/ExtractorSheet";
-import { GenomePanel } from "@/components/features/GenomePanel";
 import { OutputCard, type OutputCardOutput } from "@/components/features/OutputCard";
 import type { WizardIntent } from "@/lib/wizardActions";
 import { nextBestAction } from "@/lib/guidance";
 import { MOTION, viewMotion } from "@/lib/motion";
-import { POSITIONING } from "@/lib/positioning";
+import { POSITIONING, POSITIONING_UI } from "@/lib/positioning";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -49,6 +48,10 @@ const WizardOrb = dynamic(() => import("@/components/WizardOrb").then((module) =
   ssr: false,
   loading: () => <div className="wizard-orb-fallback" aria-hidden="true" />,
 });
+const GenomePanel = dynamic(() => import("@/components/features/GenomePanel").then((module) => module.GenomePanel), { ssr: false });
+const Crucible = dynamic(() => import("@/components/immersive/Crucible").then((module) => module.Crucible), { ssr: false });
+const LineageCanvas = dynamic(() => import("@/components/immersive/LineageCanvas").then((module) => module.LineageCanvas), { ssr: false });
+const WorkflowSpine = dynamic(() => import("@/components/immersive/WorkflowSpine").then((module) => module.WorkflowSpine), { ssr: false });
 
 type Project = {
   id: string;
@@ -102,7 +105,7 @@ type UploadedSource = {
   name: string;
   kind: "text" | "image" | "pdf" | "file";
   size: number;
-  preview: string;
+  preview?: string;
   dataUrl?: string;
 };
 type GeneralChatMessage = {
@@ -115,9 +118,15 @@ type OutputListItem = {
   stepName: string;
   status: string;
   model: string;
+  provider?: string;
   costUsd: number;
+  skillVersion: number;
+  finalContent?: string;
+  draftContent?: string;
+  knowledgeIds?: string;
+  qualityReport?: string;
   createdAt: string;
-  preview: string;
+  preview?: string;
   parentOutputId?: string | null;
   forkChangedVariable?: string | null;
 };
@@ -428,6 +437,8 @@ export default function Home() {
   const [finalState, setFinalState] = useState<"idle" | "loading" | "complete">("idle");
   const [currentOutput, setCurrentOutput] = useState<OutputCardOutput | null>(null);
   const [outputs, setOutputs] = useState<OutputListItem[]>([]);
+  const [crucibleInput, setCrucibleInput] = useState("");
+  const [builtMaterialization, setBuiltMaterialization] = useState(false);
   const [checklist, setChecklist] = useState<string[]>([]);
   const [newCheck, setNewCheck] = useState("");
   const [genomeSkill, setGenomeSkill] = useState<Skill | null>(null);
@@ -456,6 +467,14 @@ export default function Home() {
   );
   const selectedWorkspace = projects.find((project) => project.id === selectedWorkspaceId) ?? projects[0];
   const selectedWorkspaceMode = inferMode(selectedWorkspace);
+  const workspaceSteps = useMemo<{ name: string; description?: string }[]>(() => {
+    if (!selectedWorkspace?.id) return selectedWorkspaceMode.steps.map((name) => ({ name }));
+    try {
+      const parsed = JSON.parse(keys[`WORKSPACE_STEPS_${selectedWorkspace.id}`] ?? "[]");
+      if (Array.isArray(parsed) && parsed.length) return parsed.map((step: any) => ({ name: String(step.name ?? step), description: step.description ? String(step.description) : undefined }));
+    } catch {}
+    return selectedWorkspaceMode.steps.map((name) => ({ name }));
+  }, [keys, selectedWorkspace?.id, selectedWorkspaceMode.steps]);
   const hasWorkspaces = projects.length > 0;
   const runs = useMemo(() => (costs.runs ?? []) as ModelRun[], [costs.runs]);
   const usage = useMemo(() => buildUsageAnalytics(runs), [runs]);
@@ -548,6 +567,17 @@ export default function Home() {
     setChecklist(defaultChecklist(selectedWorkspaceMode.id));
   }, [selectedWorkspace?.id, selectedWorkspaceMode.id]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("built") === "1") {
+      setBuiltMaterialization(true);
+      url.searchParams.delete("built");
+      window.history.replaceState({}, "", url.toString());
+      window.setTimeout(() => setBuiltMaterialization(false), 900);
+    }
+  }, []);
+
   async function loadData() {
     const [projectData, skillData, costData, settingsData] = await Promise.all([
       safeJson("/api/projects"),
@@ -597,6 +627,7 @@ export default function Home() {
         name: workspaceName,
         goal: `${workspaceIntent}\nAudience: ${workspaceAudience}\nMode: ${selectedMode.label}\nOutput: ${selectedMode.output}\nSource context:\n${sourceSummary || "No source attached yet."}`,
         rules: `Workflow steps: ${selectedMode.steps.join(" | ")}\nSkills: ${selectedMode.skills.join(" | ")}\nKnowledge sources: ${workspaceSources.map((source) => source.name).join(", ") || "none"}`,
+        steps: selectedMode.steps.map((name) => ({ name })),
       }),
     });
     await loadData();
@@ -763,40 +794,14 @@ export default function Home() {
   async function runNextStep(userInput = "") {
     if (!selectedWorkspace) return;
     setStepState("loading");
+    setCrucibleInput(userInput);
+    setWorkspacePanel("workflow");
     window.dispatchEvent(new CustomEvent("nexus:orb", { detail: { state: "thinking" } }));
-    const response = await fetch("/api/outputs/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        projectId: selectedWorkspace.id,
-        stepName: selectedWorkspaceMode.steps[0],
-        stepDescription: selectedWorkspaceMode.purpose,
-        userInput,
-        skillId: skills[0]?.id,
-        checklist,
-      }),
-    });
-    const data = await response.json();
-    if (response.ok) {
-      setCurrentOutput({
-        id: data.outputId,
-        stepName: selectedWorkspaceMode.steps[0],
-        model: data.model,
-        provider: data.provider,
-        costUsd: data.costUsd,
-        content: data.content,
-        skillVersion: skills[0]?.version ?? 1,
-        qualityReport: data.qualityReport,
-      });
-      await loadOutputs(selectedWorkspace.id);
-      window.dispatchEvent(new CustomEvent("nexus:orb", { detail: { state: "success" } }));
-      setStepState("complete");
-      setWorkspacePanel("outputs");
-    } else {
-      setStepState("idle");
-      window.dispatchEvent(new CustomEvent("nexus:orb", { detail: { state: "idle" } }));
-      alert(data.error || "Output run failed.");
-    }
+  }
+
+  async function openOutput(output: OutputListItem) {
+    const full = output.finalContent || output.draftContent ? output : await safeJson(`/api/outputs/${output.id}`);
+    if (full?.id) setCurrentOutput({ id: full.id, stepName: full.stepName, model: full.model, provider: full.provider, costUsd: full.costUsd, content: full.finalContent || full.draftContent, skillVersion: full.skillVersion, knowledgeIds: full.knowledgeIds, qualityReport: full.qualityReport ? typeof full.qualityReport === "string" ? JSON.parse(full.qualityReport) : full.qualityReport : null });
   }
 
   async function saveAsFinal(content?: string) {
@@ -958,7 +963,7 @@ export default function Home() {
       })),
       {
         id: "why-neuralnexus",
-        label: "Why NeuralNexus",
+        label: POSITIONING_UI.home.whyLabel,
         group: "Help",
         hint: "Understand the system frame",
         action: () => setWhyOpen(true),
@@ -1098,8 +1103,8 @@ export default function Home() {
               )}
               <div className="home-guidance-copy">
                 <span className="eyebrow">PERSONAL WIZARD</span>
-                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : "Let's turn your method into a workspace."}</h1>
-                <p>{hasWorkspaces ? `Next: ${selectedWorkspaceMode.steps[0]}.` : "Encode it once. It runs, learns, and meets your bar."}</p>
+                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : POSITIONING_UI.home.firstTimeSentence}</h1>
+                <p>{hasWorkspaces ? `Next: ${selectedWorkspaceMode.steps[0]}.` : POSITIONING_UI.home.firstTimeSubLine}</p>
                 <small>{hasWorkspaces ? guidance.description : POSITIONING.oneLiner}</small>
               </div>
             </section>
@@ -1127,7 +1132,7 @@ export default function Home() {
               <button onClick={() => setView("workspaces")}>{projects.length} workspaces</button>
               <button onClick={() => setView("skills")}>{skills.length} skills</button>
               <button onClick={() => setView("usage")}>{formatUsd(usage.month)} this month</button>
-              <button onClick={() => setWhyOpen(true)}>Why NeuralNexus</button>
+              <button onClick={() => setWhyOpen(true)}>{POSITIONING_UI.home.whyLabel}</button>
             </section>
           </div>
         )}
@@ -1149,7 +1154,7 @@ export default function Home() {
               <div className="empty-state">
                 <WorkspaceObject mode={selectedMode} />
                 <h2>No workspaces yet.</h2>
-                <p>Your first workspace turns a method you already use into an asset that compounds.</p>
+                <p>{POSITIONING_UI.emptyStates.workspaces}</p>
                 <button className="primary-pill" onClick={() => setWizardOpen(true)}>
                   <Plus size={18} /> Create workspace
                 </button>
@@ -1225,7 +1230,7 @@ export default function Home() {
                         </section>
                         <section className="last-output-card liquid-card">
                           <span className="object-label">LAST OUTPUT</span>
-                          <p>Run a step. Everything you produce keeps its lineage — nothing dies in the scroll.</p>
+                          <p>{POSITIONING_UI.emptyStates.outputs}</p>
                           <button className="quiet-link" onClick={() => setWorkspacePanel("outputs")}>View outputs</button>
                         </section>
                       </div>
@@ -1234,7 +1239,7 @@ export default function Home() {
                     {workspacePanel === "workflow" && (
                       <div className="action-panel">
                         <span className="object-label">NEXT STEP</span>
-                        <h3>{selectedWorkspaceMode.steps[0]}</h3>
+                        <h3>{workspaceSteps[0]?.name ?? selectedWorkspaceMode.steps[0]}</h3>
                         <p>This step turns rough audience notes into a precise profile and gives the workspace a useful direction.</p>
                         <div className="run-summary">
                           <span>Active Skill: {selectedWorkspaceMode.skills[0]}</span>
@@ -1243,7 +1248,7 @@ export default function Home() {
                         </div>
                         <div className="checklist-editor">
                           <span className="object-label">QUALITY GATES</span>
-                          <p className="muted-helper">Quality Gates — revised until it meets your bar.</p>
+                          <p className="muted-helper">{POSITIONING_UI.microcopy.qualityGates}</p>
                           <div className="check-chip-row">
                             {checklist.map((check) => (
                               <button key={check} onClick={() => setChecklist((items) => items.filter((item) => item !== check))}>{check} <X size={12} /></button>
@@ -1256,14 +1261,41 @@ export default function Home() {
                             </div>
                           )}
                         </div>
-                        <PremiumSlideAction
-                          label="Slide to run next step"
-                          completionText="Step prepared"
-                          estimatedCost="$0.03-$0.09"
-                          loading={stepState === "loading"}
-                          completed={stepState === "complete"}
-                          onComplete={() => runNextStep()}
-                        />
+                        {stepState === "loading" && selectedWorkspace ? (
+                          <Crucible
+                            projectId={selectedWorkspace.id}
+                            stepName={workspaceSteps[0]?.name ?? selectedWorkspaceMode.steps[0]}
+                            stepDescription={workspaceSteps[0]?.description ?? selectedWorkspaceMode.purpose}
+                            userInput={crucibleInput}
+                            skillId={skills[0]?.id}
+                            checklist={checklist}
+                            onCancel={() => setStepState("idle")}
+                            onFinal={async (data) => {
+                              setCurrentOutput({
+                                id: data.outputId,
+                                stepName: workspaceSteps[0]?.name ?? selectedWorkspaceMode.steps[0],
+                                model: data.model,
+                                provider: data.provider,
+                                costUsd: data.costUsd,
+                                content: data.content,
+                                skillVersion: skills[0]?.version ?? 1,
+                                qualityReport: data.qualityReport,
+                              });
+                              await loadOutputs(selectedWorkspace.id);
+                              setStepState("complete");
+                              setWorkspacePanel("outputs");
+                            }}
+                          />
+                        ) : (
+                          <WorkflowSpine
+                            steps={workspaceSteps}
+                            outputs={outputs}
+                            built={builtMaterialization}
+                            running={stepState === "loading"}
+                            completed={stepState === "complete"}
+                            onRun={() => runNextStep()}
+                          />
+                        )}
                       </div>
                     )}
 
@@ -1278,20 +1310,10 @@ export default function Home() {
                             onFork={forkOutput}
                           />
                         ) : outputs.length ? (
-                          <div className="output-list">
-                            {outputs.map((output) => (
-                              <button key={output.id} className={`output-list-row ${output.parentOutputId ? "is-fork" : ""}`} onClick={async () => {
-                                const full = await safeJson(`/api/outputs/${output.id}`);
-                                if (full?.id) setCurrentOutput({ id: full.id, stepName: full.stepName, model: full.model, provider: full.provider, costUsd: full.costUsd, content: full.finalContent || full.draftContent, skillVersion: full.skillVersion, knowledgeIds: full.knowledgeIds, qualityReport: full.qualityReport ? JSON.parse(full.qualityReport) : null });
-                              }}>
-                                <span>{output.parentOutputId ? `fork · ${output.forkChangedVariable}` : output.stepName}</span>
-                                <small>{output.model} · ${output.costUsd.toFixed(4)}</small>
-                              </button>
-                            ))}
-                          </div>
+                          <LineageCanvas outputs={outputs} onOpen={(output) => void openOutput(output)} />
                         ) : (
                           <div className="empty-inline">
-                            <p>Run a step. Everything you produce keeps its lineage — nothing dies in the scroll.</p>
+                            <p>{POSITIONING_UI.emptyStates.outputs}</p>
                             <button className="secondary-pill" onClick={() => setWorkspacePanel("workflow")}>Run first step</button>
                           </div>
                         )}
@@ -1421,7 +1443,7 @@ export default function Home() {
           <CollectionScreen
             eyebrow="SKILLS"
             title="Packaged intellectual products"
-            description="A skill is your method, packaged — with rules the workspace learns from your edits."
+            description={POSITIONING_UI.emptyStates.skills}
           >
             {(skills.length ? skills : [
               { id: "brand-critic", name: "Brand Critic", description: "Finds weak positioning, generic messaging and visual inconsistencies." },
@@ -1478,7 +1500,7 @@ export default function Home() {
           <CollectionScreen
             eyebrow="KNOWLEDGE"
             title="Source material for reusable work"
-            description="Notes, PDFs and frameworks make outputs sound like you, not like a model."
+            description={POSITIONING_UI.emptyStates.knowledge}
           >
             {starterKnowledge.map((source) => (
               <div key={source} className="knowledge-card liquid-card">
@@ -1510,7 +1532,7 @@ export default function Home() {
             <section className="liquid-panel usage-panel">
               <div className="section-head">
                 <span>AUTOPILOT</span>
-                  <small>Autopilot tests cheaper models against your real runs. Recommendations come with proof — nothing switches without your tap.</small>
+                  <small>{POSITIONING_UI.microcopy.autopilot}</small>
               </div>
               {autopilot.disabled ? (
                 <div className="empty-inline"><p>Autopilot needs a connected model.</p></div>
@@ -1521,7 +1543,7 @@ export default function Home() {
                   ))}
                 </div>
               ) : (
-                <div className="empty-inline"><p>Autopilot tests cheaper models against your real runs. Recommendations come with proof — nothing switches without your tap.</p></div>
+                <div className="empty-inline"><p>{POSITIONING_UI.microcopy.autopilot}</p></div>
               )}
               {autopilot.policies?.length > 0 && (
                 <div className="model-table">
@@ -1629,7 +1651,7 @@ export default function Home() {
             </button>
             <button onClick={() => { setWhyOpen(true); setMoreOpen(false); }}>
               <Compass size={17} />
-              <span>Why NeuralNexus</span>
+              <span>{POSITIONING_UI.home.whyLabel}</span>
             </button>
           </div>
         </div>
@@ -1650,7 +1672,7 @@ export default function Home() {
             <div key={wizardStep} className="guided-wizard-step">
               {wizardStep === "type" && (
                 <>
-                  <h2>What method are you turning into a system?</h2>
+                  <h2>{POSITIONING_UI.onboarding.typeHeading}</h2>
                   <p>Pick the closest mode. You can refine the exact workspace in the next steps.</p>
                   <ModeSelector selectedId={selectedModeId} onSelect={(id) => { setSelectedModeId(id); setTimeout(() => setWizardStep("audience"), 180); }} />
                 </>
@@ -1742,7 +1764,7 @@ export default function Home() {
               {wizardStep === "review" && (
                 <>
                   <h2>Your workspace is ready.</h2>
-                  <p>This is yours — it improves with every run.</p>
+                  <p>{POSITIONING_UI.onboarding.reviewLine}</p>
                   <div className="summary-card guided-summary">
                     <span className="object-label">{selectedMode.label} WORKSPACE</span>
                     <strong>{workspaceName}</strong>
@@ -1853,6 +1875,19 @@ export default function Home() {
           setWizardOpen(false);
           setSelectedWorkspaceId(projectId);
           setView("workspaces");
+          setWorkspacePanel("workflow");
+          setBuiltMaterialization(true);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            url.searchParams.set("built", "1");
+            window.history.pushState({}, "", url.toString());
+            window.setTimeout(() => {
+              const clean = new URL(window.location.href);
+              clean.searchParams.delete("built");
+              window.history.replaceState({}, "", clean.toString());
+              setBuiltMaterialization(false);
+            }, 900);
+          }
           void loadData();
         }}
       />

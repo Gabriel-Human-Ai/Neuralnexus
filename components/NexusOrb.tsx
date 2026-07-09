@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { createOrbMaterial, createOrbUniforms } from "@/lib/orb-material";
+import { claimWebGL, onWebGLChange, releaseWebGL, webglSupported } from "@/lib/webgl-guard";
 
 export type OrbState = "idle" | "listening" | "thinking" | "responding" | "success";
 
@@ -12,66 +14,6 @@ type NexusOrbProps = {
   reducedMotion?: boolean;
   className?: string;
 };
-
-const vertexShader = `
-  uniform float uTime;
-  uniform float uAmplitude;
-  uniform float uSpeed;
-  uniform float uFrequency;
-  varying vec3 vNormal;
-  varying vec3 vWorldPosition;
-
-  float hash(vec3 p) {
-    p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
-    p *= 17.0;
-    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-  }
-
-  float noise(vec3 p) {
-    vec3 i = floor(p);
-    vec3 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
-          mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-      mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-          mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
-      f.z
-    );
-  }
-
-  void main() {
-    vNormal = normalize(normalMatrix * normal);
-    vec3 pos = position;
-    float slow = noise(pos * uFrequency + vec3(uTime * uSpeed * 0.32));
-    float fine = noise(pos * (uFrequency * 3.1) + vec3(-uTime * uSpeed * 0.78));
-    float displacement = ((slow - 0.5) * 0.78 + (fine - 0.5) * 0.22) * uAmplitude;
-    pos += normal * displacement;
-    vec4 world = modelMatrix * vec4(pos, 1.0);
-    vWorldPosition = world.xyz;
-    gl_Position = projectionMatrix * viewMatrix * world;
-  }
-`;
-
-const fragmentShader = `
-  uniform float uEnergy;
-  uniform float uFresnel;
-  varying vec3 vNormal;
-  varying vec3 vWorldPosition;
-
-  vec3 warm = vec3(0.784, 0.663, 0.416);
-  vec3 charcoal = vec3(0.043, 0.051, 0.059);
-
-  void main() {
-    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-    float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 3.0);
-    float centerGlow = 1.0 - smoothstep(0.0, 1.35, length(vWorldPosition.xy));
-    vec3 base = mix(charcoal, warm, centerGlow * (0.25 + uEnergy * 0.22));
-    vec3 rim = warm * fresnel * uFresnel;
-    float alpha = 0.36 + fresnel * 0.42 + centerGlow * 0.16;
-    gl_FragColor = vec4(base + rim, alpha);
-  }
-`;
 
 const STATE_TARGETS: Record<OrbState, { amplitude: number; speed: number; fresnel: number; rotation: number; energy: number }> = {
   idle: { amplitude: 0.12, speed: 0.15, fresnel: 0.6, rotation: 0.05, energy: 0.35 },
@@ -85,32 +27,33 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function canUseWebGL() {
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl") || canvas.getContext("experimental-webgl"));
-  } catch {
-    return false;
-  }
-}
-
 export function NexusOrb({ size = 360, state = "idle", interactive = false, reducedMotion = false, className = "" }: NexusOrbProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OrbState>(state);
   const pulseRef = useRef(0);
   const [fallback, setFallback] = useState(false);
+  const [blockedByConstellation, setBlockedByConstellation] = useState(false);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
-    if (!canUseWebGL()) {
+    return onWebGLChange((claim) => setBlockedByConstellation(claim === "constellation"));
+  }, []);
+
+  useEffect(() => {
+    if (blockedByConstellation) {
       setFallback(true);
       return;
     }
+    const mount = mountRef.current;
+    if (!mount) return;
+    if (!webglSupported() || !claimWebGL("orb")) {
+      setFallback(true);
+      return;
+    }
+    setFallback(false);
 
     const reduce = reducedMotion || prefersReducedMotion();
     const lowQuality = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4);
@@ -133,22 +76,13 @@ export function NexusOrb({ size = 360, state = "idle", interactive = false, redu
     coolLight.position.set(-1.8, -1.2, 1.2);
     scene.add(coolLight);
 
-    const uniforms = {
-      uTime: { value: 0 },
+    const uniforms = createOrbUniforms({
       uAmplitude: { value: STATE_TARGETS[stateRef.current].amplitude },
       uSpeed: { value: STATE_TARGETS[stateRef.current].speed },
-      uFrequency: { value: 1.9 },
       uEnergy: { value: STATE_TARGETS[stateRef.current].energy },
       uFresnel: { value: STATE_TARGETS[stateRef.current].fresnel },
-    };
-    const material = new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader,
-      fragmentShader,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
     });
+    const material = createOrbMaterial(uniforms);
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, detail), material);
     scene.add(core);
 
@@ -247,9 +181,11 @@ export function NexusOrb({ size = 360, state = "idle", interactive = false, redu
         else mat?.dispose();
       });
       renderer.dispose();
+      renderer.forceContextLoss();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
+      releaseWebGL("orb");
     };
-  }, [reducedMotion, size]);
+  }, [blockedByConstellation, reducedMotion, size]);
 
   return (
     <button
