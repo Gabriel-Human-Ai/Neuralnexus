@@ -11,6 +11,7 @@ import {
   Check,
   ChevronRight,
   Compass,
+  Copy,
   Database,
   Download,
   Eye,
@@ -20,7 +21,9 @@ import {
   Layers3,
   Lock,
   MessageCircle,
+  PencilLine,
   Plus,
+  RefreshCcw,
   Settings,
   SlidersHorizontal,
   Sparkles,
@@ -426,6 +429,7 @@ export default function Home() {
   const [generalInput, setGeneralInput] = useState("");
   const [generalBusy, setGeneralBusy] = useState(false);
   const [generalAttachments, setGeneralAttachments] = useState<UploadedSource[]>([]);
+  const [copiedMessage, setCopiedMessage] = useState<number | null>(null);
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -653,13 +657,13 @@ export default function Home() {
     setGeneralAttachments((current) => [...current, ...parsed.filter((source) => !current.some((item) => item.id === source.id))]);
   }
 
-  async function askWizard(input: string, attachments: UploadedSource[] = []) {
+  async function askWizard(input: string, attachments: UploadedSource[] = [], history = generalMessages.slice(-8)) {
     const response = await fetch("/api/wizard-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         input,
-        messages: generalMessages.slice(-8),
+        messages: history,
         attachments,
       }),
     });
@@ -685,6 +689,38 @@ export default function Home() {
     } finally {
       setGeneralBusy(false);
     }
+  }
+
+  async function copyChatMessage(content: string, index: number) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessage(index);
+      window.setTimeout(() => setCopiedMessage(null), 1300);
+    } catch {
+      setCopiedMessage(null);
+    }
+  }
+
+  async function regenerateChatMessage(index: number) {
+    if (generalBusy) return;
+    const previousUserIndex = generalMessages.slice(0, index).map((message) => message.role).lastIndexOf("user");
+    if (previousUserIndex < 0) return;
+    const prompt = generalMessages[previousUserIndex].content;
+    const history = generalMessages.slice(0, previousUserIndex + 1).slice(-8);
+    setGeneralMessages(generalMessages.slice(0, index));
+    setGeneralBusy(true);
+    try {
+      const answer = await askWizard(prompt, [], history);
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer }]);
+    } catch (error: any) {
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not regenerate that answer." }]);
+    } finally {
+      setGeneralBusy(false);
+    }
+  }
+
+  function editChatMessage(message: GeneralChatMessage) {
+    setGeneralInput(message.role === "assistant" ? `Please revise this answer:\n\n${message.content}` : message.content);
   }
 
   function startWorkspaceSession() {
@@ -1358,7 +1394,22 @@ export default function Home() {
                 ) : (
                   generalMessages.map((message, index) => (
                     <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
-                      <span>{message.role === "user" ? "You" : "Wizard"}</span>
+                      <div className="chat-bubble-meta">
+                        <span>{message.role === "user" ? "You" : "Wizard"}</span>
+                        {message.role === "assistant" && (
+                          <div className="chat-bubble-actions" aria-label="Message actions">
+                            <button onClick={() => void copyChatMessage(message.content, index)} aria-label="Copy answer" title="Copy">
+                              {copiedMessage === index ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+                            <button onClick={() => void regenerateChatMessage(index)} disabled={generalBusy} aria-label="Regenerate answer" title="Regenerate">
+                              <RefreshCcw size={14} />
+                            </button>
+                            <button onClick={() => editChatMessage(message)} aria-label="Edit answer as draft" title="Edit">
+                              <PencilLine size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <p>{message.content}</p>
                     </div>
                   ))

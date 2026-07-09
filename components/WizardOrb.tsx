@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
 
 export type WizardOrbState = "idle" | "listening" | "thinking" | "generating" | "success" | "alert";
 
@@ -36,6 +37,28 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
+function seeded(index: number) {
+  const x = Math.sin(index * 999.91) * 10000;
+  return x - Math.floor(x);
+}
+
+function pointOnSphere(theta: number, phi: number, radius: number) {
+  return new THREE.Vector3(
+    Math.cos(theta) * Math.sin(phi) * radius,
+    Math.cos(phi) * radius,
+    Math.sin(theta) * Math.sin(phi) * radius,
+  );
+}
+
+function canUseWebGL() {
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(canvas.getContext("webgl") || canvas.getContext("experimental-webgl"));
+  } catch {
+    return false;
+  }
+}
+
 export function WizardOrb({
   size = 320,
   intensity = 62,
@@ -46,110 +69,210 @@ export function WizardOrb({
   reducedMotion = false,
   className = "",
 }: WizardOrbProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [touchPulse, setTouchPulse] = useState(0);
+  const mountRef = useRef<HTMLDivElement | null>(null);
+  const touchPulseRef = useRef(0);
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
   const prefersReduced = usePrefersReducedMotion();
   const shouldReduce = reducedMotion || prefersReduced;
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    if (!canUseWebGL()) {
+      setWebglUnavailable(true);
+      return;
+    }
+    setWebglUnavailable(false);
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    let frame = 0;
-    let raf = 0;
-    const center = size / 2;
-    const baseRadius = size * 0.265;
     const safeHue = Number.isFinite(hue) ? Number(hue) : STATE_HUE[state];
     const safeIntensity = Math.max(12, Math.min(100, intensity));
     const safeSpeed = Math.max(1, Math.min(100, speed));
-    const stateBoost = state === "listening" ? 0.18 : state === "generating" ? 0.25 : state === "success" ? 0.12 : 0;
-    const breathSeconds = 6.8 - (safeSpeed / 100) * 2.2;
-    const lineCount = state === "generating" ? 58 : state === "listening" ? 48 : 38;
+    const stateBoost = state === "generating" ? 0.36 : state === "listening" ? 0.2 : state === "thinking" ? 0.14 : state === "alert" ? 0.18 : 0;
+    const breathSeconds = 9.2 - (safeSpeed / 100) * 3.4;
+    const shellColor = new THREE.Color(`hsl(${safeHue}, 100%, 72%)`);
+    const rimColor = new THREE.Color(`hsl(${safeHue + 8}, 100%, 90%)`);
+    const coreColor = new THREE.Color(`hsl(${safeHue + 4}, 100%, 96%)`);
 
-    const drawLine = (time: number, index: number, radius: number) => {
-      const phase = index * 1.618;
-      const start = phase + time * 0.09;
-      const length = 0.45 + Math.sin(time * 0.18 + index) * 0.18;
-      context.beginPath();
-      for (let step = 0; step < 16; step++) {
-        const t = step / 15;
-        const angle = start + t * length;
-        const wobble = Math.sin(time * 0.42 + index * 2.1 + t * 6) * 4;
-        const r = radius + wobble + Math.sin(index + t * 9) * 3;
-        const x = center + Math.cos(angle) * r;
-        const y = center + Math.sin(angle) * r;
-        if (step === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(dpr);
+    renderer.setSize(size, size);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+    camera.position.set(0, 0, 4.25);
+
+    const orb = new THREE.Group();
+    scene.add(orb);
+
+    const ambient = new THREE.AmbientLight(0xcfeeff, 0.9);
+    scene.add(ambient);
+
+    const coreLight = new THREE.PointLight(coreColor, 4 + safeIntensity / 15, 6, 1.8);
+    coreLight.position.set(0, 0, 0);
+    scene.add(coreLight);
+
+    const rimLight = new THREE.PointLight(rimColor, 2.4, 5, 2);
+    rimLight.position.set(-1.4, 1.2, 1.8);
+    scene.add(rimLight);
+
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 64, 64),
+      new THREE.MeshBasicMaterial({
+        color: coreColor,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    orb.add(core);
+
+    const innerHalo = new THREE.Mesh(
+      new THREE.SphereGeometry(0.74, 64, 64),
+      new THREE.MeshBasicMaterial({
+        color: shellColor,
+        transparent: true,
+        opacity: 0.22 + safeIntensity / 560,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    orb.add(innerHalo);
+
+    const glassShell = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 96, 96),
+      new THREE.MeshPhysicalMaterial({
+        color: shellColor,
+        transparent: true,
+        opacity: 0.24,
+        roughness: 0.05,
+        metalness: 0,
+        transmission: 0.82,
+        thickness: 1.2,
+        ior: 1.45,
+        clearcoat: 1,
+        clearcoatRoughness: 0.08,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      } as any),
+    );
+    orb.add(glassShell);
+
+    const edgeShell = new THREE.Mesh(
+      new THREE.SphereGeometry(1.018, 96, 96),
+      new THREE.MeshBasicMaterial({
+        color: rimColor,
+        transparent: true,
+        opacity: 0.11 + safeIntensity / 900,
+        wireframe: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    orb.add(edgeShell);
+
+    const filamentGroup = new THREE.Group();
+    const filamentMaterials: THREE.LineBasicMaterial[] = [];
+    const lineCount = state === "generating" ? 92 : state === "listening" ? 78 : 66;
+    for (let i = 0; i < lineCount; i++) {
+      const exterior = i % 3 === 0;
+      const baseTheta = seeded(i + 3) * Math.PI * 2;
+      const basePhi = 0.34 + seeded(i + 11) * (Math.PI - 0.68);
+      const arc = 0.22 + seeded(i + 19) * (exterior ? 0.55 : 0.9);
+      const radius = exterior ? 1.02 + seeded(i + 29) * 0.18 : 0.28 + seeded(i + 31) * 0.72;
+      const points: THREE.Vector3[] = [];
+      for (let step = 0; step < 22; step++) {
+        const t = step / 21;
+        const wobble = Math.sin(t * Math.PI) * (seeded(i + step) - 0.5) * 0.38;
+        points.push(pointOnSphere(baseTheta + arc * t + wobble, basePhi + Math.sin(t * Math.PI * 2 + i) * 0.08, radius));
       }
-      const alpha = 0.12 + (safeIntensity / 100) * 0.26;
-      context.strokeStyle = `hsla(${safeHue + 4}, 100%, 82%, ${alpha})`;
-      context.lineWidth = 0.7 + (index % 4) * 0.16;
-      context.shadowColor = `hsla(${safeHue}, 100%, 72%, 0.72)`;
-      context.shadowBlur = 8 + safeIntensity * 0.08;
-      context.stroke();
-    };
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({
+        color: i % 5 === 0 ? coreColor : rimColor,
+        transparent: true,
+        opacity: exterior ? 0.34 + safeIntensity / 380 : 0.13 + safeIntensity / 640,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      filamentMaterials.push(material);
+      filamentGroup.add(new THREE.Line(geometry, material));
+    }
+    orb.add(filamentGroup);
 
-    const draw = (now: number) => {
+    const particlePositions: number[] = [];
+    const particleCount = 150;
+    for (let i = 0; i < particleCount; i++) {
+      const theta = seeded(i + 101) * Math.PI * 2;
+      const phi = Math.acos(2 * seeded(i + 203) - 1);
+      const radius = 0.95 + seeded(i + 307) * 0.36;
+      const point = pointOnSphere(theta, phi, radius);
+      particlePositions.push(point.x, point.y, point.z);
+    }
+    const particlesGeometry = new THREE.BufferGeometry();
+    particlesGeometry.setAttribute("position", new THREE.Float32BufferAttribute(particlePositions, 3));
+    const particles = new THREE.Points(
+      particlesGeometry,
+      new THREE.PointsMaterial({
+        color: rimColor,
+        size: 0.016,
+        transparent: true,
+        opacity: 0.42,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    orb.add(particles);
+
+    let raf = 0;
+    const render = (now: number) => {
       const time = now / 1000;
+      const pulse = Math.max(0, 1 - (time - touchPulseRef.current) / 1.35);
       const breath = shouldReduce ? 0 : Math.sin((time / breathSeconds) * Math.PI * 2);
-      const slow = shouldReduce ? 0 : time * 0.08;
-      const pulse = Math.max(0, 1 - (time - touchPulse) / 1.25);
-      const breathScale = 1 + breath * 0.018 + pulse * 0.03 + stateBoost * 0.03;
-      const radius = baseRadius * breathScale;
+      const scale = 1 + breath * 0.022 + pulse * 0.045 + stateBoost * 0.018;
 
-      context.clearRect(0, 0, size, size);
-      context.globalCompositeOperation = "source-over";
+      orb.scale.setScalar(scale);
+      core.scale.setScalar(1 + breath * 0.045 + pulse * 0.12 + stateBoost * 0.08);
+      innerHalo.scale.setScalar(1.02 + breath * 0.035 + pulse * 0.08);
+      coreLight.intensity = 4 + safeIntensity / 15 + pulse * 2.8 + stateBoost * 2.2;
 
-      const aura = context.createRadialGradient(center, center, radius * 0.12, center, center, radius * 1.95);
-      aura.addColorStop(0, `hsla(${safeHue + 6}, 100%, 88%, ${0.48 + stateBoost})`);
-      aura.addColorStop(0.38, `hsla(${safeHue}, 100%, 62%, ${0.24 + safeIntensity / 520})`);
-      aura.addColorStop(0.74, `hsla(${safeHue + 18}, 100%, 58%, ${0.075 + pulse * 0.06})`);
-      aura.addColorStop(1, "rgba(0,0,0,0)");
-      context.fillStyle = aura;
-      context.beginPath();
-      context.arc(center, center, radius * 2.08, 0, Math.PI * 2);
-      context.fill();
+      if (!shouldReduce) {
+        orb.rotation.y = time * (0.045 + safeSpeed / 1800);
+        orb.rotation.x = Math.sin(time * 0.16) * 0.06;
+        filamentGroup.rotation.z = -time * (0.032 + safeSpeed / 2600);
+        filamentGroup.rotation.y = time * 0.026;
+        particles.rotation.y = -time * 0.034;
+        edgeShell.rotation.y = time * 0.05;
+        glassShell.rotation.x = Math.sin(time * 0.11) * 0.035;
+      }
 
-      const core = context.createRadialGradient(center - radius * 0.22, center - radius * 0.22, radius * 0.04, center, center, radius);
-      core.addColorStop(0, `hsla(${safeHue + 10}, 100%, 98%, ${0.95})`);
-      core.addColorStop(0.26, `hsla(${safeHue + 4}, 100%, 86%, ${0.72})`);
-      core.addColorStop(0.58, `hsla(${safeHue}, 92%, 58%, ${0.34})`);
-      core.addColorStop(1, `hsla(${safeHue + 18}, 88%, 44%, ${0.08})`);
-      context.fillStyle = core;
-      context.shadowColor = `hsla(${safeHue}, 100%, 76%, ${0.9})`;
-      context.shadowBlur = 30 + safeIntensity * 0.32;
-      context.beginPath();
-      context.arc(center, center, radius * 0.94, 0, Math.PI * 2);
-      context.fill();
+      filamentMaterials.forEach((material, index) => {
+        material.opacity = (index % 3 === 0 ? 0.28 : 0.12) + safeIntensity / (index % 3 === 0 ? 440 : 760) + pulse * 0.16;
+      });
 
-      context.globalCompositeOperation = "screen";
-      for (let i = 0; i < lineCount; i++) drawLine(slow, i, radius * (0.92 + (i % 5) * 0.018));
-
-      context.shadowBlur = 0;
-      context.strokeStyle = `hsla(${safeHue + 8}, 100%, 90%, ${0.42 + pulse * 0.26})`;
-      context.lineWidth = 1.2;
-      context.beginPath();
-      context.arc(center, center, radius * (1.04 + pulse * 0.08), 0, Math.PI * 2);
-      context.stroke();
-
-      context.globalCompositeOperation = "source-over";
-      frame += 1;
-      if (!shouldReduce) raf = requestAnimationFrame(draw);
+      renderer.render(scene, camera);
+      if (!shouldReduce) raf = requestAnimationFrame(render);
     };
 
-    draw(performance.now());
-    if (!shouldReduce) raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [hue, intensity, reducedMotion, shouldReduce, size, speed, state, touchPulse]);
+    render(performance.now());
+    if (!shouldReduce) raf = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      scene.traverse((child) => {
+        const mesh = child as THREE.Mesh | THREE.Line | THREE.Points;
+        mesh.geometry?.dispose();
+        const material = mesh.material;
+        if (Array.isArray(material)) material.forEach((item) => item.dispose());
+        else material?.dispose();
+      });
+      renderer.dispose();
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
+    };
+  }, [hue, intensity, reducedMotion, shouldReduce, size, speed, state]);
 
   return (
     <button
@@ -159,10 +282,10 @@ export function WizardOrb({
       style={{ width: size, height: size }}
       aria-label="NeuralNexus Wizard Orb"
       onPointerDown={() => {
-        if (interactive) setTouchPulse(performance.now() / 1000);
+        if (interactive) touchPulseRef.current = performance.now() / 1000;
       }}
     >
-      <canvas ref={canvasRef} aria-hidden="true" />
+      {webglUnavailable ? <span className="wizard-orb-static" aria-hidden="true" /> : <div ref={mountRef} aria-hidden="true" />}
     </button>
   );
 }
