@@ -1,37 +1,24 @@
-# Jarvis Bridge (v1)
+# NeuralNexus
 
-Dein persönliches AI Command Center: Chat mit OpenAI, Claude und GLM (OpenRouter) in einer Oberfläche – mit gemeinsamem Projekt-Gedächtnis, Kosten-Tracker und Export von CLAUDE.md / AGENTS.md.
+Turn your expertise into reusable AI workspaces.
 
-## Installation (einmalig, ~5 Min)
-1. Node.js installieren: https://nodejs.org (LTS-Version, einfach durchklicken)
-2. Diesen Ordner entpacken, z.B. nach Dokumente/jarvis-bridge
-3. Terminal in diesem Ordner öffnen und ausführen:
-   npm install
-   copy .env.example .env        (Mac/Linux: cp .env.example .env)
-4. Datei ".env" mit einem Texteditor öffnen und mindestens EINEN API-Key eintragen.
-5. Datenbank anlegen: npm run setup
-6. Starten: npm run dev
-7. Browser: http://localhost:3000
+NeuralNexus helps creators, consultants, designers, founders and teams turn knowledge, prompts, PDFs, methods and workflows into reusable AI-powered workspaces.
 
-## API-Keys bekommen
-- OpenAI: https://platform.openai.com/api-keys
-- Anthropic: https://console.anthropic.com
-- OpenRouter (für GLM): https://openrouter.ai/keys
+## Product Direction
 
-## Vom Handy nutzen
-Handy und PC im selben WLAN:
-1. PC-IP finden (Windows: ipconfig → "IPv4-Adresse", Mac: Systemeinstellungen → Netzwerk)
-2. Auf dem Handy im Browser öffnen: http://DEINE-IP:3000
-3. Optional: "Zum Home-Bildschirm hinzufügen" → App-Icon wie eine echte App.
+- Home presents a premium workspace-builder entry point, not a chat list.
+- Workspaces package methods, skills, knowledge and outputs into reusable systems.
+- Skills are reusable intellectual products with behavior, inputs and output rules.
+- Templates provide high-quality starting points for common expert workflows.
+- Usage explains model and budget activity in business language.
 
-Von unterwegs (nicht nur WLAN): kostenlosen Tunnel nutzen, z.B.
-   npx cloudflared tunnel --url http://localhost:3000
-→ gibt dir eine https-Adresse fürs Handy. PC muss dafür laufen.
+## Local Setup
 
-## Erste Schritte
-1. Links Projekt anlegen
-2. Oben Modell wählen
-3. Chatten – dein Gedächtnis wird automatisch kompakt mitgeschickt
-4. Tab "Gedächtnis": Entscheidungen, Bugs, Regeln speichern
-5. Button "CLAUDE.md / AGENTS.md ↓": Dateien für Claude Code / Codex generieren
-6. "An anderes Modell übergeben": Handoff speichern, Modell wechseln, weitermachen
+1. Install Node.js.
+2. Install dependencies with `npm install`.
+3. Create `.env` from `.env.example`.
+4. Set `DATABASE_URL` for the local SQLite database.
+5. Run `npm run setup`.
+6. Start the app with `npm run dev`.
+
+API keys are only needed when a workspace generates live AI outputs.

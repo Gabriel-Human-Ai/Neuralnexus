@@ -1,9 +1,9 @@
 {
-  "name": "Jarvis Bridge",
-  "short_name": "Jarvis",
+  "name": "NeuralNexus",
+  "short_name": "NeuralNexus",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0F0817",
-  "theme_color": "#0F0817",
+  "background_color": "#050607",
+  "theme_color": "#050607",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

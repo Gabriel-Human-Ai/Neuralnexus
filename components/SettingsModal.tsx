@@ -10,23 +10,23 @@ const PROVIDER_LOGO: Record<string, string> = {
   deepseek: "/logos/deepseek.svg", openrouter: "/logos/openrouter.svg",
 };
 const KEY_FIELDS = [
-  { k: "OPENROUTER_API_KEY", label: "OpenRouter", hint: "ein Key für viele Modelle", provider: "openrouter" },
-  { k: "ANTHROPIC_API_KEY", label: "Anthropic", hint: "Claude direkt", provider: "anthropic" },
-  { k: "OPENAI_API_KEY", label: "OpenAI", hint: "GPT direkt", provider: "openai" },
-  { k: "GOOGLE_API_KEY", label: "Google", hint: "Gemini direkt", provider: "google" },
-  { k: "DEEPSEEK_API_KEY", label: "DeepSeek", hint: "DeepSeek direkt", provider: "deepseek" },
+  { k: "OPENROUTER_API_KEY", label: "OpenRouter", hint: "one key for many models", provider: "openrouter" },
+  { k: "ANTHROPIC_API_KEY", label: "Anthropic", hint: "direct Claude access", provider: "anthropic" },
+  { k: "OPENAI_API_KEY", label: "OpenAI", hint: "direct GPT access", provider: "openai" },
+  { k: "GOOGLE_API_KEY", label: "Google", hint: "direct Gemini access", provider: "google" },
+  { k: "DEEPSEEK_API_KEY", label: "DeepSeek", hint: "direct DeepSeek access", provider: "deepseek" },
 ];
 
 const SECTIONS = [
-  { id: "general", label: "Allgemein", icon: Settings, group: "Einstellungen" },
-  { id: "models", label: "Modelle & Keys", icon: KeyRound, group: "Einstellungen" },
-  { id: "privacy", label: "Datenschutz", icon: ShieldCheck, group: "Einstellungen" },
-  { id: "budget", label: "Nutzung & Budget", icon: BarChart3, group: "Einstellungen" },
-  { id: "routing", label: "Routing", icon: GitBranch, group: "Einstellungen" },
-  { id: "data", label: "Daten", icon: Database, group: "Einstellungen" },
-  { id: "appearance", label: "Darstellung", icon: Monitor, group: "Anpassen" },
-  { id: "orb", label: "Resonance Orb", icon: Settings, group: "Anpassen" },
-  { id: "whitelabel", label: "White-Label", icon: Tag, group: "Anpassen" },
+  { id: "general", label: "General", icon: Settings, group: "Settings" },
+  { id: "models", label: "Models & Keys", icon: KeyRound, group: "Settings" },
+  { id: "privacy", label: "Privacy", icon: ShieldCheck, group: "Settings" },
+  { id: "budget", label: "Usage & Budget", icon: BarChart3, group: "Settings" },
+  { id: "routing", label: "Routing", icon: GitBranch, group: "Settings" },
+  { id: "data", label: "Data", icon: Database, group: "Settings" },
+  { id: "appearance", label: "Appearance", icon: Monitor, group: "Customize" },
+  { id: "orb", label: "Resonance Orb", icon: Settings, group: "Customize" },
+  { id: "whitelabel", label: "White-Label", icon: Tag, group: "Customize" },
 ] as const;
 
 function Chip({ provider }: { provider: string }) {
@@ -84,7 +84,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
   }, [keys, open]);
 
   const set = (k: string, v: string) => setKeys(s => ({ ...s, [k]: v }));
-  const initials = useMemo(() => (initialsFrom || "Du").trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "DU", [initialsFrom]);
+  const initials = useMemo(() => (initialsFrom || "NN").trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "NN", [initialsFrom]);
 
   const filtered = query.trim()
     ? SECTIONS.filter(s => s.label.toLowerCase().includes(query.toLowerCase()))
@@ -119,7 +119,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
             <div className="w-[190px] shrink-0 border-r border-white/8 p-2.5 flex flex-col gap-2 overflow-y-auto">
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-mist" />
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Suchen"
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search"
                   className="w-full glass-input pl-8 pr-2 py-2 text-xs outline-none" />
               </div>
               {groups.map(group => (
@@ -148,35 +148,35 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
               <div className="flex-1 overflow-y-auto px-5 py-3">
                 {active === "general" && (
                   <>
-                    <div className="text-[11px] uppercase tracking-widest text-mist py-2">Profil</div>
+                    <div className="text-[11px] uppercase tracking-widest text-mist py-2">Profile</div>
                     <Row label="Avatar">
                       <div className="w-9 h-9 rounded-full accent-surface grid place-items-center text-xs font-medium text-snow">{initials}</div>
                     </Row>
-                    <Row label="Vollständiger Name">
+                    <Row label="Full name">
                       <input value={keys.FULL_NAME ?? ""} onChange={e => set("FULL_NAME", e.target.value)}
-                        placeholder="Dein Name" className="glass-input px-3 py-1.5 text-sm w-52 outline-none" />
+                        placeholder="Your name" className="glass-input px-3 py-1.5 text-sm w-52 outline-none" />
                     </Row>
-                    <Row label="Wie soll dich die App nennen?">
+                    <Row label="Preferred name">
                       <input value={keys.PREFERRED_NAME ?? ""} onChange={e => set("PREFERRED_NAME", e.target.value)}
-                        placeholder="Rufname" className="glass-input px-3 py-1.5 text-sm w-52 outline-none" />
+                        placeholder="Name" className="glass-input px-3 py-1.5 text-sm w-52 outline-none" />
                     </Row>
-                    <Row label="Was beschreibt deine Arbeit?">
+                    <Row label="Work type">
                       <select value={keys.WORK_TYPE ?? ""} onChange={e => set("WORK_TYPE", e.target.value)}
                         className="glass-input px-3 py-1.5 text-sm w-52 outline-none">
-                        <option value="">Auswählen</option>
-                        <option value="dev">Entwicklung</option>
+                        <option value="">Select</option>
+                        <option value="dev">Development</option>
                         <option value="design">Design</option>
                         <option value="marketing">Marketing</option>
-                        <option value="founder">Gründer</option>
-                        <option value="study">Studium</option>
-                        <option value="other">Sonstiges</option>
+                        <option value="founder">Founder</option>
+                        <option value="study">Education</option>
+                        <option value="other">Other</option>
                       </select>
                     </Row>
                     <div className="pt-4">
-                      <div className="text-sm text-snow">Anweisungen für die KI</div>
-                      <div className="text-[11px] text-mist mt-0.5 mb-2">Wird in jedem Chat unsichtbar berücksichtigt.</div>
+                      <div className="text-sm text-snow">Workspace instructions</div>
+                      <div className="text-[11px] text-mist mt-0.5 mb-2">Used as guidance for workspace outputs.</div>
                       <textarea value={keys.CUSTOM_INSTRUCTIONS ?? ""} onChange={e => set("CUSTOM_INSTRUCTIONS", e.target.value)}
-                        rows={6} placeholder="Antworte kurz, direkt, wichtigstes zuerst."
+                        rows={6} placeholder="Keep outputs precise, structured and client-ready."
                         className="w-full glass-input px-3 py-2.5 text-sm outline-none resize-none" />
                     </div>
                   </>
@@ -184,7 +184,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
 
                 {active === "models" && (
                   <>
-                    <p className="text-xs text-mist py-2">Ein Key reicht zum Start. Alles bleibt lokal auf deinem Gerät.</p>
+                    <p className="text-xs text-mist py-2">Keys are only needed when a workspace generates live AI outputs.</p>
                     {KEY_FIELDS.map(f => (
                       <div key={f.k} className="py-2.5 border-b border-white/8">
                         <label className="text-sm text-snow flex items-center gap-2 mb-1.5"><Chip provider={f.provider} />{f.label} <span className="text-mist text-xs">· {f.hint}</span></label>
@@ -198,9 +198,9 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
 
                 {active === "privacy" && (
                   <>
-                    <Row label="Privacy Shield" hint="Maskiert sensible Daten vor jedem API-Versand.">
+                    <Row label="Privacy Shield" hint="Masks sensitive data before model requests.">
                       <div className="flex gap-1.5">
-                        {[["off", "Aus"], ["pii", "PII"], ["strict", "Streng"]].map(([v, l]) => (
+                        {[["off", "Off"], ["pii", "PII"], ["strict", "Strict"]].map(([v, l]) => (
                           <button key={v} onClick={() => set("PRIVACY_LEVEL", v)}
                             className={`px-3 py-1.5 rounded-lg text-xs ${(keys.PRIVACY_LEVEL || "pii") === v ? "accent-surface accent-text" : "glass-input text-mist"}`}>{l}</button>
                         ))}
@@ -208,7 +208,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                     </Row>
                     {keys.PRIVACY_LEVEL === "strict" && (
                       <div className="pt-3">
-                        <div className="text-sm text-snow mb-1.5">Firmen-Codenamen</div>
+                        <div className="text-sm text-snow mb-1.5">Company code names</div>
                         <input value={keys.COMPANY_CODENAMES ?? ""} onChange={e => set("COMPANY_CODENAMES", e.target.value)}
                           placeholder="Projekt Phoenix, Ares" className="w-full glass-input px-3 py-2 text-sm outline-none" />
                       </div>
@@ -218,30 +218,30 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
 
                 {active === "budget" && (
                   <>
-                    <Row label="Tagesbudget (USD)" hint="Ab 80% Warnung, ab 100% Auto-Downgrade.">
+                    <Row label="Daily budget (USD)" hint="Warnings and routing can use this limit.">
                       <input type="number" value={keys.DAILY_BUDGET_USD ?? ""} onChange={e => set("DAILY_BUDGET_USD", e.target.value)}
                         placeholder="—" className="glass-input px-3 py-1.5 text-sm w-28 outline-none" />
                     </Row>
-                    <Row label="Monatsbudget (USD)">
+                    <Row label="Monthly budget (USD)">
                       <input type="number" value={keys.MONTHLY_BUDGET_USD ?? ""} onChange={e => set("MONTHLY_BUDGET_USD", e.target.value)}
                         placeholder="—" className="glass-input px-3 py-1.5 text-sm w-28 outline-none" />
                     </Row>
                     <div className="pt-4 glass card p-3.5">
-                      <div className="text-[11px] uppercase tracking-widest text-mist font-mono mb-2">Kosten bisher</div>
+                      <div className="text-[11px] uppercase tracking-widest text-mist font-mono mb-2">Tracked usage</div>
                       <div className="text-2xl font-display text-snow">${costs.total.toFixed(4)}</div>
-                      <div className="text-xs text-mist font-mono mt-1">{costs.runs.length} Anfragen erfasst</div>
+                      <div className="text-xs text-mist font-mono mt-1">{costs.runs.length} requests tracked</div>
                     </div>
                   </>
                 )}
 
                 {active === "routing" && (
                   <div className="pt-2">
-                    <div className="text-sm text-snow">Kosten ↔ Qualität</div>
-                    <div className="text-[11px] text-mist mt-0.5 mb-3">Bestimmt, welches Modell Auto wählt.</div>
+                    <div className="text-sm text-snow">Cost ↔ Quality</div>
+                    <div className="text-[11px] text-mist mt-0.5 mb-3">Controls how Auto chooses models.</div>
                     <input type="range" min={0} max={100} value={keys.ROUTING_THRESHOLD ?? "50"}
                       onChange={e => set("ROUTING_THRESHOLD", e.target.value)} className="w-full accent-[rgb(201,160,92)]" />
                     <div className="flex justify-between text-[10px] text-mist font-mono mt-1">
-                      <span>Günstig</span><span>{keys.ROUTING_THRESHOLD ?? 50}%</span><span>Qualität</span>
+                      <span>Efficient</span><span>{keys.ROUTING_THRESHOLD ?? 50}%</span><span>Quality</span>
                     </div>
                   </div>
                 )}
@@ -250,16 +250,16 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                   <>
                     {stats && (
                       <div className="glass card p-3.5 mb-3 text-xs font-mono text-mist">
-                        {stats.chats} Chats · {stats.messages} Nachrichten · {stats.memories} Erinnerungen
+                        {stats.chats} projects · {stats.messages} messages · {stats.memories} memories
                       </div>
                     )}
-                    <Row label="Alle Chats exportieren" hint="Lädt alles als JSON herunter.">
-                      <button onClick={exportAll} className="glass-input px-3 py-1.5 text-xs text-snow">Exportieren</button>
+                    <Row label="Export workspace data" hint="Downloads available data as JSON.">
+                      <button onClick={exportAll} className="glass-input px-3 py-1.5 text-xs text-snow">Export</button>
                     </Row>
-                    <Row label="Gedächtnis leeren" hint="Löscht alle gespeicherten Erinnerungen.">
+                    <Row label="Clear memory" hint="Deletes saved memory entries.">
                       <button onClick={wipeMemory}
                         className={`px-3 py-1.5 text-xs rounded-lg ${confirmWipe ? "bg-[#E5544C] text-white" : "glass-input text-mist"}`}>
-                        {confirmWipe ? "Wirklich löschen?" : "Leeren"}
+                        {confirmWipe ? "Confirm delete" : "Clear"}
                       </button>
                     </Row>
                   </>
@@ -267,7 +267,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
 
                 {active === "appearance" && (
                   <>
-                    <Row label="Schriftgröße">
+                    <Row label="Font size">
                       <div className="flex gap-1.5">
                         {[["small", "S"], ["", "M"], ["large", "L"]].map(([v, l]) => (
                           <button key={l} onClick={() => set("UI_FONTSIZE", v)}
@@ -275,7 +275,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                         ))}
                       </div>
                     </Row>
-                    <Row label="Enter sendet Nachricht" hint="Aus: Enter = neue Zeile, ⌘+Enter sendet.">
+                    <Row label="Enter submits input" hint="Off: Enter creates a new line. Cmd+Enter submits.">
                       <button onClick={() => set("UI_ENTERSENDS", keys.UI_ENTERSENDS === "0" ? "1" : "0")}
                         className={`w-11 h-6 rounded-full transition relative ${keys.UI_ENTERSENDS === "0" ? "bg-white/10" : "accent-solid"}`}>
                         <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${keys.UI_ENTERSENDS === "0" ? "left-0.5" : "left-[22px]"}`} />
@@ -287,28 +287,28 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                 {active === "orb" && (
                   <>
                     <div className="text-[11px] uppercase tracking-widest text-mist py-2">Resonance Orb</div>
-                    <Row label="Farbe (Hue)" hint="0 = Amber, 60 = Grün, 180 = Cyan, 240 = Blau, 300 = Violett">
+                    <Row label="Color hue" hint="0 = amber, 60 = green, 180 = cyan, 240 = blue, 300 = violet">
                       <div className="flex items-center gap-2 w-52">
                         <input type="range" min={0} max={330} value={keys.ORB_HUE ?? "0"}
                           onChange={e => set("ORB_HUE", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
                         <span className="text-xs font-mono text-mist w-8">{keys.ORB_HUE ?? 0}°</span>
                       </div>
                     </Row>
-                    <Row label="Animations-Geschwindigkeit" hint="Niedriger = meditativer">
+                    <Row label="Animation speed" hint="Lower values feel calmer.">
                       <div className="flex items-center gap-2 w-52">
                         <input type="range" min={1} max={100} value={keys.ORB_SPEED ?? "20"}
                           onChange={e => set("ORB_SPEED", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
                         <span className="text-xs font-mono text-mist w-8">{keys.ORB_SPEED ?? 20}%</span>
                       </div>
                     </Row>
-                    <Row label="Oberflächen-Morphing" hint="Wie stark der Orb seine Form verändert">
+                    <Row label="Surface morphing" hint="Controls how much the orb changes shape.">
                       <div className="flex items-center gap-2 w-52">
                         <input type="range" min={1} max={100} value={keys.ORB_MORPH ?? "50"}
                           onChange={e => set("ORB_MORPH", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
                         <span className="text-xs font-mono text-mist w-8">{keys.ORB_MORPH ?? 50}%</span>
                       </div>
                     </Row>
-                    <Row label="Kern-Leuchten" hint="Intensität des inneren Glühens">
+                    <Row label="Core glow" hint="Controls the inner glow intensity.">
                       <div className="flex items-center gap-2 w-52">
                         <input type="range" min={1} max={100} value={keys.ORB_GLOW ?? "60"}
                           onChange={e => set("ORB_GLOW", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
@@ -319,9 +319,9 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                 )}
 
                 {active === "whitelabel" && (
-                  <Row label="App-Name" hint="Ersetzt den Namen in der Seitenleiste.">
+                  <Row label="App name" hint="Overrides the sidebar name for this workspace.">
                     <input value={keys.BRAND_NAME ?? ""} onChange={e => set("BRAND_NAME", e.target.value)}
-                      placeholder="Jarvis" className="glass-input px-3 py-1.5 text-sm w-44 outline-none" />
+                      placeholder="NeuralNexus" className="glass-input px-3 py-1.5 text-sm w-44 outline-none" />
                   </Row>
                 )}
               </div>
@@ -331,7 +331,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                 <AnimatePresence>
                   {saved && (
                     <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="text-[11px] text-mist flex items-center gap-1"><Check size={12} className="accent-text" /> Gespeichert</motion.span>
+                      className="text-[11px] text-mist flex items-center gap-1"><Check size={12} className="accent-text" /> Saved</motion.span>
                   )}
                 </AnimatePresence>
               </div>
