@@ -44,13 +44,13 @@ export function WorkflowBuilder({ availableAgents, onRun, onSave }: WorkflowBuil
 
       {chain.length > 0 && (
         <div className="flex gap-2">
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Workflow-Name…"
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Workflow name..."
             className="flex-1 glass-input pill px-4 py-2 text-sm outline-none" />
           <button onClick={() => onSave(name || "Workflow", chain.map(a => a.id))}
-            className="px-4 py-2 pill glass-input text-sm text-snow">Speichern</button>
+            className="px-4 py-2 pill glass-input text-sm text-snow">Save</button>
           <button onClick={run} disabled={running}
             className="px-4 py-2 pill bg-violet text-white text-sm flex items-center gap-1.5 disabled:opacity-40">
-            <Play size={14} /> {running ? "Läuft…" : "Ausführen"}
+            <Play size={14} /> {running ? "Running..." : "Run"}
           </button>
         </div>
       )}

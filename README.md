@@ -1,8 +1,8 @@
 # NeuralNexus
 
 Turn your expertise into reusable AI workspaces.
-
-NeuralNexus helps creators, consultants, designers, founders and teams turn knowledge, prompts, PDFs, methods and workflows into reusable AI-powered workspaces.
+Encode your method once. It runs, learns from your edits, meets your quality bar, and gets cheaper over time.
+ChatGPT gives you answers. NeuralNexus gives you a system.
 
 ## Product Direction
 

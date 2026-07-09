@@ -3,18 +3,18 @@ import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   title: "NeuralNexus",
-  description: "Turn your expertise into reusable AI workspaces.",
+  description: "Turn your expertise into reusable AI workspaces. Encode your method once — it runs, learns from your edits, and meets your quality bar.",
   manifest: "/manifest.json",
   openGraph: {
     title: "NeuralNexus",
-    description: "Turn your expertise into reusable AI workspaces.",
+    description: "Turn your expertise into reusable AI workspaces. Encode your method once — it runs, learns from your edits, and meets your quality bar.",
     siteName: "NeuralNexus",
     type: "website",
   },
   twitter: {
     card: "summary",
     title: "NeuralNexus",
-    description: "Turn your expertise into reusable AI workspaces.",
+    description: "Turn your expertise into reusable AI workspaces. Encode your method once — it runs, learns from your edits, and meets your quality bar.",
   },
   icons: {
     icon: "/icon.svg",

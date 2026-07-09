@@ -32,9 +32,15 @@ import {
 } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
 import { FloatingWizard } from "@/components/FloatingWizard";
+import { WhySheet } from "@/components/WhySheet";
+import { AutopilotCard } from "@/components/features/AutopilotCard";
+import { ExtractorSheet } from "@/components/features/ExtractorSheet";
+import { GenomePanel } from "@/components/features/GenomePanel";
+import { OutputCard, type OutputCardOutput } from "@/components/features/OutputCard";
 import type { WizardIntent } from "@/lib/wizardActions";
 import { nextBestAction } from "@/lib/guidance";
 import { MOTION, viewMotion } from "@/lib/motion";
+import { POSITIONING } from "@/lib/positioning";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -48,6 +54,7 @@ type Project = {
   id: string;
   name: string;
   goal?: string;
+  rules?: string;
   createdAt?: string;
   messages?: { content: string; createdAt: string }[];
 };
@@ -57,6 +64,7 @@ type Skill = {
   name: string;
   description: string;
   instructions?: string;
+  version?: number;
 };
 
 type ModelRun = {
@@ -101,6 +109,17 @@ type GeneralChatMessage = {
   role: "user" | "assistant";
   content: string;
   model?: string;
+};
+type OutputListItem = {
+  id: string;
+  stepName: string;
+  status: string;
+  model: string;
+  costUsd: number;
+  createdAt: string;
+  preview: string;
+  parentOutputId?: string | null;
+  forkChangedVariable?: string | null;
 };
 
 const workspaceModes: WorkspaceMode[] = [
@@ -194,6 +213,18 @@ const starterKnowledge = [
   "Client intake notes",
 ];
 
+function defaultChecklist(modeId: string) {
+  const map: Record<string, string[]> = {
+    content: ["Contains at least 5 distinct, non-generic ideas", "Every idea includes a concrete hook or first line", "No filler phrases or engagement-bait clichés"],
+    brand: ["States one clear positioning claim", "Names the target audience explicitly", "No generic marketing buzzwords"],
+    review: ["Lists at least 3 specific weaknesses with locations", "Each weakness has a concrete fix", "Prioritized by impact"],
+    coaching: ["Ends with exactly 3 next actions", "Actions are doable within one week", "Tone is direct, not motivational fluff"],
+    audit: ["Every finding cites the provided input", "Includes a severity for each finding", "Ends with a one-paragraph executive summary"],
+    research: ["Separates facts from interpretation", "Names at least 2 tradeoffs", "Ends with one clear recommendation"],
+  };
+  return map[modeId] ?? map.brand;
+}
+
 async function safeJson(url: string, init?: RequestInit) {
   try {
     const response = await fetch(url, init);
@@ -218,7 +249,9 @@ function timeAgo(iso?: string) {
 
 function inferMode(project?: Project) {
   const source = `${project?.name ?? ""} ${project?.goal ?? ""}`.toLowerCase();
-  return workspaceModes.find((mode) => source.includes(mode.id) || source.includes(mode.label.toLowerCase().split(" ")[0])) ?? workspaceModes[1];
+  const mode = workspaceModes.find((item) => source.includes(item.id) || source.includes(item.label.toLowerCase().split(" ")[0])) ?? workspaceModes[1];
+  const extracted = project?.rules?.match(/Workflow steps:\s*(.+)$/i)?.[1]?.split("|").map((step) => step.trim()).filter(Boolean);
+  return extracted?.length ? { ...mode, steps: extracted } : mode;
 }
 
 function formatUsd(value: number) {
@@ -393,6 +426,13 @@ export default function Home() {
   const [workspacePanel, setWorkspacePanel] = useState<WorkspacePanel>("overview");
   const [stepState, setStepState] = useState<"idle" | "loading" | "complete">("idle");
   const [finalState, setFinalState] = useState<"idle" | "loading" | "complete">("idle");
+  const [currentOutput, setCurrentOutput] = useState<OutputCardOutput | null>(null);
+  const [outputs, setOutputs] = useState<OutputListItem[]>([]);
+  const [checklist, setChecklist] = useState<string[]>([]);
+  const [newCheck, setNewCheck] = useState("");
+  const [genomeSkill, setGenomeSkill] = useState<Skill | null>(null);
+  const [extractorOpen, setExtractorOpen] = useState(false);
+  const [autopilot, setAutopilot] = useState<{ recommendations: any[]; policies: any[]; disabled?: boolean; message?: string }>({ recommendations: [], policies: [] });
   const [clientMode, setClientMode] = useState(false);
   const [clientState, setClientState] = useState<"idle" | "loading" | "complete">("idle");
   const [sessionState, setSessionState] = useState<"idle" | "loading" | "complete">("idle");
@@ -401,6 +441,7 @@ export default function Home() {
   const [commandIndex, setCommandIndex] = useState(0);
   const [recentCommands, setRecentCommands] = useState<string[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const [xrayState, setXrayState] = useState<"idle" | "loading" | "complete">("idle");
   const [askState, setAskState] = useState<"idle" | "loading" | "complete">("idle");
   const [generalMessages, setGeneralMessages] = useState<GeneralChatMessage[]>([]);
@@ -435,11 +476,11 @@ export default function Home() {
   const wizardStatus = hasWorkspaces
     ? `Your ${recentWorkspace.name} workspace is ready.`
     : apiKeyReady
-      ? "Your models are connected. Start with a reusable workspace."
-      : "Ready when you are. Start with a workspace or connect models later.";
+      ? "Your models are connected. Create a reusable workspace."
+      : "Ready when you are. Create a workspace or connect models later.";
   const wizardDetail = hasWorkspaces
     ? `Next recommended step: ${inferMode(recentWorkspace).steps[0]}.`
-    : "No fake setup required. Build a workspace first, then connect live AI when you need generation.";
+    : "Create a workspace first, then connect models when you need generation.";
   const workspaceSummary = `${projects.length} workspace${projects.length === 1 ? "" : "s"} · ${skills.length} skill${skills.length === 1 ? "" : "s"} · ${runs.length} model run${runs.length === 1 ? "" : "s"}`;
 
   useEffect(() => {
@@ -500,6 +541,13 @@ export default function Home() {
     document.title = keys.BRAND_NAME?.trim() || "NeuralNexus";
   }, [keys.BRAND_NAME]);
 
+  useEffect(() => {
+    if (!selectedWorkspace?.id) return;
+    void loadOutputs(selectedWorkspace.id);
+    void loadAutopilot(selectedWorkspace.id);
+    setChecklist(defaultChecklist(selectedWorkspaceMode.id));
+  }, [selectedWorkspace?.id, selectedWorkspaceMode.id]);
+
   async function loadData() {
     const [projectData, skillData, costData, settingsData] = await Promise.all([
       safeJson("/api/projects"),
@@ -513,6 +561,16 @@ export default function Home() {
     if (settingsData && !settingsData.error) {
       setKeys(settingsData);
     }
+  }
+
+  async function loadOutputs(projectId: string) {
+    const data = await safeJson(`/api/outputs?projectId=${projectId}`);
+    if (Array.isArray(data)) setOutputs(data);
+  }
+
+  async function loadAutopilot(projectId: string) {
+    const data = await safeJson(`/api/autopilot?projectId=${projectId}`);
+    if (data) setAutopilot(data);
   }
 
   function updateKeys(fn: (state: Record<string, string>) => Record<string, string>) {
@@ -619,7 +677,7 @@ export default function Home() {
         });
         return { id, name: file.name, kind: "image" as const, size: file.size, preview: "Image attached for visual analysis.", dataUrl };
       }
-      if (isPdf) return { id, name: file.name, kind: "pdf" as const, size: file.size, preview: "PDF attached as metadata. PDF parsing is not active in general chat yet." };
+      if (isPdf) return { id, name: file.name, kind: "pdf" as const, size: file.size, preview: "PDF attached as metadata. PDF parsing is not active in this question view yet." };
       return { id, name: file.name, kind: "file" as const, size: file.size, preview: "File attached as metadata." };
     }));
     setGeneralAttachments((current) => [...current, ...parsed.filter((source) => !current.some((item) => item.id === source.id))]);
@@ -702,17 +760,69 @@ export default function Home() {
     }, 500);
   }
 
-  function runNextStep() {
+  async function runNextStep(userInput = "") {
+    if (!selectedWorkspace) return;
     setStepState("loading");
-    setTimeout(() => {
+    window.dispatchEvent(new CustomEvent("nexus:orb", { detail: { state: "thinking" } }));
+    const response = await fetch("/api/outputs/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectId: selectedWorkspace.id,
+        stepName: selectedWorkspaceMode.steps[0],
+        stepDescription: selectedWorkspaceMode.purpose,
+        userInput,
+        skillId: skills[0]?.id,
+        checklist,
+      }),
+    });
+    const data = await response.json();
+    if (response.ok) {
+      setCurrentOutput({
+        id: data.outputId,
+        stepName: selectedWorkspaceMode.steps[0],
+        model: data.model,
+        provider: data.provider,
+        costUsd: data.costUsd,
+        content: data.content,
+        skillVersion: skills[0]?.version ?? 1,
+        qualityReport: data.qualityReport,
+      });
+      await loadOutputs(selectedWorkspace.id);
+      window.dispatchEvent(new CustomEvent("nexus:orb", { detail: { state: "success" } }));
       setStepState("complete");
       setWorkspacePanel("outputs");
-    }, 750);
+    } else {
+      setStepState("idle");
+      window.dispatchEvent(new CustomEvent("nexus:orb", { detail: { state: "idle" } }));
+      alert(data.error || "Output run failed.");
+    }
   }
 
-  function saveAsFinal() {
+  async function saveAsFinal(content?: string) {
+    if (!currentOutput) return;
     setFinalState("loading");
-    setTimeout(() => setFinalState("complete"), 650);
+    await fetch(`/api/outputs/${currentOutput.id}/finalize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ finalContent: content ?? currentOutput.content }),
+    });
+    setFinalState("complete");
+    if (selectedWorkspace) await loadOutputs(selectedWorkspace.id);
+  }
+
+  async function forkOutput(change: { type: "model" | "skill"; value: string }) {
+    if (!currentOutput) return;
+    const response = await fetch(`/api/outputs/${currentOutput.id}/fork`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ change }),
+    });
+    const data = await response.json();
+    if (response.ok && selectedWorkspace) {
+      setCurrentOutput({ ...currentOutput, id: data.outputId, model: data.model, costUsd: data.costUsd, content: data.content, qualityReport: data.qualityReport });
+      await loadOutputs(selectedWorkspace.id);
+    }
   }
 
   function activateClientMode() {
@@ -814,7 +924,7 @@ export default function Home() {
 
   const navigation = [
     { id: "home", label: "Home", icon: Compass },
-    { id: "chat", label: "General Chat", icon: MessageCircle },
+    { id: "chat", label: "Ask", icon: MessageCircle },
     { id: "workspaces", label: "Workspaces", icon: Layers3 },
     { id: "skills", label: "Skills", icon: Sparkles },
     { id: "templates", label: "Templates", icon: Boxes },
@@ -827,7 +937,7 @@ export default function Home() {
     { id: "skills", label: "Skills", icon: Sparkles },
   ] as const;
   const mobileMoreNav = [
-    { id: "chat", label: "General Chat", icon: MessageCircle },
+    { id: "chat", label: "Ask", icon: MessageCircle },
     { id: "templates", label: "Templates", icon: Boxes },
     { id: "knowledge", label: "Knowledge", icon: Database },
     { id: "usage", label: "Usage", icon: BarChart3 },
@@ -846,6 +956,13 @@ export default function Home() {
         hint: item.id === "home" ? "Return to the workspace stage" : `Open ${item.label}`,
         action: navigate(item.id as View),
       })),
+      {
+        id: "why-neuralnexus",
+        label: "Why NeuralNexus",
+        group: "Help",
+        hint: "Understand the system frame",
+        action: () => setWhyOpen(true),
+      },
       {
         id: "nav-settings",
         label: "Settings",
@@ -981,9 +1098,9 @@ export default function Home() {
               )}
               <div className="home-guidance-copy">
                 <span className="eyebrow">PERSONAL WIZARD</span>
-                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : "Turn your expertise into reusable AI workspaces."}</h1>
-                <p>{hasWorkspaces ? `Next: ${selectedWorkspaceMode.steps[0]}.` : "Let's build your first workspace."}</p>
-                <small>{guidance.description}</small>
+                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : "Let's turn your method into a workspace."}</h1>
+                <p>{hasWorkspaces ? `Next: ${selectedWorkspaceMode.steps[0]}.` : "Encode it once. It runs, learns, and meets your bar."}</p>
+                <small>{hasWorkspaces ? guidance.description : POSITIONING.oneLiner}</small>
               </div>
             </section>
 
@@ -1010,6 +1127,7 @@ export default function Home() {
               <button onClick={() => setView("workspaces")}>{projects.length} workspaces</button>
               <button onClick={() => setView("skills")}>{skills.length} skills</button>
               <button onClick={() => setView("usage")}>{formatUsd(usage.month)} this month</button>
+              <button onClick={() => setWhyOpen(true)}>Why NeuralNexus</button>
             </section>
           </div>
         )}
@@ -1031,7 +1149,7 @@ export default function Home() {
               <div className="empty-state">
                 <WorkspaceObject mode={selectedMode} />
                 <h2>No workspaces yet.</h2>
-                <p>Start with a reusable method, client process, prompt pack or PDF framework.</p>
+                <p>Your first workspace turns a method you already use into an asset that compounds.</p>
                 <button className="primary-pill" onClick={() => setWizardOpen(true)}>
                   <Plus size={18} /> Create workspace
                 </button>
@@ -1102,12 +1220,12 @@ export default function Home() {
                             estimatedCost="$0.03-$0.09"
                             loading={stepState === "loading"}
                             completed={stepState === "complete"}
-                            onComplete={runNextStep}
+                            onComplete={() => runNextStep()}
                           />
                         </section>
                         <section className="last-output-card liquid-card">
                           <span className="object-label">LAST OUTPUT</span>
-                          <p>No outputs yet. Run a workflow step to create your first result.</p>
+                          <p>Run a step. Everything you produce keeps its lineage — nothing dies in the scroll.</p>
                           <button className="quiet-link" onClick={() => setWorkspacePanel("outputs")}>View outputs</button>
                         </section>
                       </div>
@@ -1123,36 +1241,60 @@ export default function Home() {
                           <span>Mode: Strategic · Premium</span>
                           <span>Estimated cost: $0.03-$0.09</span>
                         </div>
+                        <div className="checklist-editor">
+                          <span className="object-label">QUALITY GATES</span>
+                          <p className="muted-helper">Quality Gates — revised until it meets your bar.</p>
+                          <div className="check-chip-row">
+                            {checklist.map((check) => (
+                              <button key={check} onClick={() => setChecklist((items) => items.filter((item) => item !== check))}>{check} <X size={12} /></button>
+                            ))}
+                          </div>
+                          {checklist.length < 5 && (
+                            <div className="refine-row">
+                              <input value={newCheck} onChange={(event) => setNewCheck(event.target.value.slice(0, 120))} placeholder="Add check" />
+                              <button onClick={() => { if (newCheck.trim()) setChecklist((items) => [...items, newCheck.trim()].slice(0, 5)); setNewCheck(""); }}>Add check</button>
+                            </div>
+                          )}
+                        </div>
                         <PremiumSlideAction
                           label="Slide to run next step"
                           completionText="Step prepared"
                           estimatedCost="$0.03-$0.09"
                           loading={stepState === "loading"}
                           completed={stepState === "complete"}
-                          onComplete={runNextStep}
+                          onComplete={() => runNextStep()}
                         />
                       </div>
                     )}
 
                     {workspacePanel === "outputs" && (
                       <div className="action-panel">
-                        <span className="object-label">POSITIONING STATEMENT</span>
-                        <h3>Generated with {selectedWorkspaceMode.skills[0]} Skill</h3>
-                        <div className="output-box">
-                          NeuralNexus packages expert knowledge into guided AI workspaces that make high-value methods reusable for teams, clients and customers.
-                        </div>
-                        <div className="secondary-actions">
-                          <button>Refine</button>
-                          <button>Regenerate</button>
-                          <button>Copy</button>
-                        </div>
-                        <PremiumSlideAction
-                          label="Slide to save as final"
-                          completionText="Saved as final"
-                          loading={finalState === "loading"}
-                          completed={finalState === "complete"}
-                          onComplete={saveAsFinal}
-                        />
+                        {currentOutput ? (
+                          <OutputCard
+                            output={currentOutput}
+                            onRefine={(content, instruction) => runNextStep(`previous output:\n${content}\n\nRefine instruction: ${instruction}`)}
+                            onRegenerate={() => runNextStep()}
+                            onFinalize={(content) => saveAsFinal(content)}
+                            onFork={forkOutput}
+                          />
+                        ) : outputs.length ? (
+                          <div className="output-list">
+                            {outputs.map((output) => (
+                              <button key={output.id} className={`output-list-row ${output.parentOutputId ? "is-fork" : ""}`} onClick={async () => {
+                                const full = await safeJson(`/api/outputs/${output.id}`);
+                                if (full?.id) setCurrentOutput({ id: full.id, stepName: full.stepName, model: full.model, provider: full.provider, costUsd: full.costUsd, content: full.finalContent || full.draftContent, skillVersion: full.skillVersion, knowledgeIds: full.knowledgeIds, qualityReport: full.qualityReport ? JSON.parse(full.qualityReport) : null });
+                              }}>
+                                <span>{output.parentOutputId ? `fork · ${output.forkChangedVariable}` : output.stepName}</span>
+                                <small>{output.model} · ${output.costUsd.toFixed(4)}</small>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="empty-inline">
+                            <p>Run a step. Everything you produce keeps its lineage — nothing dies in the scroll.</p>
+                            <button className="secondary-pill" onClick={() => setWorkspacePanel("workflow")}>Run first step</button>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1160,7 +1302,7 @@ export default function Home() {
                       <div className="action-panel">
                         <span className="object-label">CLIENT MODE</span>
                         <h3>Package this workspace for a client, audience or customer.</h3>
-                        <p>Clients can follow your guided workflow, answer structured questions and receive AI outputs powered by your method.</p>
+                        <p>Clients can follow your guided workflow, answer structured questions and receive outputs shaped by your method.</p>
                         <div className="privacy-list">
                           <span><Check size={15} /> Workflow and approved outputs are prepared for client access.</span>
                           <span><Lock size={15} /> Internal notes, API keys, cost settings and draft skills stay private.</span>
@@ -1187,12 +1329,12 @@ export default function Home() {
           <div className="screen-stack free-chat-screen">
             <header className="screen-header">
               <div>
-                <span className="eyebrow">GENERAL CHAT</span>
-                <h1>Ask anything.</h1>
-                <p>This chat is not tied to a workspace. It uses whichever configured API key can answer through NeuralNexus routing.</p>
+                <span className="eyebrow">OPEN QUESTION</span>
+                <h1>Ask outside a workspace.</h1>
+                <p>Use the same model routing for general questions without creating a workspace.</p>
               </div>
               <button className="secondary-pill" onClick={() => setGeneralMessages([])} disabled={generalMessages.length === 0}>
-                Clear chat
+                Clear
               </button>
             </header>
 
@@ -1200,9 +1342,9 @@ export default function Home() {
               <div className="free-chat-orb">
                 <WizardOrb size={160} hue={orbHue} speed={generalBusy ? 42 : orbSpeed} intensity={generalBusy ? 88 : orbIntensity} state={generalBusy ? "generating" : "listening"} interactive />
                 <div>
-                  <span className="object-label">WIZARD CHAT</span>
-                  <h2>{generalBusy ? "Thinking..." : "Ready for a normal question."}</h2>
-                  <p>{apiKeyReady ? "Connected to your available model keys." : "Add an API key in Settings to get live answers."}</p>
+                  <span className="object-label">WIZARD</span>
+                  <h2>{generalBusy ? "Thinking" : "Ready for a question."}</h2>
+                  <p>{apiKeyReady ? "Connected to your available model keys." : "Add an API key in Settings to get answers."}</p>
                 </div>
               </div>
 
@@ -1210,7 +1352,7 @@ export default function Home() {
                 {generalMessages.length === 0 ? (
                   <div className="empty-inline">
                     <MessageCircle size={24} />
-                    <p>Ask a general question, paste text, or attach a readable file or image.</p>
+                    <p>Ask a question, paste text, or attach a readable file or image.</p>
                   </div>
                 ) : (
                   generalMessages.map((message, index) => (
@@ -1264,7 +1406,7 @@ export default function Home() {
                       void sendGeneralChat();
                     }
                   }}
-                  placeholder="Ask anything. Cmd+Enter sends."
+                  placeholder="Ask a question. Cmd+Enter sends."
                   rows={3}
                 />
                 <button className="primary-pill" onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
@@ -1279,23 +1421,23 @@ export default function Home() {
           <CollectionScreen
             eyebrow="SKILLS"
             title="Packaged intellectual products"
-            description="A skill is not a saved prompt. It carries purpose, inputs, behavior, output format and quality rules."
+            description="A skill is your method, packaged — with rules the workspace learns from your edits."
           >
             {(skills.length ? skills : [
               { id: "brand-critic", name: "Brand Critic", description: "Finds weak positioning, generic messaging and visual inconsistencies." },
               { id: "offer-architect", name: "Offer Architect", description: "Turns rough expertise into a sharp, sellable offer structure." },
               { id: "copy-editor", name: "Copy Critic", description: "Improves clarity, specificity and conversion intent." },
             ]).map((skill) => (
-              <div key={skill.id} className="skill-card liquid-card">
+              <button key={skill.id} className="skill-card liquid-card" onClick={() => setGenomeSkill(skill)}>
                 <span className="object-label">SKILL</span>
                 <h3>{skill.name}</h3>
                 <p>{skill.description}</p>
                 <div className="card-meta">
-                  <span>Input: notes / docs</span>
+                  <span>Genome: v{skill.version ?? 1}</span>
                   <span>Output: structured result</span>
                   <span>Mode: critical</span>
                 </div>
-              </div>
+              </button>
             ))}
           </CollectionScreen>
         )}
@@ -1306,6 +1448,11 @@ export default function Home() {
             title="Premium workspace library"
             description="Start from a valuable system, then adapt the knowledge, skills and workflow to your method."
           >
+            <div className="template-card liquid-card instant-workspace-card">
+              <span className="object-label">INSTANT WORKSPACE</span>
+              <h3>Turn any PDF, method or prompt pack into a runnable workspace.</h3>
+              <button className="primary-pill" onClick={() => setExtractorOpen(true)}>Extract now</button>
+            </div>
             {templateCards.map((template) => (
               <div key={template.name} className="template-card liquid-card">
                 <span className="object-label">{template.category}</span>
@@ -1331,7 +1478,7 @@ export default function Home() {
           <CollectionScreen
             eyebrow="KNOWLEDGE"
             title="Source material for reusable work"
-            description="PDFs, notes, prompts, frameworks and examples are prepared to connect with workspaces."
+            description="Notes, PDFs and frameworks make outputs sound like you, not like a model."
           >
             {starterKnowledge.map((source) => (
               <div key={source} className="knowledge-card liquid-card">
@@ -1347,7 +1494,7 @@ export default function Home() {
           <div className="screen-stack">
             <header className="screen-header">
               <div>
-                <span className="eyebrow">USAGE</span>
+              <span className="eyebrow">USAGE</span>
                 <h1>Cost clarity for serious work</h1>
                 <p>Understand model usage, budget posture and cost per workspace output.</p>
               </div>
@@ -1360,6 +1507,33 @@ export default function Home() {
               <Stat label="This month" value={formatUsd(usage.month)} />
               <Stat label="Estimated Auto-Routing Savings" value={formatUsd(usage.estimatedSavings)} />
             </div>
+            <section className="liquid-panel usage-panel">
+              <div className="section-head">
+                <span>AUTOPILOT</span>
+                  <small>Autopilot tests cheaper models against your real runs. Recommendations come with proof — nothing switches without your tap.</small>
+              </div>
+              {autopilot.disabled ? (
+                <div className="empty-inline"><p>Autopilot needs a connected model.</p></div>
+              ) : autopilot.recommendations?.length ? (
+                <div className="collection-grid">
+                  {autopilot.recommendations.map((recommendation) => selectedWorkspace && (
+                    <AutopilotCard key={`${recommendation.stepName}-${recommendation.toModel}`} recommendation={recommendation} projectId={selectedWorkspace.id} onApplied={() => loadAutopilot(selectedWorkspace.id)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-inline"><p>Autopilot tests cheaper models against your real runs. Recommendations come with proof — nothing switches without your tap.</p></div>
+              )}
+              {autopilot.policies?.length > 0 && (
+                <div className="model-table">
+                  {autopilot.policies.map((policy) => (
+                    <div className="model-row" key={policy.id}>
+                      <span>{policy.stepName} → {policy.model}</span>
+                      <button onClick={async () => { await fetch("/api/autopilot", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: policy.projectId, stepName: policy.stepName }) }); await loadAutopilot(policy.projectId); }}>Revert</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
             <div className="usage-layout">
               <div className="liquid-panel usage-panel">
                 <div className="section-head">
@@ -1453,6 +1627,10 @@ export default function Home() {
               <Settings size={17} />
               <span>Settings</span>
             </button>
+            <button onClick={() => { setWhyOpen(true); setMoreOpen(false); }}>
+              <Compass size={17} />
+              <span>Why NeuralNexus</span>
+            </button>
           </div>
         </div>
       )}
@@ -1472,7 +1650,7 @@ export default function Home() {
             <div key={wizardStep} className="guided-wizard-step">
               {wizardStep === "type" && (
                 <>
-                  <h2>What kind of system are we building?</h2>
+                  <h2>What method are you turning into a system?</h2>
                   <p>Pick the closest mode. You can refine the exact workspace in the next steps.</p>
                   <ModeSelector selectedId={selectedModeId} onSelect={(id) => { setSelectedModeId(id); setTimeout(() => setWizardStep("audience"), 180); }} />
                 </>
@@ -1499,6 +1677,10 @@ export default function Home() {
                 <>
                   <h2>What should it learn from?</h2>
                   <p>Add notes, prompts, PDFs or images. Text files are read immediately; images are attached as visual context.</p>
+                  <button className="liquid-card extractor-option" onClick={() => setExtractorOpen(true)}>
+                    <span className="object-label">EXTRACT FROM DOCUMENT</span>
+                    <strong>Fastest: we build steps and skills from your material.</strong>
+                  </button>
                   <label
                     className="file-drop-zone"
                     onDragOver={(event) => event.preventDefault()}
@@ -1560,7 +1742,7 @@ export default function Home() {
               {wizardStep === "review" && (
                 <>
                   <h2>Your workspace is ready.</h2>
-                  <p>Review the system before building. This is the one high-intent action in the flow.</p>
+                  <p>This is yours — it improves with every run.</p>
                   <div className="summary-card guided-summary">
                     <span className="object-label">{selectedMode.label} WORKSPACE</span>
                     <strong>{workspaceName}</strong>
@@ -1650,6 +1832,30 @@ export default function Home() {
           onAsk={(input) => askWizard(input)}
         />
       )}
+
+      {genomeSkill && <GenomePanel skill={genomeSkill} onClose={() => setGenomeSkill(null)} />}
+
+      <WhySheet
+        open={whyOpen}
+        hasWorkspaces={hasWorkspaces}
+        onClose={() => setWhyOpen(false)}
+        onCreate={() => {
+          setWhyOpen(false);
+          setWizardOpen(true);
+        }}
+      />
+
+      <ExtractorSheet
+        open={extractorOpen}
+        onClose={() => setExtractorOpen(false)}
+        onDone={(projectId) => {
+          setExtractorOpen(false);
+          setWizardOpen(false);
+          setSelectedWorkspaceId(projectId);
+          setView("workspaces");
+          void loadData();
+        }}
+      />
 
       <SettingsModal
         open={settingsOpen}

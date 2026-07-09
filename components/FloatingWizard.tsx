@@ -31,7 +31,7 @@ export function FloatingWizard({ enabled = true, status = "I can route you to th
       return;
     }
     if (!onAsk) {
-      setReply("I can route you to the right place, but chat is not connected yet.");
+      setReply("I can route you to the right place, but answers are not connected yet.");
       return;
     }
     setBusy(true);

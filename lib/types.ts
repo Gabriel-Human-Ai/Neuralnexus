@@ -71,3 +71,5 @@ export interface ModelProfile {
   healthy: boolean;
   avgLatencyMs: number;
 }
+export type QualityCheck = { check: string; passed: boolean; fixed: boolean; reason?: string };
+export type QualityReport = { checks: QualityCheck[]; revisions: number };

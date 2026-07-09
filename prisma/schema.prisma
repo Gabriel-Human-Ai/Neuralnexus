@@ -48,6 +48,7 @@ model ModelRun {
   inputTokens  Int      @default(0)
   outputTokens Int      @default(0)
   costUsd      Float    @default(0)
+  purpose      String   @default("user") // user | judge | genome | extractor | benchmark
   createdAt    DateTime @default(now())
   project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
@@ -77,6 +78,7 @@ model Skill {
   name        String
   description String   @default("")
   instructions String  @default("")
+  version     Int      @default(1)
   createdAt   DateTime @default(now())
 }
 
@@ -103,4 +105,60 @@ model Workflow {
   name      String
   agentIds  String   // comma-separated ordered Agent ids
   createdAt DateTime @default(now())
+}
+
+model Output {
+  id                  String   @id @default(cuid())
+  projectId           String
+  stepName            String   @default("")
+  prompt              String   @default("")
+  draftContent        String
+  finalContent        String   @default("")
+  status              String   @default("draft") // draft | final
+  skillId             String?
+  skillVersion        Int      @default(1)
+  model               String   @default("")
+  provider            String   @default("")
+  inputTokens         Int      @default(0)
+  outputTokens        Int      @default(0)
+  costUsd             Float    @default(0)
+  knowledgeIds        String   @default("") // comma-separated Memory ids used
+  parentOutputId      String?
+  forkChangedVariable String?  // "model" | "skill" | null
+  qualityReport       String   @default("") // JSON string, see §4
+  createdAt           DateTime @default(now())
+}
+
+model SkillRule {
+  id             String   @id @default(cuid())
+  skillId        String
+  text           String
+  source         String   @default("learned") // learned | manual | imported
+  sourceOutputId String?
+  status         String   @default("proposed") // proposed | active | rejected
+  createdAt      DateTime @default(now())
+}
+
+model BenchmarkRun {
+  id                String   @id @default(cuid())
+  projectId         String
+  stepName          String   @default("")
+  primaryModel      String
+  challengerModel   String
+  similarityScore   Int      @default(0) // 0-10
+  primaryCostUsd    Float    @default(0)
+  challengerCostUsd Float    @default(0)
+  createdAt         DateTime @default(now())
+}
+
+model ModelPolicy {
+  id        String   @id @default(cuid())
+  projectId String
+  stepName  String   @default("*")
+  model     String
+  provider  String   @default("")
+  reason    String   @default("autopilot")
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, stepName])
 }

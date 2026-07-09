@@ -185,7 +185,10 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
 
                 {active === "models" && (
                   <>
-                    <p className="text-xs text-mist py-2">Keys are only needed when a workspace generates live AI outputs.</p>
+                    <p className="text-xs text-mist py-2">
+                      Bring keys from any provider — OpenAI, Anthropic, OpenRouter, Google, DeepSeek.<br />
+                      NeuralNexus stays neutral: the right model per step, and proof when a cheaper one matches your quality.
+                    </p>
                     {KEY_FIELDS.map(f => (
                       <div key={f.k} className="py-2.5 border-b border-white/8">
                         <label className="text-sm text-snow flex items-center gap-2 mb-1.5"><Chip provider={f.provider} />{f.label} <span className="text-mist text-xs">· {f.hint}</span></label>
@@ -251,7 +254,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                   <>
                     {stats && (
                       <div className="glass card p-3.5 mb-3 text-xs font-mono text-mist">
-                        {stats.chats} projects · {stats.messages} messages · {stats.memories} memories
+                        {stats.chats} workspaces · {stats.messages} messages · {stats.memories} memories
                       </div>
                     )}
                     <Row label="Export workspace data" hint="Downloads available data as JSON.">

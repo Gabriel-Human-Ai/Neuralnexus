@@ -131,7 +131,7 @@ export function CommandPalette({ open, onClose, commands, recent = [], onRecentU
               <input
                 ref={inputRef}
                 autoFocus
-                placeholder="Modelle, Einstellungen, Aktionen…"
+                placeholder="Models, settings, actions..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -143,7 +143,7 @@ export function CommandPalette({ open, onClose, commands, recent = [], onRecentU
             <div ref={listRef} className="overflow-y-auto flex-1 max-h-96">
               {flat.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-mist">
-                  Keine Befehle gefunden
+                  No commands found
                 </div>
               ) : (
                 groups.map(([group, cmds]) => (
@@ -183,9 +183,9 @@ export function CommandPalette({ open, onClose, commands, recent = [], onRecentU
 
             {/* Footer Hint */}
             <div className="px-4 py-2 border-t border-white/8 text-[10px] text-mist flex justify-between">
-              <span>⏎ Auswählen</span>
-              <span>↑↓ Navigieren</span>
-              <span>Esc Schließen</span>
+              <span>Enter Select</span>
+              <span>Up/Down Navigate</span>
+              <span>Esc Close</span>
             </div>
           </motion.div>
         </motion.div>

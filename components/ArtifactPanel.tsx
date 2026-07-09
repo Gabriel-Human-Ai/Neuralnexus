@@ -219,7 +219,7 @@ export function ArtifactPanel({
         </button>
         <button
           onClick={handleDownload}
-          title="Herunterladen"
+          title="Download"
           className="flex items-center gap-1 text-xs px-3 py-1.5 rounded glass-input text-mist hover:bg-white/10 transition-colors"
         >
           <Download size={14} />
@@ -227,7 +227,7 @@ export function ArtifactPanel({
         {isRenderableHtml && (
           <button
             onClick={handleOpenTab}
-            title="Im neuen Tab öffnen"
+            title="Open in new tab"
             className="flex items-center gap-1 text-xs px-3 py-1.5 rounded glass-input text-mist hover:bg-white/10 transition-colors"
           >
             <ExternalLink size={14} />

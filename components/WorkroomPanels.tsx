@@ -12,7 +12,7 @@ export function UsageTrackingPanel({ runs }: { runs: { model: string; costUsd: n
   return (
     <div className="glass card p-3.5">
       <div className="text-[11px] uppercase tracking-widest text-mist font-mono mb-2">Usage Tracking</div>
-      {rows.length === 0 && <div className="text-xs text-mist">Noch keine Läufe.</div>}
+      {rows.length === 0 && <div className="text-xs text-mist">No runs yet.</div>}
       <div className="space-y-2">
         {rows.map(([model, cost]) => {
           const pct = Math.round((cost / total) * 100);
@@ -38,7 +38,7 @@ export function SmartModelChoicePanel({ lastStep, threshold }: { lastStep: Workr
   if (!lastStep) return (
     <div className="glass card p-3.5">
       <div className="text-[11px] uppercase tracking-widest text-mist font-mono mb-1">Smart Model Choice</div>
-      <div className="text-xs text-mist">Noch keine Entscheidung getroffen.</div>
+      <div className="text-xs text-mist">No decision yet.</div>
     </div>
   );
   const isCheap = /mini|haiku|glm|deepseek/i.test(lastStep.model);
@@ -48,11 +48,11 @@ export function SmartModelChoicePanel({ lastStep, threshold }: { lastStep: Workr
       <div className="text-sm text-snow font-medium mb-2">{lastStep.model}</div>
       <div className="text-xs text-mist space-y-1 font-mono">
         <div>Agent: {lastStep.agentName}</div>
-        <div>Routing-Schwelle: {threshold}% Qualität</div>
-        <div>Kosten dieser Anfrage: ${lastStep.costUsd.toFixed(4)}</div>
+        <div>Routing threshold: {threshold}% quality</div>
+        <div>Cost for this request: ${lastStep.costUsd.toFixed(4)}</div>
       </div>
       <div className={`mt-2.5 px-2.5 py-1.5 rounded text-[11px] ${isCheap ? "accent-surface accent-text" : "bg-white/5 text-mist border border-white/10"}`}>
-        {isCheap ? "Günstigstes passendes Modell gewählt." : "Stärkeres Modell gewählt (Qualitäts-Priorität)."}
+        {isCheap ? "Lowest suitable model selected." : "Stronger model selected (quality priority)."}
       </div>
     </div>
   );
@@ -73,14 +73,14 @@ export function HumanControlPanel({ approvalsPending, onOpen }: { approvalsPendi
         ))}
       </div>
       <button onClick={onOpen} disabled={approvalsPending === 0}
-        className="w-full glass-input py-1.5 text-xs text-snow disabled:opacity-30">Control Center öffnen</button>
+        className="w-full glass-input py-1.5 text-xs text-snow disabled:opacity-30">Open Control Center</button>
     </div>
   );
 }
 
 // ===== Security Gate status — mirrors the real budget-guard ratio (only real gate we have) =====
 export function SecurityGatePanel({ gateStatus, ratio }: { gateStatus: "green" | "amber" | "red"; ratio: number }) {
-  const label = gateStatus === "red" ? "Blockiert" : gateStatus === "amber" ? "Freigabe nötig" : "Keine Freigabe nötig";
+  const label = gateStatus === "red" ? "Blocked" : gateStatus === "amber" ? "Approval needed" : "No approval needed";
   const color = gateStatus === "red" ? "#E5544C" : gateStatus === "amber" ? "#E8B84B" : "#5FCB7A";
   return (
     <div className="glass card p-3.5">
@@ -89,7 +89,7 @@ export function SecurityGatePanel({ gateStatus, ratio }: { gateStatus: "green" |
         <span className="w-2 h-2 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
         <span className="text-sm text-snow">{label}</span>
       </div>
-      <div className="text-xs text-mist font-mono">Budget-Auslastung: {Math.round(ratio * 100)}%</div>
+      <div className="text-xs text-mist font-mono">Budget usage: {Math.round(ratio * 100)}%</div>
     </div>
   );
 }
@@ -108,13 +108,13 @@ export function ActionRequestModal({ open, onClose, onAdjustBudget }: { open: bo
             onClick={e => e.stopPropagation()}>
             <div className="text-sm font-medium text-snow mb-3">Action Request</div>
             <div className="text-xs text-mist mb-3">
-              Cost Guard hat automatisch auf das günstigste Modell umgeschaltet, weil dein Budget-Limit erreicht wurde.
+              Cost Guard switched to the lowest-cost model because your budget limit was reached.
             </div>
-            <div className="text-xs text-snow mb-1 font-mono">Grund: Budget-Limit erreicht</div>
-            <div className="text-xs text-snow mb-4 font-mono">Auswirkung: Alle weiteren Anfragen laufen auf dem günstigsten Modell</div>
+            <div className="text-xs text-snow mb-1 font-mono">Reason: budget limit reached</div>
+            <div className="text-xs text-snow mb-4 font-mono">Effect: all further requests use the lowest-cost model</div>
             <div className="flex gap-2">
-              <button onClick={onClose} className="flex-1 glass-input py-2 text-xs text-snow">Verstanden</button>
-              <button onClick={onAdjustBudget} className="flex-1 accent-solid py-2 rounded text-xs font-medium">Budget anpassen</button>
+              <button onClick={onClose} className="flex-1 glass-input py-2 text-xs text-snow">Understood</button>
+              <button onClick={onAdjustBudget} className="flex-1 accent-solid py-2 rounded text-xs font-medium">Adjust budget</button>
             </div>
           </motion.div>
         </motion.div>
@@ -125,7 +125,7 @@ export function ActionRequestModal({ open, onClose, onAdjustBudget }: { open: bo
 
 // ===== Bottom Event Log — real steps as they execute =====
 export function WorkroomEventLog({ steps, budgetWarning }: { steps: WorkroomStep[]; budgetWarning?: string }) {
-  const now = () => new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const now = () => new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
   const lines = [
     ...steps.map(s => ({ t: now(), level: "SUCCESS", text: `${s.agentName} → ${s.model} · $${s.costUsd.toFixed(4)}` })),
     ...(budgetWarning ? [{ t: now(), level: "WARN", text: budgetWarning }] : []),
@@ -133,7 +133,7 @@ export function WorkroomEventLog({ steps, budgetWarning }: { steps: WorkroomStep
   const levelColor: Record<string, string> = { SUCCESS: "#5FCB7A", WARN: "#E8B84B", INFO: "rgba(255,255,255,0.5)", ERROR: "#E5544C" };
   return (
     <div className="glass card p-3 font-mono text-[11px] max-h-32 overflow-y-auto space-y-1">
-      {lines.length === 0 && <div className="text-mist">Noch keine Ereignisse.</div>}
+      {lines.length === 0 && <div className="text-mist">No events yet.</div>}
       {lines.map((l, i) => (
         <div key={i} className="flex gap-2">
           <span className="text-mist shrink-0">{l.t}</span>

@@ -7,6 +7,7 @@ async function getKey(name: string): Promise<string | undefined> {
 export type ChatBlock = { type: "text"; text: string } | { type: "image"; data: string; mediaType: string };
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string | ChatBlock[] };
 export type ChatResult = { text: string; inputTokens: number; outputTokens: number };
+export type ChatOptions = { maxTokens?: number; temperature?: number };
 
 export const MODELS = [
   // Direct providers
@@ -34,10 +35,10 @@ export const MODELS = [
   { id: "z-ai/glm-4.6",                         provider: "openrouter", label: "GLM 4.6" },
 ] as const;
 
-export async function runChat(provider: string, model: string, messages: ChatMsg[]): Promise<ChatResult> {
-  if (provider === "anthropic") return anthropicChat(model, messages);
-  if (provider === "google") return googleChat(model, messages);
-  return openaiCompatChat(provider, model, messages);
+export async function runChat(provider: string, model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
+  if (provider === "anthropic") return anthropicChat(model, messages, options);
+  if (provider === "google") return googleChat(model, messages, options);
+  return openaiCompatChat(provider, model, messages, options);
 }
 
 const OPENAI_COMPAT_BASE: Record<string, string> = {
@@ -49,7 +50,7 @@ const OPENAI_COMPAT_KEY: Record<string, string> = {
   openrouter: "OPENROUTER_API_KEY", openai: "OPENAI_API_KEY", deepseek: "DEEPSEEK_API_KEY",
 };
 
-async function openaiCompatChat(provider: string, model: string, messages: ChatMsg[]): Promise<ChatResult> {
+async function openaiCompatChat(provider: string, model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
   const base = OPENAI_COMPAT_BASE[provider] ?? "https://api.openai.com/v1";
   const key = await getKey(OPENAI_COMPAT_KEY[provider] ?? "OPENAI_API_KEY");
   if (!key) throw new Error(`Kein ${provider}-Key. Trage ihn oben rechts unter ⚙︎ Einstellungen ein.`);
@@ -64,7 +65,7 @@ async function openaiCompatChat(provider: string, model: string, messages: ChatM
   const res = await fetch(`${base}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model, messages: mapped }),
+    body: JSON.stringify({ model, messages: mapped, max_tokens: options.maxTokens, temperature: options.temperature }),
   });
   if (!res.ok) throw new Error(`${provider} Fehler (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
@@ -75,7 +76,7 @@ async function openaiCompatChat(provider: string, model: string, messages: ChatM
   };
 }
 
-async function anthropicChat(model: string, messages: ChatMsg[]): Promise<ChatResult> {
+async function anthropicChat(model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
   const key = await getKey("ANTHROPIC_API_KEY");
   if (!key) throw new Error("Kein Anthropic-Key. Trage ihn oben rechts unter ⚙︎ Einstellungen ein.");
   const system = messages.filter(m => m.role === "system").map(m => typeof m.content === "string" ? m.content : "").join("\n");
@@ -90,7 +91,7 @@ async function anthropicChat(model: string, messages: ChatMsg[]): Promise<ChatRe
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model, max_tokens: 4000, system: system || undefined, messages: rest }),
+    body: JSON.stringify({ model, max_tokens: options.maxTokens ?? 4000, temperature: options.temperature, system: system || undefined, messages: rest }),
   });
   if (!res.ok) throw new Error(`Anthropic Fehler (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
@@ -102,7 +103,7 @@ async function anthropicChat(model: string, messages: ChatMsg[]): Promise<ChatRe
 }
 
 // Gemini: text-only for now (image blocks are dropped with a note rather than silently mis-sent).
-async function googleChat(model: string, messages: ChatMsg[]): Promise<ChatResult> {
+async function googleChat(model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
   const key = await getKey("GOOGLE_API_KEY");
   if (!key) throw new Error("Kein Google-Key. Trage ihn oben rechts unter ⚙︎ Einstellungen ein.");
   const system = messages.filter(m => m.role === "system").map(m => typeof m.content === "string" ? m.content : "").join("\n");
@@ -115,7 +116,7 @@ async function googleChat(model: string, messages: ChatMsg[]): Promise<ChatResul
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents, systemInstruction: system ? { parts: [{ text: system }] } : undefined }),
+    body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: options.maxTokens, temperature: options.temperature }, systemInstruction: system ? { parts: [{ text: system }] } : undefined }),
   });
   if (!res.ok) throw new Error(`Google Fehler (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();

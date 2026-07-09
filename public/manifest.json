@@ -1,6 +1,7 @@
 {
   "name": "NeuralNexus",
   "short_name": "NeuralNexus",
+  "description": "Turn your expertise into reusable AI workspaces. Encode your method once — it runs, learns from your edits, and meets your quality bar.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050607",
