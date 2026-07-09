@@ -1,6 +1,6 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Loader2, Circle } from "lucide-react";
+import { Check, Circle } from "lucide-react";
 import type { SubTask } from "@/lib/types";
 
 export interface AgentSplitBoardProps {
@@ -10,7 +10,7 @@ export interface AgentSplitBoardProps {
 
 const STATUS_ICON: Record<SubTask["status"], React.ReactNode> = {
   pending: <Circle size={14} className="text-white/30" />,
-  running: <Loader2 size={14} className="accent-text animate-spin" />,
+  running: <span className="agent-status-dots" aria-label="Running"><i /><i /><i /></span>,
   done: <Check size={14} className="text-white/80" />,
   failed: <Circle size={14} className="text-white/50" />,
 };

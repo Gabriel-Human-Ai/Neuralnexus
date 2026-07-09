@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 
 type SlideActionProps = {
   label: string;
@@ -118,7 +118,7 @@ export function PremiumSlideAction({
           className="slide-action-knob"
           style={{ transform: `translateX(calc(${progress} * (var(--slide-width) - var(--knob-size) - 12px)))` }}
         >
-          {loading ? <Loader2 size={19} className="animate-spin" /> : <ChevronRight size={22} />}
+          {loading ? <span className="slide-action-dots" aria-hidden="true"><i /><i /><i /></span> : completed ? <Check size={20} /> : <ChevronRight size={22} />}
         </div>
         <div className="slide-action-label">
           <span>{completed ? completionText : keyboardArmed ? "Press again to confirm" : label}</span>

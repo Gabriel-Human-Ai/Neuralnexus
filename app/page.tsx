@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import {
   Archive,
   ArrowLeft,
@@ -25,15 +26,15 @@ import {
   Plus,
   RefreshCcw,
   Settings,
-  SlidersHorizontal,
   Sparkles,
   Upload,
   X,
 } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
 import { FloatingWizard } from "@/components/FloatingWizard";
-import { DASHBOARD_WIDGETS, DEFAULT_HOME_WIDGETS, type DashboardWidgetId } from "@/lib/dashboardWidgets";
 import type { WizardIntent } from "@/lib/wizardActions";
+import { nextBestAction } from "@/lib/guidance";
+import { MOTION, viewMotion } from "@/lib/motion";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -322,28 +323,6 @@ function WizardStatusCard({ message, detail, actionLabel, onAction }: { message:
   );
 }
 
-function HomeWidget({
-  title,
-  description,
-  size,
-  children,
-}: {
-  title: string;
-  description: string;
-  size: "small" | "medium" | "wide";
-  children: React.ReactNode;
-}) {
-  return (
-    <section className={`home-widget liquid-card widget-${size}`}>
-      <div className="widget-head">
-        <span className="object-label">{title}</span>
-        <p>{description}</p>
-      </div>
-      {children}
-    </section>
-  );
-}
-
 function WorkspaceObject({ mode, featured = false }: { mode: WorkspaceMode; featured?: boolean }) {
   return (
     <div className={`workspace-object ${featured ? "workspace-object-featured" : ""}`}>
@@ -421,8 +400,7 @@ export default function Home() {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandIndex, setCommandIndex] = useState(0);
   const [recentCommands, setRecentCommands] = useState<string[]>([]);
-  const [widgetSettingsOpen, setWidgetSettingsOpen] = useState(false);
-  const [visibleWidgets, setVisibleWidgets] = useState<DashboardWidgetId[]>(DEFAULT_HOME_WIDGETS);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [xrayState, setXrayState] = useState<"idle" | "loading" | "complete">("idle");
   const [askState, setAskState] = useState<"idle" | "loading" | "complete">("idle");
   const [generalMessages, setGeneralMessages] = useState<GeneralChatMessage[]>([]);
@@ -442,15 +420,18 @@ export default function Home() {
   const usage = useMemo(() => buildUsageAnalytics(runs), [runs]);
   const userName = (keys.PREFERRED_NAME || keys.FULL_NAME || "").trim().split(/\s+/)[0] || "";
   const apiKeyReady = hasAnyApiKey(keys);
-  const homeViewMode = keys.HOME_VIEW_MODE || "balanced";
-  const showHomeStatus = keys.WIZARD_HOME_STATUS_ENABLED !== "0";
   const showHomeOrb = keys.WIZARD_HOME_ORB_ENABLED !== "0";
   const floatingWizardEnabled = keys.WIZARD_FLOATING_ENABLED !== "0";
   const orbHue = parseNumberSetting(keys.ORB_HUE, 238);
   const orbSpeed = keys.ORB_BREATHING === "0" ? 1 : parseNumberSetting(keys.ORB_SPEED, 18);
   const orbIntensity = parseNumberSetting(keys.ORB_INTENSITY || keys.ORB_GLOW, 68);
-  const widgetDensity = keys.HOME_WIDGET_DENSITY || "comfortable";
   const recentWorkspace = projects[0];
+  const guidance = useMemo(() => nextBestAction({
+    workspaces: projects.map((project) => ({ ...project, hasKnowledge: workspaceSources.length > 0 || Boolean(project.goal?.toLowerCase().includes("source context")) })),
+    skills,
+    hasApiKey: apiKeyReady,
+    lastOutputAt: runs[0]?.createdAt,
+  }), [apiKeyReady, projects, runs, skills, workspaceSources.length]);
   const wizardStatus = hasWorkspaces
     ? `Your ${recentWorkspace.name} workspace is ready.`
     : apiKeyReady
@@ -466,8 +447,6 @@ export default function Home() {
     try {
       const stored = window.localStorage.getItem("CMDK_RECENT");
       if (stored) setRecentCommands(JSON.parse(stored).slice(0, 3));
-      const storedWidgets = window.localStorage.getItem("HOME_WIDGETS");
-      if (storedWidgets) setVisibleWidgets(JSON.parse(storedWidgets));
     } catch {
       setRecentCommands([]);
     }
@@ -480,14 +459,6 @@ export default function Home() {
       // Recent commands are a convenience only; the app should not fail if storage is unavailable.
     }
   }, [recentCommands]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("HOME_WIDGETS", JSON.stringify(visibleWidgets));
-    } catch {
-      // Widget preferences are local convenience when Settings storage is unavailable.
-    }
-  }, [visibleWidgets]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -541,9 +512,6 @@ export default function Home() {
     if (costData?.runs) setCosts(costData);
     if (settingsData && !settingsData.error) {
       setKeys(settingsData);
-      if (settingsData.HOME_WIDGETS) {
-        try { setVisibleWidgets(JSON.parse(settingsData.HOME_WIDGETS)); } catch {}
-      }
     }
   }
 
@@ -852,7 +820,17 @@ export default function Home() {
     { id: "templates", label: "Templates", icon: Boxes },
     { id: "knowledge", label: "Knowledge", icon: Database },
     { id: "usage", label: "Usage", icon: BarChart3 },
-    { id: "settings", label: "Settings", icon: Settings },
+  ] as const;
+  const mobilePrimaryNav = [
+    { id: "home", label: "Home", icon: Compass },
+    { id: "workspaces", label: "Workspaces", icon: Layers3 },
+    { id: "skills", label: "Skills", icon: Sparkles },
+  ] as const;
+  const mobileMoreNav = [
+    { id: "chat", label: "General Chat", icon: MessageCircle },
+    { id: "templates", label: "Templates", icon: Boxes },
+    { id: "knowledge", label: "Knowledge", icon: Database },
+    { id: "usage", label: "Usage", icon: BarChart3 },
   ] as const;
 
   const commandItems = useMemo<CommandItem[]>(() => {
@@ -868,6 +846,13 @@ export default function Home() {
         hint: item.id === "home" ? "Return to the workspace stage" : `Open ${item.label}`,
         action: navigate(item.id as View),
       })),
+      {
+        id: "nav-settings",
+        label: "Settings",
+        group: "Navigation",
+        hint: "Open Settings",
+        action: () => setSettingsOpen(true),
+      },
       {
         id: "create-workspace",
         label: "Create workspace",
@@ -943,124 +928,8 @@ export default function Home() {
     setCommandIndex(0);
   }
 
-  function renderWidget(widgetId: DashboardWidgetId) {
-    const definition = DASHBOARD_WIDGETS.find((widget) => widget.id === widgetId);
-    if (!definition) return null;
-
-    if (widgetId === "workspace_progress") {
-      const mode = inferMode(recentWorkspace);
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          <h3>{recentWorkspace?.name || "No active workspace yet"}</h3>
-          <p>{recentWorkspace ? `Next: ${mode.steps[0]}` : "Create a workspace to unlock guided progress."}</p>
-          <button className="secondary-pill" onClick={() => recentWorkspace ? setView("workspaces") : setWizardOpen(true)}>
-            {recentWorkspace ? "Continue" : "Create workspace"} <ChevronRight size={16} />
-          </button>
-        </HomeWidget>
-      );
-    }
-
-    if (widgetId === "business_xray") {
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          <h3>Scan your business system</h3>
-          <p>Start from the closest real workspace flow: agency audit and strategic diagnosis.</p>
-          <PremiumSlideAction
-            label="Slide to scan"
-            completionText="Opening scan"
-            loading={xrayState === "loading"}
-            completed={xrayState === "complete"}
-            onComplete={startBusinessXray}
-          />
-        </HomeWidget>
-      );
-    }
-
-    if (widgetId === "asset_library") {
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          <h3>Outputs live in Workspaces</h3>
-          <p>Generated assets are stored as approved outputs inside each workspace.</p>
-          <button className="secondary-pill" onClick={() => { setView("workspaces"); setWorkspacePanel("outputs"); }}>
-            Open outputs <ChevronRight size={16} />
-          </button>
-        </HomeWidget>
-      );
-    }
-
-    if (widgetId === "knowledge_sources") {
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          <h3>{starterKnowledge.length} prepared source types</h3>
-          <p>PDFs, prompts, notes and client briefs can become workspace context.</p>
-          <button className="secondary-pill" onClick={() => setView("knowledge")}>
-            Open Knowledge <ChevronRight size={16} />
-          </button>
-        </HomeWidget>
-      );
-    }
-
-    if (widgetId === "usage_snapshot") {
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          <h3>{formatUsd(usage.today)} today</h3>
-          <p>{formatUsd(usage.month)} tracked this month across {runs.length} model runs.</p>
-          <button className="secondary-pill" onClick={() => setView("usage")}>
-            View usage <ChevronRight size={16} />
-          </button>
-        </HomeWidget>
-      );
-    }
-
-    if (widgetId === "wizard_suggestions") {
-      const suggestions = hasWorkspaces
-        ? ["Run the next workspace step", "Review saved outputs", "Package Client Mode"]
-        : ["Create your first workspace", "Explore templates", "Prepare knowledge sources"];
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          <div className="suggestion-list">
-            {suggestions.map((suggestion) => <button key={suggestion} onClick={() => suggestion.includes("template") ? setView("templates") : setWizardOpen(true)}>{suggestion}</button>)}
-          </div>
-        </HomeWidget>
-      );
-    }
-
-    if (widgetId === "recent_workspaces") {
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          {projects.length ? (
-            <div className="recent-workspace-list">
-              {projects.slice(0, 3).map((project) => (
-                <button key={project.id} onClick={() => { setSelectedWorkspaceId(project.id); setView("workspaces"); }}>
-                  <span>{project.name}</span>
-                  <small>{timeAgo(project.createdAt)}</small>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p>No recent workspaces yet. Your first workspace becomes the product.</p>
-          )}
-        </HomeWidget>
-      );
-    }
-
-    if (widgetId === "quick_actions") {
-      return (
-        <HomeWidget key={widgetId} {...definition}>
-          <div className="quick-action-grid">
-            <button onClick={() => setWizardOpen(true)}><Plus size={15} /> Create workspace</button>
-            <button onClick={() => setView("knowledge")}><Database size={15} /> Add knowledge</button>
-            <button onClick={() => setView("skills")}><Sparkles size={15} /> Build skill</button>
-            <button onClick={startBusinessXray}><Eye size={15} /> Business X-Ray</button>
-          </div>
-        </HomeWidget>
-      );
-    }
-
-    return null;
-  }
-
   return (
+    <MotionConfig reducedMotion="user" transition={MOTION.spring}>
     <main className="nn-shell">
       <aside className="nn-sidebar">
         <button className="brand-lockup" onClick={() => setView("home")}>
@@ -1079,7 +948,6 @@ export default function Home() {
                 key={item.id}
                 className={view === item.id ? "is-active" : ""}
                 onClick={() => {
-                  if (item.id === "settings") setSettingsOpen(true);
                   setView(item.id as View);
                 }}
               >
@@ -1090,11 +958,10 @@ export default function Home() {
           })}
         </nav>
 
-        <div className="sidebar-snapshot">
-          <span>MONTHLY USAGE</span>
-          <strong>${(costs.total ?? 0).toFixed(4)}</strong>
-          <small>{costs.runs?.length ?? 0} model runs tracked</small>
-        </div>
+        <button className="settings-pin" onClick={() => setSettingsOpen(true)}>
+          <Settings size={18} />
+          <span>Settings</span>
+        </button>
       </aside>
 
       <section className="nn-stage">
@@ -1102,85 +969,47 @@ export default function Home() {
           <span>Command</span>
           <kbd>⌘K</kbd>
         </button>
-        <div key={view} className="view-fade">
+        <AnimatePresence mode="wait">
+        <motion.div key={view} className="view-fade" {...viewMotion}>
         {view === "home" && (
-          <div className={`nn-home wizard-home home-density-${widgetDensity}`}>
-            <section className={`wizard-home-hero home-mode-${homeViewMode}`}>
-              <div className="wizard-home-copy">
-                <PersonalHomeHeader userName={userName} status={wizardStatus} workspaceSummary={workspaceSummary} />
-                {showHomeStatus && (
-                  <WizardStatusCard
-                    message={hasWorkspaces ? "I organized your next step." : "Ready when you are."}
-                    detail={wizardDetail}
-                    actionLabel={hasWorkspaces ? "Continue workspace" : "Create workspace"}
-                    onAction={() => hasWorkspaces ? setView("workspaces") : setWizardOpen(true)}
-                  />
-                )}
-                <div className="hero-actions wizard-actions">
-                  <button className="primary-pill" onClick={() => setWizardOpen(true)}>
-                    <Plus size={18} /> Create workspace
-                  </button>
-                  <button className="secondary-pill" onClick={() => setView("templates")}>
-                    Explore templates <ChevronRight size={17} />
-                  </button>
-                  <button className="secondary-pill" onClick={() => setWidgetSettingsOpen(true)}>
-                    <SlidersHorizontal size={17} /> Customize
-                  </button>
-                </div>
-              </div>
+          <div className="nn-home reduced-home">
+            <section className="home-orb-zone">
               {showHomeOrb && (
                 <div className="wizard-orb-panel">
-                  <WizardOrb size={homeViewMode === "widgets" ? 280 : 360} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive />
-                  <div className="wizard-orb-caption">
-                    <span>NeuralNexus Wizard</span>
-                    <small>{apiKeyReady ? "Models connected" : "Works without keys until generation"}</small>
-                  </div>
+                  <WizardOrb size={hasWorkspaces ? 360 : 390} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive />
                 </div>
+              )}
+              <div className="home-guidance-copy">
+                <span className="eyebrow">PERSONAL WIZARD</span>
+                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : "Turn your expertise into reusable AI workspaces."}</h1>
+                <p>{hasWorkspaces ? `Next: ${selectedWorkspaceMode.steps[0]}.` : "Let's build your first workspace."}</p>
+                <small>{guidance.description}</small>
+              </div>
+            </section>
+
+            <section className="home-primary-zone">
+              {hasWorkspaces ? (
+                <>
+                  <PremiumSlideAction
+                    label="Slide to start session"
+                    completionText="Opening workspace"
+                    loading={sessionState === "loading"}
+                    completed={sessionState === "complete"}
+                    onComplete={startWorkspaceSession}
+                  />
+                  <button className="quiet-link" onClick={() => setWizardOpen(true)}>or create a new workspace</button>
+                </>
+              ) : (
+                <button className="primary-pill home-primary-button" onClick={() => setWizardOpen(true)}>
+                  <Plus size={18} /> Create workspace
+                </button>
               )}
             </section>
 
-            <section className="mobile-wizard-slide">
-              <PremiumSlideAction
-                label={hasWorkspaces ? "Slide to ask" : "Slide to build"}
-                completionText={hasWorkspaces ? "Opening wizard" : "Opening builder"}
-                loading={askState === "loading"}
-                completed={askState === "complete"}
-                onComplete={hasWorkspaces ? startWizardAsk : () => setWizardOpen(true)}
-              />
-            </section>
-
-            <section className="home-dashboard-shell">
-              <div className="section-head">
-                <span>YOUR WORKSPACE DASHBOARD</span>
-                <button onClick={() => setWidgetSettingsOpen(true)}>Customize widgets</button>
-              </div>
-              <div className="home-widget-grid">
-                {visibleWidgets.map((widgetId) => renderWidget(widgetId))}
-              </div>
-            </section>
-
-            <section className="home-build-strip">
-              <div className="panel-wide">
-                <div className="section-head">
-                  <span>WHAT DO YOU WANT TO BUILD TODAY?</span>
-                  <button onClick={() => setWizardOpen(true)}>New workspace</button>
-                </div>
-                <div className="use-case-grid">
-                  {workspaceModes.map((mode) => (
-                    <button
-                      key={mode.id}
-                      className="liquid-card use-case-card"
-                      onClick={() => {
-                        setSelectedModeId(mode.id);
-                        setWizardOpen(true);
-                      }}
-                    >
-                      <span>{mode.label}</span>
-                      <p>{mode.purpose}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <section className="home-context-strip" aria-label="Workspace context">
+              <button onClick={() => setView("workspaces")}>{projects.length} workspaces</button>
+              <button onClick={() => setView("skills")}>{skills.length} skills</button>
+              <button onClick={() => setView("usage")}>{formatUsd(usage.month)} this month</button>
             </section>
           </div>
         )}
@@ -1262,33 +1091,25 @@ export default function Home() {
                     </div>
 
                     {workspacePanel === "overview" && (
-                      <div className="detail-grid">
-                        <div className="liquid-card">
-                          <span className="object-label">ACTIVE SKILLS</span>
-                          {selectedWorkspaceMode.skills.map((skill) => (
-                            <div key={skill} className="mini-row">
-                              <Sparkles size={16} />
-                              <span>{skill}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="liquid-card">
-                          <span className="object-label">KNOWLEDGE</span>
-                          {starterKnowledge.slice(0, 3).map((source) => (
-                            <div key={source} className="mini-row">
-                              <FileText size={16} />
-                              <span>{source}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="liquid-card">
-                          <span className="object-label">NEXT ACTION</span>
+                      <div className="workspace-overview-focus">
+                        <section className="next-step-card liquid-card">
+                          <span className="object-label">NEXT STEP</span>
                           <h3>{selectedWorkspaceMode.steps[0]}</h3>
-                          <p>{selectedWorkspaceMode.purpose}</p>
-                          <button className="secondary-pill" onClick={() => setWorkspacePanel("workflow")}>
-                            Review next step <ChevronRight size={16} />
-                          </button>
-                        </div>
+                          <p>{guidance.view === "workspaces" ? guidance.description : selectedWorkspaceMode.purpose}</p>
+                          <PremiumSlideAction
+                            label="Slide to run next step"
+                            completionText="Step prepared"
+                            estimatedCost="$0.03-$0.09"
+                            loading={stepState === "loading"}
+                            completed={stepState === "complete"}
+                            onComplete={runNextStep}
+                          />
+                        </section>
+                        <section className="last-output-card liquid-card">
+                          <span className="object-label">LAST OUTPUT</span>
+                          <p>No outputs yet. Run a workflow step to create your first result.</p>
+                          <button className="quiet-link" onClick={() => setWorkspacePanel("outputs")}>View outputs</button>
+                        </section>
                       </div>
                     )}
 
@@ -1585,8 +1406,56 @@ export default function Home() {
             </div>
           </div>
         )}
-        </div>
+        </motion.div>
+        </AnimatePresence>
       </section>
+
+      <nav className="mobile-tabbar" aria-label="Mobile navigation">
+        {mobilePrimaryNav.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              className={view === item.id ? "is-active" : ""}
+              onClick={() => {
+                setView(item.id as View);
+                setMoreOpen(false);
+              }}
+            >
+              <Icon size={19} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+        <button className={mobileMoreNav.some((item) => item.id === view) || settingsOpen ? "is-active" : ""} onClick={() => setMoreOpen(true)}>
+          <Boxes size={19} />
+          <span>More</span>
+        </button>
+      </nav>
+
+      {moreOpen && (
+        <div className="mobile-more-backdrop" role="dialog" aria-modal="true" onClick={() => setMoreOpen(false)}>
+          <div className="mobile-more-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="floating-wizard-head">
+              <span>More</span>
+              <button onClick={() => setMoreOpen(false)} aria-label="Close More"><X size={15} /></button>
+            </div>
+            {mobileMoreNav.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button key={item.id} onClick={() => { setView(item.id as View); setMoreOpen(false); }}>
+                  <Icon size={17} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+            <button onClick={() => { setSettingsOpen(true); setMoreOpen(false); }}>
+              <Settings size={17} />
+              <span>Settings</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {wizardOpen && (
         <div className="wizard-backdrop" role="dialog" aria-modal="true">
@@ -1773,38 +1642,6 @@ export default function Home() {
         </div>
       )}
 
-      {widgetSettingsOpen && (
-        <div className="widget-customizer-backdrop" role="dialog" aria-modal="true" aria-label="Customize Home widgets" onClick={() => setWidgetSettingsOpen(false)}>
-          <div className="widget-customizer" onClick={(event) => event.stopPropagation()}>
-            <div className="floating-wizard-head">
-              <span><SlidersHorizontal size={15} /> Home widgets</span>
-              <button onClick={() => setWidgetSettingsOpen(false)} aria-label="Close widget customizer"><X size={15} /></button>
-            </div>
-            <p>Choose which useful workspace objects appear on Home. This is stored locally for now.</p>
-            <div className="widget-toggle-list">
-              {DASHBOARD_WIDGETS.map((widget) => {
-                const enabled = visibleWidgets.includes(widget.id);
-                return (
-                  <button
-                    key={widget.id}
-                    className={enabled ? "is-enabled" : ""}
-                    onClick={() => {
-                      setVisibleWidgets((current) => enabled ? current.filter((id) => id !== widget.id) : [...current, widget.id]);
-                    }}
-                  >
-                    <span>
-                      <strong>{widget.title}</strong>
-                      <small>{widget.description}</small>
-                    </span>
-                    <Check size={16} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {view !== "home" && (
         <FloatingWizard
           enabled={floatingWizardEnabled}
@@ -1826,6 +1663,7 @@ export default function Home() {
         initialsFrom="NN"
       />
     </main>
+    </MotionConfig>
   );
 }
 

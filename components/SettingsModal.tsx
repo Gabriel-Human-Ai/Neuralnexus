@@ -347,28 +347,6 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                         <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${keys.WIZARD_HOME_ORB_ENABLED === "0" ? "left-0.5" : "left-[22px]"}`} />
                       </button>
                     </Row>
-                    <Row label="Home status card" hint="Shows the wizard's useful status update on Home.">
-                      <button onClick={() => set("WIZARD_HOME_STATUS_ENABLED", keys.WIZARD_HOME_STATUS_ENABLED === "0" ? "1" : "0")}
-                        className={`w-11 h-6 rounded-full transition relative ${keys.WIZARD_HOME_STATUS_ENABLED === "0" ? "bg-white/10" : "accent-solid"}`}>
-                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${keys.WIZARD_HOME_STATUS_ENABLED === "0" ? "left-0.5" : "left-[22px]"}`} />
-                      </button>
-                    </Row>
-                    <Row label="Preferred Home view">
-                      <div className="flex gap-1.5">
-                        {[["wizard", "Wizard"], ["balanced", "Balanced"], ["widgets", "Widgets"]].map(([v, l]) => (
-                          <button key={v} onClick={() => set("HOME_VIEW_MODE", v)}
-                            className={`px-3 py-1.5 rounded-lg text-xs ${(keys.HOME_VIEW_MODE || "balanced") === v ? "accent-surface accent-text" : "glass-input text-mist"}`}>{l}</button>
-                        ))}
-                      </div>
-                    </Row>
-                    <Row label="Widget density">
-                      <div className="flex gap-1.5">
-                        {[["compact", "Compact"], ["comfortable", "Comfort"]].map(([v, l]) => (
-                          <button key={v} onClick={() => set("HOME_WIDGET_DENSITY", v)}
-                            className={`px-3 py-1.5 rounded-lg text-xs ${(keys.HOME_WIDGET_DENSITY || "comfortable") === v ? "accent-surface accent-text" : "glass-input text-mist"}`}>{l}</button>
-                        ))}
-                      </div>
-                    </Row>
                   </>
                 )}
 
