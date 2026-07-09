@@ -1,5 +1,6 @@
 export type WizardIntent =
   | "create_workspace"
+  | "open_chat"
   | "create_skill"
   | "open_knowledge"
   | "open_usage"
@@ -18,6 +19,12 @@ export type WizardRoute = {
 };
 
 const ROUTES: Array<{ intent: WizardIntent; label: string; keywords: string[]; message: string }> = [
+  {
+    intent: "open_chat",
+    label: "Open general chat",
+    keywords: ["chat", "ask anything", "general question", "question", "talk"],
+    message: "I can open a free chat that is not tied to any workspace.",
+  },
   {
     intent: "create_workspace",
     label: "Create workspace",
@@ -92,6 +99,7 @@ export function routeWizardRequest(input: string): WizardRoute {
 }
 
 export const WIZARD_QUICK_ACTIONS: WizardRoute[] = [
+  { intent: "open_chat", label: "Ask anything", message: "Open the free general chat." },
   { intent: "create_workspace", label: "Create workspace", message: "Open the workspace builder." },
   { intent: "create_skill", label: "Create a skill", message: "Open Skills." },
   { intent: "open_knowledge", label: "Go to Knowledge", message: "Open Knowledge." },

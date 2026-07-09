@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Archive,
+  ArrowLeft,
   BarChart3,
   BookOpen,
   Boxes,
@@ -13,13 +14,17 @@ import {
   Database,
   Download,
   Eye,
+  File as FileIcon,
   FileText,
+  Image as ImageIcon,
   Layers3,
   Lock,
+  MessageCircle,
   Plus,
   Settings,
   SlidersHorizontal,
   Sparkles,
+  Upload,
   X,
 } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
@@ -70,7 +75,7 @@ type WorkspaceMode = {
   output: string;
 };
 
-type View = "home" | "workspaces" | "skills" | "templates" | "knowledge" | "usage" | "settings";
+type View = "home" | "chat" | "workspaces" | "skills" | "templates" | "knowledge" | "usage" | "settings";
 type WorkspacePanel = "overview" | "workflow" | "outputs" | "client";
 type CommandItem = {
   id: string;
@@ -78,6 +83,20 @@ type CommandItem = {
   group: string;
   hint: string;
   action: () => void;
+};
+type WorkspaceWizardStep = "type" | "audience" | "source" | "purpose" | "review";
+type UploadedSource = {
+  id: string;
+  name: string;
+  kind: "text" | "image" | "pdf" | "file";
+  size: number;
+  preview: string;
+  dataUrl?: string;
+};
+type GeneralChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  model?: string;
 };
 
 const workspaceModes: WorkspaceMode[] = [
@@ -384,6 +403,9 @@ export default function Home() {
   const [workspaceName, setWorkspaceName] = useState("Brand Strategy System");
   const [workspaceAudience, setWorkspaceAudience] = useState("Founders, designers and consultants");
   const [workspaceIntent, setWorkspaceIntent] = useState("Reusable strategy workspace for positioning, voice, offer and launch content.");
+  const [workspaceSourceNote, setWorkspaceSourceNote] = useState("");
+  const [workspaceSources, setWorkspaceSources] = useState<UploadedSource[]>([]);
+  const [wizardStep, setWizardStep] = useState<WorkspaceWizardStep>("type");
   const [buildState, setBuildState] = useState<"idle" | "loading" | "complete">("idle");
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [workspacePanel, setWorkspacePanel] = useState<WorkspacePanel>("overview");
@@ -400,6 +422,10 @@ export default function Home() {
   const [visibleWidgets, setVisibleWidgets] = useState<DashboardWidgetId[]>(DEFAULT_HOME_WIDGETS);
   const [xrayState, setXrayState] = useState<"idle" | "loading" | "complete">("idle");
   const [askState, setAskState] = useState<"idle" | "loading" | "complete">("idle");
+  const [generalMessages, setGeneralMessages] = useState<GeneralChatMessage[]>([]);
+  const [generalInput, setGeneralInput] = useState("");
+  const [generalBusy, setGeneralBusy] = useState(false);
+  const [generalAttachments, setGeneralAttachments] = useState<UploadedSource[]>([]);
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -414,6 +440,7 @@ export default function Home() {
   const apiKeyReady = hasAnyApiKey(keys);
   const homeViewMode = keys.HOME_VIEW_MODE || "balanced";
   const showHomeStatus = keys.WIZARD_HOME_STATUS_ENABLED !== "0";
+  const showHomeOrb = keys.WIZARD_HOME_ORB_ENABLED !== "0";
   const floatingWizardEnabled = keys.WIZARD_FLOATING_ENABLED !== "0";
   const orbHue = parseNumberSetting(keys.ORB_HUE, 238);
   const orbSpeed = keys.ORB_BREATHING === "0" ? 1 : parseNumberSetting(keys.ORB_SPEED, 18);
@@ -530,13 +557,16 @@ export default function Home() {
 
   async function buildWorkspace() {
     setBuildState("loading");
+    const sourceSummary = workspaceSources.length
+      ? workspaceSources.map((source) => `${source.name}: ${source.preview}`).join("\n")
+      : workspaceSourceNote;
     const created = await safeJson("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: workspaceName,
-        goal: `${workspaceIntent}\nAudience: ${workspaceAudience}\nMode: ${selectedMode.label}\nOutput: ${selectedMode.output}`,
-        rules: `Workflow steps: ${selectedMode.steps.join(" | ")}\nSkills: ${selectedMode.skills.join(" | ")}`,
+        goal: `${workspaceIntent}\nAudience: ${workspaceAudience}\nMode: ${selectedMode.label}\nOutput: ${selectedMode.output}\nSource context:\n${sourceSummary || "No source attached yet."}`,
+        rules: `Workflow steps: ${selectedMode.steps.join(" | ")}\nSkills: ${selectedMode.skills.join(" | ")}\nKnowledge sources: ${workspaceSources.map((source) => source.name).join(", ") || "none"}`,
       }),
     });
     await loadData();
@@ -547,7 +577,114 @@ export default function Home() {
       setView("workspaces");
       setWorkspacePanel("overview");
       setBuildState("idle");
+      setWizardStep("type");
     }, 650);
+  }
+
+  function nextWizardStep() {
+    const order: WorkspaceWizardStep[] = ["type", "audience", "source", "purpose", "review"];
+    const index = order.indexOf(wizardStep);
+    setWizardStep(order[Math.min(order.length - 1, index + 1)]);
+  }
+
+  function previousWizardStep() {
+    const order: WorkspaceWizardStep[] = ["type", "audience", "source", "purpose", "review"];
+    const index = order.indexOf(wizardStep);
+    setWizardStep(order[Math.max(0, index - 1)]);
+  }
+
+  async function readWorkspaceFiles(files: FileList | File[]) {
+    const list = Array.from(files).slice(0, 8);
+    const parsed = await Promise.all(list.map(async (file) => {
+      const id = `${file.name}-${file.size}-${file.lastModified}`;
+      const isImage = file.type.startsWith("image/");
+      const isText = file.type.startsWith("text/") || /\.(md|txt|csv|json|html|css|js|ts|tsx)$/i.test(file.name);
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      if (isText) {
+        const text = await file.text();
+        return { id, name: file.name, kind: "text" as const, size: file.size, preview: text.slice(0, 900) || "Empty text file." };
+      }
+      if (isImage) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+        return { id, name: file.name, kind: "image" as const, size: file.size, preview: "Image attached as a visual source. Live AI analysis happens when generation is connected.", dataUrl };
+      }
+      if (isPdf) {
+        return { id, name: file.name, kind: "pdf" as const, size: file.size, preview: "PDF attached. Text extraction is prepared for a dedicated parser step, not faked here." };
+      }
+      return { id, name: file.name, kind: "file" as const, size: file.size, preview: "File attached as source metadata." };
+    }));
+    setWorkspaceSources((current) => {
+      const merged = [...current];
+      for (const source of parsed) {
+        if (!merged.some((item) => item.id === source.id)) merged.push(source);
+      }
+      return merged;
+    });
+  }
+
+  async function readGeneralChatFiles(files: FileList | File[]) {
+    const list = Array.from(files).slice(0, 6);
+    const parsed = await Promise.all(list.map(async (file) => {
+      const id = `${file.name}-${file.size}-${file.lastModified}`;
+      const isImage = file.type.startsWith("image/");
+      const isText = file.type.startsWith("text/") || /\.(md|txt|csv|json|html|css|js|ts|tsx)$/i.test(file.name);
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      if (isText) {
+        const text = await file.text();
+        return { id, name: file.name, kind: "text" as const, size: file.size, preview: text.slice(0, 2500) || "Empty text file." };
+      }
+      if (isImage) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+        return { id, name: file.name, kind: "image" as const, size: file.size, preview: "Image attached for visual analysis.", dataUrl };
+      }
+      if (isPdf) return { id, name: file.name, kind: "pdf" as const, size: file.size, preview: "PDF attached as metadata. PDF parsing is not active in general chat yet." };
+      return { id, name: file.name, kind: "file" as const, size: file.size, preview: "File attached as metadata." };
+    }));
+    setGeneralAttachments((current) => [...current, ...parsed.filter((source) => !current.some((item) => item.id === source.id))]);
+  }
+
+  async function askWizard(input: string, attachments: UploadedSource[] = []) {
+    const response = await fetch("/api/wizard-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input,
+        messages: generalMessages.slice(-8),
+        attachments,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No model could answer. Check Settings.");
+    return `${data.text}${data.model ? `\n\n— ${data.model}` : ""}`;
+  }
+
+  async function sendGeneralChat() {
+    const input = generalInput.trim();
+    if (!input && generalAttachments.length === 0) return;
+    const userContent = input || `Please look at ${generalAttachments.length} attachment${generalAttachments.length === 1 ? "" : "s"}.`;
+    const attachments = generalAttachments;
+    setGeneralMessages((messages) => [...messages, { role: "user", content: userContent }]);
+    setGeneralInput("");
+    setGeneralAttachments([]);
+    setGeneralBusy(true);
+    try {
+      const answer = await askWizard(userContent, attachments);
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer }]);
+    } catch (error: any) {
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not answer. Check your API keys in Settings." }]);
+    } finally {
+      setGeneralBusy(false);
+    }
   }
 
   function startWorkspaceSession() {
@@ -583,6 +720,10 @@ export default function Home() {
   }
 
   function handleWizardIntent(intent: WizardIntent) {
+    if (intent === "open_chat") {
+      setView("chat");
+      return;
+    }
     if (intent === "create_workspace") {
       setWizardOpen(true);
       return;
@@ -669,6 +810,7 @@ export default function Home() {
 
   const navigation = [
     { id: "home", label: "Home", icon: Compass },
+    { id: "chat", label: "General Chat", icon: MessageCircle },
     { id: "workspaces", label: "Workspaces", icon: Layers3 },
     { id: "skills", label: "Skills", icon: Sparkles },
     { id: "templates", label: "Templates", icon: Boxes },
@@ -950,13 +1092,15 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              <div className="wizard-orb-panel">
-                <WizardOrb size={homeViewMode === "widgets" ? 280 : 360} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive />
-                <div className="wizard-orb-caption">
-                  <span>NeuralNexus Wizard</span>
-                  <small>{apiKeyReady ? "Models connected" : "Works without keys until generation"}</small>
+              {showHomeOrb && (
+                <div className="wizard-orb-panel">
+                  <WizardOrb size={homeViewMode === "widgets" ? 280 : 360} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive />
+                  <div className="wizard-orb-caption">
+                    <span>NeuralNexus Wizard</span>
+                    <small>{apiKeyReady ? "Models connected" : "Works without keys until generation"}</small>
+                  </div>
                 </div>
-              </div>
+              )}
             </section>
 
             <section className="mobile-wizard-slide">
@@ -1182,6 +1326,83 @@ export default function Home() {
           </div>
         )}
 
+        {view === "chat" && (
+          <div className="screen-stack free-chat-screen">
+            <header className="screen-header">
+              <div>
+                <span className="eyebrow">GENERAL CHAT</span>
+                <h1>Ask anything.</h1>
+                <p>This chat is not tied to a workspace. It uses whichever configured API key can answer through NeuralNexus routing.</p>
+              </div>
+              <button className="secondary-pill" onClick={() => setGeneralMessages([])} disabled={generalMessages.length === 0}>
+                Clear chat
+              </button>
+            </header>
+
+            <section className="free-chat-panel liquid-panel">
+              <div className="free-chat-orb">
+                <WizardOrb size={160} hue={orbHue} speed={generalBusy ? 42 : orbSpeed} intensity={generalBusy ? 88 : orbIntensity} state={generalBusy ? "generating" : "listening"} interactive />
+                <div>
+                  <span className="object-label">WIZARD CHAT</span>
+                  <h2>{generalBusy ? "Thinking..." : "Ready for a normal question."}</h2>
+                  <p>{apiKeyReady ? "Connected to your available model keys." : "Add an API key in Settings to get live answers."}</p>
+                </div>
+              </div>
+
+              <div className="free-chat-messages">
+                {generalMessages.length === 0 ? (
+                  <div className="empty-inline">
+                    <MessageCircle size={24} />
+                    <p>Ask a general question, paste text, or attach a readable file or image.</p>
+                  </div>
+                ) : (
+                  generalMessages.map((message, index) => (
+                    <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
+                      <span>{message.role === "user" ? "You" : "Wizard"}</span>
+                      <p>{message.content}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {generalAttachments.length > 0 && (
+                <div className="source-list chat-attachment-list">
+                  {generalAttachments.map((source) => (
+                    <div key={source.id} className="source-chip">
+                      {source.kind === "image" ? <ImageIcon size={15} /> : source.kind === "text" ? <FileText size={15} /> : <FileIcon size={15} />}
+                      <span>{source.name}</span>
+                      <button onClick={() => setGeneralAttachments((items) => items.filter((item) => item.id !== source.id))} aria-label={`Remove ${source.name}`}><X size={13} /></button>
+                      {source.dataUrl && <img src={source.dataUrl} alt="" />}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="free-chat-composer">
+                <label className="chat-file-button">
+                  <Upload size={16} />
+                  <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readGeneralChatFiles(event.target.files)} />
+                </label>
+                <textarea
+                  value={generalInput}
+                  onChange={(event) => setGeneralInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                      event.preventDefault();
+                      void sendGeneralChat();
+                    }
+                  }}
+                  placeholder="Ask anything. Cmd+Enter sends."
+                  rows={3}
+                />
+                <button className="primary-pill" onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
+                  {generalBusy ? "Thinking" : "Send"} <ChevronRight size={16} />
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
         {view === "skills" && (
           <CollectionScreen
             eyebrow="SKILLS"
@@ -1318,43 +1539,135 @@ export default function Home() {
 
       {wizardOpen && (
         <div className="wizard-backdrop" role="dialog" aria-modal="true">
-          <div className="wizard-modal">
+          <div className="wizard-modal guided-wizard-modal">
             <button className="modal-close" onClick={() => setWizardOpen(false)}>Close</button>
-            <div className="wizard-grid">
-              <div>
-                <span className="eyebrow">CREATE WORKSPACE</span>
-                <h2>Choose the system you want to package.</h2>
-                <ModeSelector selectedId={selectedModeId} onSelect={setSelectedModeId} />
+            <div className="guided-wizard-head">
+              <span className="eyebrow">CREATE WORKSPACE</span>
+              <div className="wizard-progress">
+                {(["type", "audience", "source", "purpose", "review"] as WorkspaceWizardStep[]).map((step) => (
+                  <span key={step} className={wizardStep === step ? "is-active" : ""} />
+                ))}
               </div>
+            </div>
+            <div key={wizardStep} className="guided-wizard-step">
+              {wizardStep === "type" && (
+                <>
+                  <h2>What kind of system are we building?</h2>
+                  <p>Pick the closest mode. You can refine the exact workspace in the next steps.</p>
+                  <ModeSelector selectedId={selectedModeId} onSelect={(id) => { setSelectedModeId(id); setTimeout(() => setWizardStep("audience"), 180); }} />
+                </>
+              )}
 
-              <div className="summary-card">
-                <span className="object-label">YOUR WORKSPACE IS READY</span>
-                <label>
-                  Workspace name
-                  <input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} />
-                </label>
-                <label>
-                  Audience
-                  <input value={workspaceAudience} onChange={(event) => setWorkspaceAudience(event.target.value)} />
-                </label>
-                <label>
-                  Purpose
-                  <textarea value={workspaceIntent} onChange={(event) => setWorkspaceIntent(event.target.value)} rows={3} />
-                </label>
-                <div className="summary-block">
-                  <strong>{selectedMode.label} WORKSPACE</strong>
-                  <span>Includes: {selectedMode.skills.join(" · ")} · {selectedMode.steps.length} workflow steps</span>
-                  <span>Mode: Strategic · Premium</span>
-                  <span>Budget: Balanced</span>
-                </div>
-                <PremiumSlideAction
-                  label="Slide to build workspace"
-                  completionText="Workspace created"
-                  loading={buildState === "loading"}
-                  completed={buildState === "complete"}
-                  onComplete={buildWorkspace}
-                />
-              </div>
+              {wizardStep === "audience" && (
+                <>
+                  <h2>Who is this workspace for?</h2>
+                  <p>One clear audience keeps the AI system useful instead of generic.</p>
+                  <label className="guided-field">
+                    Audience
+                    <input
+                      autoFocus
+                      value={workspaceAudience}
+                      onChange={(event) => setWorkspaceAudience(event.target.value)}
+                      onKeyDown={(event) => { if (event.key === "Enter") nextWizardStep(); }}
+                      placeholder="Founders, designers, consultants..."
+                    />
+                  </label>
+                </>
+              )}
+
+              {wizardStep === "source" && (
+                <>
+                  <h2>What should it learn from?</h2>
+                  <p>Add notes, prompts, PDFs or images. Text files are read immediately; images are attached as visual context.</p>
+                  <label
+                    className="file-drop-zone"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      void readWorkspaceFiles(event.dataTransfer.files);
+                    }}
+                  >
+                    <Upload size={22} />
+                    <span>Drop files here or choose files</span>
+                    <small>Text, Markdown, CSV, JSON, images and PDFs</small>
+                    <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readWorkspaceFiles(event.target.files)} />
+                  </label>
+                  <label className="guided-field">
+                    Quick source note
+                    <textarea
+                      value={workspaceSourceNote}
+                      onChange={(event) => setWorkspaceSourceNote(event.target.value)}
+                      placeholder="Paste a short method, prompt, client brief or framework..."
+                      rows={4}
+                    />
+                  </label>
+                  {workspaceSources.length > 0 && (
+                    <div className="source-list">
+                      {workspaceSources.map((source) => (
+                        <div key={source.id} className="source-chip">
+                          {source.kind === "image" ? <ImageIcon size={15} /> : source.kind === "text" ? <FileText size={15} /> : <FileIcon size={15} />}
+                          <span>{source.name}</span>
+                          <button onClick={() => setWorkspaceSources((items) => items.filter((item) => item.id !== source.id))} aria-label={`Remove ${source.name}`}><X size={13} /></button>
+                          {source.dataUrl && <img src={source.dataUrl} alt="" />}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {wizardStep === "purpose" && (
+                <>
+                  <h2>What should the workspace produce?</h2>
+                  <p>Write the outcome in plain language. This becomes the workspace's operating direction.</p>
+                  <label className="guided-field">
+                    Workspace name
+                    <input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} />
+                  </label>
+                  <label className="guided-field">
+                    Purpose
+                    <textarea
+                      autoFocus
+                      value={workspaceIntent}
+                      onChange={(event) => setWorkspaceIntent(event.target.value)}
+                      rows={4}
+                      placeholder="A reusable system that helps..."
+                    />
+                  </label>
+                </>
+              )}
+
+              {wizardStep === "review" && (
+                <>
+                  <h2>Your workspace is ready.</h2>
+                  <p>Review the system before building. This is the one high-intent action in the flow.</p>
+                  <div className="summary-card guided-summary">
+                    <span className="object-label">{selectedMode.label} WORKSPACE</span>
+                    <strong>{workspaceName}</strong>
+                    <span>For: {workspaceAudience}</span>
+                    <span>Includes: {selectedMode.skills.join(" · ")} · {selectedMode.steps.length} workflow steps</span>
+                    <span>Sources: {workspaceSources.length ? workspaceSources.map((source) => source.name).join(", ") : workspaceSourceNote ? "Quick note" : "No source yet"}</span>
+                    <span>Mode: Strategic · Premium</span>
+                  </div>
+                  <PremiumSlideAction
+                    label="Slide to build workspace"
+                    completionText="Workspace created"
+                    loading={buildState === "loading"}
+                    completed={buildState === "complete"}
+                    onComplete={buildWorkspace}
+                  />
+                </>
+              )}
+            </div>
+            <div className="guided-wizard-footer">
+              <button className="secondary-pill" onClick={previousWizardStep} disabled={wizardStep === "type"}>
+                <ArrowLeft size={16} /> Back
+              </button>
+              {wizardStep !== "review" && (
+                <button className="primary-pill" onClick={nextWizardStep}>
+                  Continue <ChevronRight size={16} />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1446,6 +1759,7 @@ export default function Home() {
           enabled={floatingWizardEnabled}
           status={wizardStatus}
           onIntent={handleWizardIntent}
+          onAsk={(input) => askWizard(input)}
         />
       )}
 

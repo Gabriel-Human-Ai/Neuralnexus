@@ -1,28 +1,49 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Send, Sparkles, X } from "lucide-react";
+import { MessageCircle, Search, Send, Sparkles, X } from "lucide-react";
 import { routeWizardRequest, WIZARD_QUICK_ACTIONS, type WizardIntent } from "@/lib/wizardActions";
 
 type FloatingWizardProps = {
   enabled?: boolean;
   status?: string;
   onIntent: (intent: WizardIntent) => void;
+  onAsk?: (input: string) => Promise<string>;
 };
 
-export function FloatingWizard({ enabled = true, status = "I can route you to the right place.", onIntent }: FloatingWizardProps) {
+export function FloatingWizard({ enabled = true, status = "I can route you to the right place.", onIntent, onAsk }: FloatingWizardProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [reply, setReply] = useState(status);
+  const [busy, setBusy] = useState(false);
   const quickActions = useMemo(() => WIZARD_QUICK_ACTIONS, []);
 
   if (!enabled) return null;
 
-  const submit = () => {
-    const route = routeWizardRequest(input);
-    setReply(route.message);
-    onIntent(route.intent);
+  const submit = async () => {
+    const text = input.trim();
+    if (!text) return;
+    const route = routeWizardRequest(text);
+    if (route.intent !== "unknown" && route.intent !== "find_something") {
+      setReply(route.message);
+      onIntent(route.intent);
+      setInput("");
+      return;
+    }
+    if (!onAsk) {
+      setReply("I can route you to the right place, but chat is not connected yet.");
+      return;
+    }
+    setBusy(true);
+    setReply("Listening. Thinking through it now...");
     setInput("");
+    try {
+      setReply(await onAsk(text));
+    } catch (error: any) {
+      setReply(error.message ?? "I could not answer yet. Check your API keys in Settings.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -30,7 +51,7 @@ export function FloatingWizard({ enabled = true, status = "I can route you to th
       {open && (
         <div className="floating-wizard-panel" role="dialog" aria-label="NeuralNexus Wizard">
           <div className="floating-wizard-head">
-            <span><Sparkles size={15} /> Wizard</span>
+            <span>{busy ? <MessageCircle size={15} /> : <Sparkles size={15} />} Wizard</span>
             <button onClick={() => setOpen(false)} aria-label="Close wizard"><X size={15} /></button>
           </div>
           <p>{reply}</p>
@@ -54,7 +75,7 @@ export function FloatingWizard({ enabled = true, status = "I can route you to th
               }}
               placeholder="Ask for a real action"
             />
-            <button onClick={submit} disabled={!input.trim()} aria-label="Ask wizard"><Send size={14} /></button>
+            <button onClick={submit} disabled={!input.trim() || busy} aria-label="Ask wizard"><Send size={14} /></button>
           </div>
         </div>
       )}
