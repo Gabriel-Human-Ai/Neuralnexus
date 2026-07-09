@@ -12,17 +12,27 @@ import {
   Compass,
   Database,
   Download,
+  Eye,
   FileText,
   Layers3,
   Lock,
   Plus,
   Settings,
+  SlidersHorizontal,
   Sparkles,
+  X,
 } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
+import { FloatingWizard } from "@/components/FloatingWizard";
+import { DASHBOARD_WIDGETS, DEFAULT_HOME_WIDGETS, type DashboardWidgetId } from "@/lib/dashboardWidgets";
+import type { WizardIntent } from "@/lib/wizardActions";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
+});
+const WizardOrb = dynamic(() => import("@/components/WizardOrb").then((module) => module.WizardOrb), {
+  ssr: false,
+  loading: () => <div className="wizard-orb-fallback" aria-hidden="true" />,
 });
 
 type Project = {
@@ -251,6 +261,67 @@ function ProviderDot({ provider }: { provider?: string }) {
   return <span className="provider-dot" data-provider={provider || "auto"} aria-hidden="true" />;
 }
 
+function hasAnyApiKey(keys: Record<string, string>) {
+  return ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "GOOGLE_API_KEY", "DEEPSEEK_API_KEY"].some((key) => Boolean(keys[key]));
+}
+
+function parseNumberSetting(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function PersonalHomeHeader({
+  userName,
+  status,
+  workspaceSummary,
+}: {
+  userName?: string;
+  status: string;
+  workspaceSummary: string;
+}) {
+  return (
+    <div className="personal-home-header">
+      <span className="eyebrow">PERSONAL WIZARD</span>
+      <h1>{userName ? `Hello, ${userName}` : "Welcome back"}</h1>
+      <p>{status}</p>
+      <small>{workspaceSummary}</small>
+    </div>
+  );
+}
+
+function WizardStatusCard({ message, detail, actionLabel, onAction }: { message: string; detail: string; actionLabel: string; onAction: () => void }) {
+  return (
+    <div className="wizard-status-card">
+      <span className="object-label">WIZARD STATUS</span>
+      <h2>{message}</h2>
+      <p>{detail}</p>
+      <button className="secondary-pill" onClick={onAction}>{actionLabel} <ChevronRight size={16} /></button>
+    </div>
+  );
+}
+
+function HomeWidget({
+  title,
+  description,
+  size,
+  children,
+}: {
+  title: string;
+  description: string;
+  size: "small" | "medium" | "wide";
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={`home-widget liquid-card widget-${size}`}>
+      <div className="widget-head">
+        <span className="object-label">{title}</span>
+        <p>{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function WorkspaceObject({ mode, featured = false }: { mode: WorkspaceMode; featured?: boolean }) {
   return (
     <div className={`workspace-object ${featured ? "workspace-object-featured" : ""}`}>
@@ -325,6 +396,10 @@ export default function Home() {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandIndex, setCommandIndex] = useState(0);
   const [recentCommands, setRecentCommands] = useState<string[]>([]);
+  const [widgetSettingsOpen, setWidgetSettingsOpen] = useState(false);
+  const [visibleWidgets, setVisibleWidgets] = useState<DashboardWidgetId[]>(DEFAULT_HOME_WIDGETS);
+  const [xrayState, setXrayState] = useState<"idle" | "loading" | "complete">("idle");
+  const [askState, setAskState] = useState<"idle" | "loading" | "complete">("idle");
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -335,12 +410,33 @@ export default function Home() {
   const hasWorkspaces = projects.length > 0;
   const runs = useMemo(() => (costs.runs ?? []) as ModelRun[], [costs.runs]);
   const usage = useMemo(() => buildUsageAnalytics(runs), [runs]);
+  const userName = (keys.PREFERRED_NAME || keys.FULL_NAME || "").trim().split(/\s+/)[0] || "";
+  const apiKeyReady = hasAnyApiKey(keys);
+  const homeViewMode = keys.HOME_VIEW_MODE || "balanced";
+  const showHomeStatus = keys.WIZARD_HOME_STATUS_ENABLED !== "0";
+  const floatingWizardEnabled = keys.WIZARD_FLOATING_ENABLED !== "0";
+  const orbHue = parseNumberSetting(keys.ORB_HUE, 238);
+  const orbSpeed = keys.ORB_BREATHING === "0" ? 1 : parseNumberSetting(keys.ORB_SPEED, 18);
+  const orbIntensity = parseNumberSetting(keys.ORB_INTENSITY || keys.ORB_GLOW, 68);
+  const widgetDensity = keys.HOME_WIDGET_DENSITY || "comfortable";
+  const recentWorkspace = projects[0];
+  const wizardStatus = hasWorkspaces
+    ? `Your ${recentWorkspace.name} workspace is ready.`
+    : apiKeyReady
+      ? "Your models are connected. Start with a reusable workspace."
+      : "Ready when you are. Start with a workspace or connect models later.";
+  const wizardDetail = hasWorkspaces
+    ? `Next recommended step: ${inferMode(recentWorkspace).steps[0]}.`
+    : "No fake setup required. Build a workspace first, then connect live AI when you need generation.";
+  const workspaceSummary = `${projects.length} workspace${projects.length === 1 ? "" : "s"} · ${skills.length} skill${skills.length === 1 ? "" : "s"} · ${runs.length} model run${runs.length === 1 ? "" : "s"}`;
 
   useEffect(() => {
     void loadData();
     try {
       const stored = window.localStorage.getItem("CMDK_RECENT");
       if (stored) setRecentCommands(JSON.parse(stored).slice(0, 3));
+      const storedWidgets = window.localStorage.getItem("HOME_WIDGETS");
+      if (storedWidgets) setVisibleWidgets(JSON.parse(storedWidgets));
     } catch {
       setRecentCommands([]);
     }
@@ -353,6 +449,14 @@ export default function Home() {
       // Recent commands are a convenience only; the app should not fail if storage is unavailable.
     }
   }, [recentCommands]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("HOME_WIDGETS", JSON.stringify(visibleWidgets));
+    } catch {
+      // Widget preferences are local convenience when Settings storage is unavailable.
+    }
+  }, [visibleWidgets]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -404,7 +508,24 @@ export default function Home() {
     if (Array.isArray(projectData)) setProjects(projectData);
     if (Array.isArray(skillData)) setSkills(skillData);
     if (costData?.runs) setCosts(costData);
-    if (settingsData && !settingsData.error) setKeys(settingsData);
+    if (settingsData && !settingsData.error) {
+      setKeys(settingsData);
+      if (settingsData.HOME_WIDGETS) {
+        try { setVisibleWidgets(JSON.parse(settingsData.HOME_WIDGETS)); } catch {}
+      }
+    }
+  }
+
+  function updateKeys(fn: (state: Record<string, string>) => Record<string, string>) {
+    setKeys((previous) => {
+      const next = fn(previous);
+      void safeJson("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      return next;
+    });
   }
 
   async function buildWorkspace() {
@@ -459,6 +580,64 @@ export default function Home() {
       setClientMode(true);
       setClientState("complete");
     }, 650);
+  }
+
+  function handleWizardIntent(intent: WizardIntent) {
+    if (intent === "create_workspace") {
+      setWizardOpen(true);
+      return;
+    }
+    if (intent === "start_xray") {
+      setSelectedModeId("audit");
+      setWizardOpen(true);
+      return;
+    }
+    if (intent === "create_skill") {
+      setView("skills");
+      return;
+    }
+    if (intent === "open_knowledge") {
+      setView("knowledge");
+      return;
+    }
+    if (intent === "open_usage") {
+      setView("usage");
+      return;
+    }
+    if (intent === "open_templates") {
+      setView("templates");
+      return;
+    }
+    if (intent === "open_outputs" || intent === "open_workspaces") {
+      setView("workspaces");
+      if (intent === "open_outputs") setWorkspacePanel("outputs");
+      return;
+    }
+    if (intent === "open_settings") {
+      setSettingsOpen(true);
+      return;
+    }
+    if (intent === "find_something" || intent === "unknown") {
+      setCommandOpen(true);
+    }
+  }
+
+  function startBusinessXray() {
+    setXrayState("loading");
+    setTimeout(() => {
+      setXrayState("complete");
+      handleWizardIntent("start_xray");
+      setTimeout(() => setXrayState("idle"), 500);
+    }, 420);
+  }
+
+  function startWizardAsk() {
+    setAskState("loading");
+    setTimeout(() => {
+      setAskState("complete");
+      setCommandOpen(true);
+      setTimeout(() => setAskState("idle"), 500);
+    }, 380);
   }
 
   function rememberCommand(id: string) {
@@ -586,6 +765,123 @@ export default function Home() {
     setCommandIndex(0);
   }
 
+  function renderWidget(widgetId: DashboardWidgetId) {
+    const definition = DASHBOARD_WIDGETS.find((widget) => widget.id === widgetId);
+    if (!definition) return null;
+
+    if (widgetId === "workspace_progress") {
+      const mode = inferMode(recentWorkspace);
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          <h3>{recentWorkspace?.name || "No active workspace yet"}</h3>
+          <p>{recentWorkspace ? `Next: ${mode.steps[0]}` : "Create a workspace to unlock guided progress."}</p>
+          <button className="secondary-pill" onClick={() => recentWorkspace ? setView("workspaces") : setWizardOpen(true)}>
+            {recentWorkspace ? "Continue" : "Create workspace"} <ChevronRight size={16} />
+          </button>
+        </HomeWidget>
+      );
+    }
+
+    if (widgetId === "business_xray") {
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          <h3>Scan your business system</h3>
+          <p>Start from the closest real workspace flow: agency audit and strategic diagnosis.</p>
+          <PremiumSlideAction
+            label="Slide to scan"
+            completionText="Opening scan"
+            loading={xrayState === "loading"}
+            completed={xrayState === "complete"}
+            onComplete={startBusinessXray}
+          />
+        </HomeWidget>
+      );
+    }
+
+    if (widgetId === "asset_library") {
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          <h3>Outputs live in Workspaces</h3>
+          <p>Generated assets are stored as approved outputs inside each workspace.</p>
+          <button className="secondary-pill" onClick={() => { setView("workspaces"); setWorkspacePanel("outputs"); }}>
+            Open outputs <ChevronRight size={16} />
+          </button>
+        </HomeWidget>
+      );
+    }
+
+    if (widgetId === "knowledge_sources") {
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          <h3>{starterKnowledge.length} prepared source types</h3>
+          <p>PDFs, prompts, notes and client briefs can become workspace context.</p>
+          <button className="secondary-pill" onClick={() => setView("knowledge")}>
+            Open Knowledge <ChevronRight size={16} />
+          </button>
+        </HomeWidget>
+      );
+    }
+
+    if (widgetId === "usage_snapshot") {
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          <h3>{formatUsd(usage.today)} today</h3>
+          <p>{formatUsd(usage.month)} tracked this month across {runs.length} model runs.</p>
+          <button className="secondary-pill" onClick={() => setView("usage")}>
+            View usage <ChevronRight size={16} />
+          </button>
+        </HomeWidget>
+      );
+    }
+
+    if (widgetId === "wizard_suggestions") {
+      const suggestions = hasWorkspaces
+        ? ["Run the next workspace step", "Review saved outputs", "Package Client Mode"]
+        : ["Create your first workspace", "Explore templates", "Prepare knowledge sources"];
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          <div className="suggestion-list">
+            {suggestions.map((suggestion) => <button key={suggestion} onClick={() => suggestion.includes("template") ? setView("templates") : setWizardOpen(true)}>{suggestion}</button>)}
+          </div>
+        </HomeWidget>
+      );
+    }
+
+    if (widgetId === "recent_workspaces") {
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          {projects.length ? (
+            <div className="recent-workspace-list">
+              {projects.slice(0, 3).map((project) => (
+                <button key={project.id} onClick={() => { setSelectedWorkspaceId(project.id); setView("workspaces"); }}>
+                  <span>{project.name}</span>
+                  <small>{timeAgo(project.createdAt)}</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p>No recent workspaces yet. Your first workspace becomes the product.</p>
+          )}
+        </HomeWidget>
+      );
+    }
+
+    if (widgetId === "quick_actions") {
+      return (
+        <HomeWidget key={widgetId} {...definition}>
+          <div className="quick-action-grid">
+            <button onClick={() => setWizardOpen(true)}><Plus size={15} /> Create workspace</button>
+            <button onClick={() => setView("knowledge")}><Database size={15} /> Add knowledge</button>
+            <button onClick={() => setView("skills")}><Sparkles size={15} /> Build skill</button>
+            <button onClick={startBusinessXray}><Eye size={15} /> Business X-Ray</button>
+          </div>
+        </HomeWidget>
+      );
+    }
+
+    return null;
+  }
+
   return (
     <main className="nn-shell">
       <aside className="nn-sidebar">
@@ -630,25 +926,60 @@ export default function Home() {
         </button>
         <div key={view} className="view-fade">
         {view === "home" && (
-          <div className="nn-home">
-            <section className="home-hero">
-              <div className="hero-copy">
-                <span className="eyebrow">AI WORKSPACE BUILDER</span>
-                <h1>Turn your expertise into reusable AI workspaces.</h1>
-                <p>Build client-ready systems from your knowledge, prompts, PDFs, methods and workflows.</p>
-                <div className="hero-actions">
+          <div className={`nn-home wizard-home home-density-${widgetDensity}`}>
+            <section className={`wizard-home-hero home-mode-${homeViewMode}`}>
+              <div className="wizard-home-copy">
+                <PersonalHomeHeader userName={userName} status={wizardStatus} workspaceSummary={workspaceSummary} />
+                {showHomeStatus && (
+                  <WizardStatusCard
+                    message={hasWorkspaces ? "I organized your next step." : "Ready when you are."}
+                    detail={wizardDetail}
+                    actionLabel={hasWorkspaces ? "Continue workspace" : "Create workspace"}
+                    onAction={() => hasWorkspaces ? setView("workspaces") : setWizardOpen(true)}
+                  />
+                )}
+                <div className="hero-actions wizard-actions">
                   <button className="primary-pill" onClick={() => setWizardOpen(true)}>
                     <Plus size={18} /> Create workspace
                   </button>
                   <button className="secondary-pill" onClick={() => setView("templates")}>
                     Explore templates <ChevronRight size={17} />
                   </button>
+                  <button className="secondary-pill" onClick={() => setWidgetSettingsOpen(true)}>
+                    <SlidersHorizontal size={17} /> Customize
+                  </button>
                 </div>
               </div>
-              <WorkspaceObject mode={workspaceModes[1]} featured />
+              <div className="wizard-orb-panel">
+                <WizardOrb size={homeViewMode === "widgets" ? 280 : 360} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive />
+                <div className="wizard-orb-caption">
+                  <span>NeuralNexus Wizard</span>
+                  <small>{apiKeyReady ? "Models connected" : "Works without keys until generation"}</small>
+                </div>
+              </div>
             </section>
 
-            <section className="home-grid">
+            <section className="mobile-wizard-slide">
+              <PremiumSlideAction
+                label={hasWorkspaces ? "Slide to ask" : "Slide to build"}
+                completionText={hasWorkspaces ? "Opening wizard" : "Opening builder"}
+                loading={askState === "loading"}
+                completed={askState === "complete"}
+                onComplete={hasWorkspaces ? startWizardAsk : () => setWizardOpen(true)}
+              />
+            </section>
+
+            <section className="home-dashboard-shell">
+              <div className="section-head">
+                <span>YOUR WORKSPACE DASHBOARD</span>
+                <button onClick={() => setWidgetSettingsOpen(true)}>Customize widgets</button>
+              </div>
+              <div className="home-widget-grid">
+                {visibleWidgets.map((widgetId) => renderWidget(widgetId))}
+              </div>
+            </section>
+
+            <section className="home-build-strip">
               <div className="panel-wide">
                 <div className="section-head">
                   <span>WHAT DO YOU WANT TO BUILD TODAY?</span>
@@ -670,32 +1001,6 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-
-              {hasWorkspaces && (
-                <div className="liquid-card focus-session">
-                  <span className="object-label">CONTINUE WORKSPACE</span>
-                  <h2>{projects[0].name}</h2>
-                  <p>Next: {inferMode(projects[0]).steps[0]}.</p>
-                  <PremiumSlideAction
-                    label="Slide to start session"
-                    completionText="Session starting"
-                    loading={sessionState === "loading"}
-                    completed={sessionState === "complete"}
-                    onComplete={startWorkspaceSession}
-                  />
-                </div>
-              )}
-
-              {!hasWorkspaces && (
-                <div className="liquid-card focus-session">
-                  <span className="object-label">START HERE</span>
-                  <h2>Your first workspace becomes the product.</h2>
-                  <p>Choose a mode, add your method and package it into a reusable system.</p>
-                  <button className="primary-pill full" onClick={() => setWizardOpen(true)}>
-                    <Plus size={18} /> Create workspace
-                  </button>
-                </div>
-              )}
             </section>
           </div>
         )}
@@ -1104,6 +1409,46 @@ export default function Home() {
         </div>
       )}
 
+      {widgetSettingsOpen && (
+        <div className="widget-customizer-backdrop" role="dialog" aria-modal="true" aria-label="Customize Home widgets" onClick={() => setWidgetSettingsOpen(false)}>
+          <div className="widget-customizer" onClick={(event) => event.stopPropagation()}>
+            <div className="floating-wizard-head">
+              <span><SlidersHorizontal size={15} /> Home widgets</span>
+              <button onClick={() => setWidgetSettingsOpen(false)} aria-label="Close widget customizer"><X size={15} /></button>
+            </div>
+            <p>Choose which useful workspace objects appear on Home. This is stored locally for now.</p>
+            <div className="widget-toggle-list">
+              {DASHBOARD_WIDGETS.map((widget) => {
+                const enabled = visibleWidgets.includes(widget.id);
+                return (
+                  <button
+                    key={widget.id}
+                    className={enabled ? "is-enabled" : ""}
+                    onClick={() => {
+                      setVisibleWidgets((current) => enabled ? current.filter((id) => id !== widget.id) : [...current, widget.id]);
+                    }}
+                  >
+                    <span>
+                      <strong>{widget.title}</strong>
+                      <small>{widget.description}</small>
+                    </span>
+                    <Check size={16} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view !== "home" && (
+        <FloatingWizard
+          enabled={floatingWizardEnabled}
+          status={wizardStatus}
+          onIntent={handleWizardIntent}
+        />
+      )}
+
       <SettingsModal
         open={settingsOpen}
         onClose={() => {
@@ -1111,7 +1456,7 @@ export default function Home() {
           if (view === "settings") setView("home");
         }}
         keys={keys}
-        setKeys={setKeys}
+        setKeys={updateKeys}
         costs={costs}
         initialsFrom="NN"
       />

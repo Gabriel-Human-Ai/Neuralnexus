@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, KeyRound, ShieldCheck, BarChart3, GitBranch, Monitor, Tag, Database, Search, X, Check } from "lucide-react";
+import { Settings, KeyRound, ShieldCheck, BarChart3, GitBranch, Monitor, Tag, Database, Search, X, Check, Sparkles } from "lucide-react";
 
 type Keys = Record<string, string>;
 
@@ -26,6 +26,7 @@ const SECTIONS = [
   { id: "data", label: "Data", icon: Database, group: "Settings" },
   { id: "appearance", label: "Appearance", icon: Monitor, group: "Customize" },
   { id: "orb", label: "Resonance Orb", icon: Settings, group: "Customize" },
+  { id: "wizard", label: "Wizard & Home", icon: Sparkles, group: "Customize" },
   { id: "whitelabel", label: "White-Label", icon: Tag, group: "Customize" },
 ] as const;
 
@@ -313,6 +314,53 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                         <input type="range" min={1} max={100} value={keys.ORB_GLOW ?? "60"}
                           onChange={e => set("ORB_GLOW", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
                         <span className="text-xs font-mono text-mist w-8">{keys.ORB_GLOW ?? 60}%</span>
+                      </div>
+                    </Row>
+                    <Row label="Wizard intensity" hint="Controls the Home wizard orb glow.">
+                      <div className="flex items-center gap-2 w-52">
+                        <input type="range" min={1} max={100} value={keys.ORB_INTENSITY ?? keys.ORB_GLOW ?? "68"}
+                          onChange={e => set("ORB_INTENSITY", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
+                        <span className="text-xs font-mono text-mist w-8">{keys.ORB_INTENSITY ?? keys.ORB_GLOW ?? 68}%</span>
+                      </div>
+                    </Row>
+                    <Row label="Breathing animation" hint="Turns the orb breathing motion on or off.">
+                      <button onClick={() => set("ORB_BREATHING", keys.ORB_BREATHING === "0" ? "1" : "0")}
+                        className={`w-11 h-6 rounded-full transition relative ${keys.ORB_BREATHING === "0" ? "bg-white/10" : "accent-solid"}`}>
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${keys.ORB_BREATHING === "0" ? "left-0.5" : "left-[22px]"}`} />
+                      </button>
+                    </Row>
+                  </>
+                )}
+
+                {active === "wizard" && (
+                  <>
+                    <div className="text-[11px] uppercase tracking-widest text-mist py-2">Wizard & Home</div>
+                    <Row label="Floating wizard" hint="Shows the mini orb assistant outside Home.">
+                      <button onClick={() => set("WIZARD_FLOATING_ENABLED", keys.WIZARD_FLOATING_ENABLED === "0" ? "1" : "0")}
+                        className={`w-11 h-6 rounded-full transition relative ${keys.WIZARD_FLOATING_ENABLED === "0" ? "bg-white/10" : "accent-solid"}`}>
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${keys.WIZARD_FLOATING_ENABLED === "0" ? "left-0.5" : "left-[22px]"}`} />
+                      </button>
+                    </Row>
+                    <Row label="Home status card" hint="Shows the wizard's useful status update on Home.">
+                      <button onClick={() => set("WIZARD_HOME_STATUS_ENABLED", keys.WIZARD_HOME_STATUS_ENABLED === "0" ? "1" : "0")}
+                        className={`w-11 h-6 rounded-full transition relative ${keys.WIZARD_HOME_STATUS_ENABLED === "0" ? "bg-white/10" : "accent-solid"}`}>
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${keys.WIZARD_HOME_STATUS_ENABLED === "0" ? "left-0.5" : "left-[22px]"}`} />
+                      </button>
+                    </Row>
+                    <Row label="Preferred Home view">
+                      <div className="flex gap-1.5">
+                        {[["wizard", "Wizard"], ["balanced", "Balanced"], ["widgets", "Widgets"]].map(([v, l]) => (
+                          <button key={v} onClick={() => set("HOME_VIEW_MODE", v)}
+                            className={`px-3 py-1.5 rounded-lg text-xs ${(keys.HOME_VIEW_MODE || "balanced") === v ? "accent-surface accent-text" : "glass-input text-mist"}`}>{l}</button>
+                        ))}
+                      </div>
+                    </Row>
+                    <Row label="Widget density">
+                      <div className="flex gap-1.5">
+                        {[["compact", "Compact"], ["comfortable", "Comfort"]].map(([v, l]) => (
+                          <button key={v} onClick={() => set("HOME_WIDGET_DENSITY", v)}
+                            className={`px-3 py-1.5 rounded-lg text-xs ${(keys.HOME_WIDGET_DENSITY || "comfortable") === v ? "accent-surface accent-text" : "glass-input text-mist"}`}>{l}</button>
+                        ))}
                       </div>
                     </Row>
                   </>
