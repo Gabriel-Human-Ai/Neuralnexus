@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Database — NIEMALS auf GitHub
+*.db
+*.db-journal
+prisma/dev.db
+
+# Environment — NIEMALS auf GitHub
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+.turbo

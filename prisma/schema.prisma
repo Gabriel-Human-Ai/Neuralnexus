@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  archived    Boolean  @default(false)
+  name        String
+  description String   @default("")
+  goal        String   @default("")
+  techStack   String   @default("")
+  rules       String   @default("")
+  createdAt   DateTime @default(now())
+  messages    Message[]
+  memories    Memory[]
+  runs        ModelRun[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  projectId String
+  role      String
+  content   String
+  model     String   @default("")
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Memory {
+  id        String   @id @default(cuid())
+  workspaceId String?
+  projectId String?
+  kind      String
+  content   String
+  createdAt DateTime @default(now())
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ModelRun {
+  id           String   @id @default(cuid())
+  projectId    String
+  provider     String
+  model        String
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUsd      Float    @default(0)
+  createdAt    DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model Agent {
+  id            String   @id @default(cuid())
+  workspaceId   String?
+  isPublic      Boolean  @default(false)
+  workroomRole  String?  // orchestrator|planner|research|builder|reviewer|monitor|security|costguard
+  name          String   @unique
+  emoji         String   @default("✦")
+  role          String   @default("")
+  systemPrompt  String   @default("")
+  preferredModel String  @default("auto")
+  skillIds      String   @default("")
+  createdAt     DateTime @default(now())
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  name        String
+  description String   @default("")
+  instructions String  @default("")
+  createdAt   DateTime @default(now())
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  brandName String   @default("")
+  brandColor String  @default("#8B5CF6")
+  createdAt DateTime @default(now())
+  members   WorkspaceMember[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  role        String   @default("member") // admin | member
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Workflow {
+  id        String   @id @default(cuid())
+  name      String
+  agentIds  String   // comma-separated ordered Agent ids
+  createdAt DateTime @default(now())
+}
