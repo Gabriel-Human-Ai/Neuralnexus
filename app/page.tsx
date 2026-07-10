@@ -1113,7 +1113,7 @@ export default function Home() {
             <section className="home-orb-zone">
               {showHomeOrb && (
                 <div className="wizard-orb-panel">
-                  <WizardOrb size={hasWorkspaces ? 360 : 390} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive {...orbSettings} />
+                  <WizardOrb size={hasWorkspaces ? 300 : 320} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive {...orbSettings} />
                 </div>
               )}
               <div className="home-guidance-copy">
