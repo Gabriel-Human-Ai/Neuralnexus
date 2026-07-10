@@ -4906,3 +4906,293 @@ button.aura-card {
     animation: none !important;
   }
 }
+
+/* ===== Mobile repair pass: settings, collections, top tools ===== */
+.settings-modal-shell {
+  max-width: min(960px, calc(100vw - 32px)) !important;
+}
+
+.settings-row {
+  min-width: 0;
+}
+
+.settings-control {
+  min-width: 0;
+}
+
+.settings-control input,
+.settings-control select,
+.settings-control textarea,
+.settings-control .glass-input {
+  max-width: 100%;
+}
+
+.settings-orb-slider {
+  max-width: min(100%, 16rem);
+}
+
+.scenic-theme-toggle {
+  width: 68px !important;
+  height: 34px !important;
+  padding: 2px !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(0,0,0,0.16) !important;
+}
+
+[data-theme="light"] .scenic-theme-toggle {
+  border-color: rgba(13,13,18,0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 6px 14px rgba(13,13,18,0.08) !important;
+}
+
+.scenic-theme-toggle__sun,
+.scenic-theme-toggle__moon {
+  top: 7px;
+  left: 10px;
+  width: 15px;
+  height: 15px;
+}
+
+.scenic-theme-toggle__moon {
+  left: 43px;
+}
+
+@media (max-width: 760px) {
+  .nn-stage {
+    overflow-x: hidden !important;
+  }
+
+  .stage-tools {
+    top: max(14px, env(safe-area-inset-top)) !important;
+    right: 14px !important;
+    left: auto !important;
+    transform: none !important;
+    gap: 8px !important;
+    z-index: 88;
+  }
+
+  .stage-tools .command-launcher {
+    max-width: 154px;
+    min-width: 0;
+    padding-inline: 14px 8px !important;
+  }
+
+  .stage-tools .command-launcher span {
+    max-width: 86px;
+  }
+
+  .scenic-theme-toggle {
+    width: 58px !important;
+    height: 34px !important;
+    flex: 0 0 58px;
+  }
+
+  .scenic-theme-toggle__sun,
+  .scenic-theme-toggle__moon {
+    top: 7px;
+    left: 9px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .scenic-theme-toggle__moon {
+    left: 36px;
+  }
+
+  .nexus-island {
+    top: max(58px, calc(env(safe-area-inset-top) + 48px));
+    left: 50%;
+    max-width: calc(100vw - 72px);
+    min-height: 34px;
+    padding: 0 12px 0 10px;
+    transform: translateX(-50%) !important;
+    z-index: 82;
+  }
+
+  .nexus-island[data-activity="idle"] {
+    display: none;
+  }
+
+  .nexus-island__orb {
+    width: 16px;
+    height: 16px;
+  }
+
+  .screen-stack {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .screen-header {
+    padding-inline: 2px;
+  }
+
+  .collection-grid {
+    display: flex !important;
+    grid-template-columns: none !important;
+    gap: 14px !important;
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    margin-inline: 0 !important;
+    padding: 4px 2px 12px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .collection-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .collection-grid > * {
+    flex: 0 0 min(82vw, 360px) !important;
+    width: min(82vw, 360px) !important;
+    max-width: min(82vw, 360px) !important;
+    scroll-snap-align: start;
+  }
+
+  .collection-grid > .instant-aura-card {
+    flex-basis: min(88vw, 390px) !important;
+    width: min(88vw, 390px) !important;
+    max-width: min(88vw, 390px) !important;
+  }
+
+  .skill-card .aura-card__content {
+    min-height: 300px;
+    padding: 24px;
+  }
+
+  .skill-card p {
+    -webkit-line-clamp: 3;
+  }
+
+  .settings-backdrop {
+    align-items: end !important;
+    justify-items: stretch !important;
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .settings-modal-shell {
+    width: 100% !important;
+    max-width: none !important;
+    height: min(86svh, 760px) !important;
+    max-height: calc(100svh - 20px) !important;
+    flex-direction: column !important;
+    border-radius: 24px !important;
+  }
+
+  .settings-nav {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 148px;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--hairline) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 10px 10px 8px !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-nav > .relative {
+    flex: 0 0 180px;
+    align-self: start;
+  }
+
+  .settings-nav > div:not(.relative) {
+    display: contents;
+  }
+
+  .settings-nav .text-\[10px\] {
+    display: none !important;
+  }
+
+  .settings-nav button {
+    flex: 0 0 auto;
+    height: 40px !important;
+    min-width: max-content;
+    padding-inline: 12px !important;
+    scroll-snap-align: start;
+    border-radius: 14px !important;
+    white-space: nowrap;
+  }
+
+  .settings-content {
+    min-height: 0;
+  }
+
+  .settings-content-head {
+    min-height: 54px !important;
+    height: 54px !important;
+    padding-inline: 16px !important;
+  }
+
+  .settings-content-body {
+    padding: 12px 16px 24px !important;
+  }
+
+  .settings-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    align-items: start !important;
+    gap: 10px !important;
+    padding-block: 14px !important;
+  }
+
+  .settings-control {
+    width: 100%;
+  }
+
+  .settings-control > *,
+  .settings-control input,
+  .settings-control select,
+  .settings-control textarea,
+  .settings-control .glass-input,
+  .settings-orb-slider {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .settings-control .flex.items-center.gap-2.w-64 {
+    width: 100% !important;
+  }
+
+  .settings-control input[type="color"] {
+    min-height: 48px;
+  }
+
+  .settings-orb-slider {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 58px;
+  }
+
+  .settings-orb-slider input[type="range"] {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 390px) {
+  .stage-tools .command-launcher {
+    max-width: 134px;
+    padding-inline: 12px 6px !important;
+  }
+
+  .stage-tools .command-launcher span {
+    max-width: 70px;
+  }
+
+  .collection-grid > * {
+    flex-basis: calc(100vw - 44px) !important;
+    width: calc(100vw - 44px) !important;
+    max-width: calc(100vw - 44px) !important;
+  }
+}

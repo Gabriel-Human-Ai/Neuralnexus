@@ -40,19 +40,19 @@ function Chip({ provider }: { provider: string }) {
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3.5 border-b border-white/8">
+    <div className="settings-row flex items-center justify-between gap-4 py-3.5 border-b border-white/8">
       <div className="min-w-0">
         <div className="text-sm text-snow">{label}</div>
         {hint && <div className="text-[11px] text-mist mt-0.5">{hint}</div>}
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="settings-control shrink-0">{children}</div>
     </div>
   );
 }
 
 function OrbSlider({ value, min, max, step = "0.01", onChange, suffix = "" }: { value: string; min: number; max: number; step?: string; onChange: (value: string) => void; suffix?: string }) {
   return (
-    <div className="flex items-center gap-2 w-64">
+    <div className="settings-orb-slider flex items-center gap-2 w-64">
       <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(e.target.value)} className="flex-1 accent-[var(--aurora-a)]" />
       <span className="text-xs font-mono text-mist w-14">{value}{suffix}</span>
     </div>
@@ -118,13 +118,13 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
           onClick={onClose}>
           <motion.div
-            className="glass-dark modal w-full max-w-4xl h-[82vh] flex overflow-hidden"
+            className="settings-modal-shell glass-dark modal w-full max-w-4xl h-[82vh] flex overflow-hidden"
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
             onClick={e => e.stopPropagation()}>
 
             {/* Left settings nav */}
-            <div className="w-[190px] shrink-0 border-r border-white/8 p-2.5 flex flex-col gap-2 overflow-y-auto">
+            <div className="settings-nav w-[190px] shrink-0 border-r border-white/8 p-2.5 flex flex-col gap-2 overflow-y-auto">
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-mist" />
                 <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search"
@@ -147,13 +147,13 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
             </div>
 
             {/* Right content */}
-            <div className="flex-1 min-w-0 flex flex-col">
-              <div className="flex items-center justify-between px-5 h-12 border-b border-white/8 shrink-0">
+            <div className="settings-content flex-1 min-w-0 flex flex-col">
+              <div className="settings-content-head flex items-center justify-between px-5 h-12 border-b border-white/8 shrink-0">
                 <div className="text-sm font-medium text-snow">{SECTIONS.find(s => s.id === active)?.label}</div>
                 <button onClick={onClose} className="icon-btn w-7 h-7 grid place-items-center rounded-lg hover:bg-white/8 text-mist"><X size={16} /></button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 py-3">
+              <div className="settings-content-body flex-1 overflow-y-auto px-5 py-3">
                 {active === "general" && (
                   <>
                     <div className="text-[11px] uppercase tracking-widest text-mist py-2">Profile</div>
