@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import {
@@ -40,6 +40,8 @@ import type { WizardIntent } from "@/lib/wizardActions";
 import { nextBestAction } from "@/lib/guidance";
 import { MOTION, viewMotion } from "@/lib/motion";
 import { POSITIONING, POSITIONING_UI } from "@/lib/positioning";
+import { CopyButton } from "@/components/ui/CopyButton";
+import { RollingNumber } from "@/components/ui/RollingNumber";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -383,7 +385,7 @@ function WorkspaceObject({ mode, featured = false }: { mode: WorkspaceMode; feat
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="nn-stat">
       <span>{label}</span>
@@ -1147,9 +1149,9 @@ export default function Home() {
             </section>
 
             <section className="home-context-strip" aria-label="Workspace context">
-              <button onClick={() => setView("workspaces")}>{projects.length} workspaces</button>
-              <button onClick={() => setView("skills")}>{skills.length} skills</button>
-              <button onClick={() => setView("usage")}>{formatUsd(usage.month)} this month</button>
+              <button onClick={() => setView("workspaces")}><RollingNumber value={projects.length} /> workspaces</button>
+              <button onClick={() => setView("skills")}><RollingNumber value={skills.length} /> skills</button>
+              <button onClick={() => setView("usage")}><RollingNumber value={formatUsd(usage.month)} /> this month</button>
               <button onClick={() => setWhyOpen(true)}>{POSITIONING_UI.home.whyLabel}</button>
             </section>
           </div>
@@ -1401,9 +1403,7 @@ export default function Home() {
                         <span>{message.role === "user" ? "You" : "Wizard"}</span>
                         {message.role === "assistant" && (
                           <div className="chat-bubble-actions" aria-label="Message actions">
-                            <button onClick={() => void copyChatMessage(message.content, index)} aria-label="Copy answer" title="Copy">
-                              {copiedMessage === index ? <Check size={14} /> : <Copy size={14} />}
-                            </button>
+                            <CopyButton text={message.content} label="Copy" />
                             <button onClick={() => void regenerateChatMessage(index)} disabled={generalBusy} aria-label="Regenerate answer" title="Regenerate">
                               <RefreshCcw size={14} />
                             </button>
@@ -1544,9 +1544,9 @@ export default function Home() {
               </button>
             </header>
             <div className="usage-grid">
-              <Stat label="Today" value={formatUsd(usage.today)} />
-              <Stat label="This month" value={formatUsd(usage.month)} />
-              <Stat label="Estimated Auto-Routing Savings" value={formatUsd(usage.estimatedSavings)} />
+              <Stat label="Today" value={<RollingNumber value={formatUsd(usage.today)} />} />
+              <Stat label="This month" value={<RollingNumber value={formatUsd(usage.month)} />} />
+              <Stat label="Estimated Auto-Routing Savings" value={<RollingNumber value={formatUsd(usage.estimatedSavings)} />} />
             </div>
             <section className="liquid-panel usage-panel">
               <div className="section-head">

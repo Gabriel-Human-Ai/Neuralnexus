@@ -10,6 +10,7 @@ export const MOTION = {
   stagger: 0.045,
   draw: 0.5,
   flare: 0.6,
+  ack: 0.6,
   rise: 12,
   lift: 2,
 } as const;

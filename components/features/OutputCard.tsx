@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, GitFork, RefreshCcw, WandSparkles } from "lucide-react";
+import { GitFork, RefreshCcw, WandSparkles } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
 import { QualityGateReport } from "@/components/features/QualityGateReport";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { POSITIONING_UI } from "@/lib/positioning";
 import type { QualityReport } from "@/lib/types";
 
@@ -28,7 +29,6 @@ export function OutputCard({ output, onRefine, onRegenerate, onFinalize, onFork 
 }) {
   const [content, setContent] = useState(output.content);
   const [instruction, setInstruction] = useState("");
-  const [saved, setSaved] = useState(false);
   const knowledgeCount = output.knowledgeIds ? output.knowledgeIds.split(",").filter(Boolean).length : 0;
   return (
     <section className="output-card liquid-card">
@@ -42,7 +42,7 @@ export function OutputCard({ output, onRefine, onRegenerate, onFinalize, onFork 
       <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={10} />
       <QualityGateReport report={output.qualityReport} />
       <div className="output-actions">
-        <button onClick={() => navigator.clipboard.writeText(content).then(() => { setSaved(true); setTimeout(() => setSaved(false), 900); })}>{saved ? <Check size={14} /> : <Copy size={14} />} Copy</button>
+        <CopyButton text={content} label="Copy" />
         <button onClick={onRegenerate}><RefreshCcw size={14} /> Regenerate</button>
         <button onClick={() => onFork({ type: "model", value: "gpt-4o-mini" })} aria-label={POSITIONING_UI.microcopy.fork} title={POSITIONING_UI.microcopy.fork}><GitFork size={14} /> Fork model</button>
       </div>

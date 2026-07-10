@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, KeyRound, ShieldCheck, BarChart3, GitBranch, Monitor, Tag, Database, Search, X, Check, Sparkles } from "lucide-react";
 import { POSITIONING_UI } from "@/lib/positioning";
+import { AckField } from "@/components/ui/AckField";
 
 type Keys = Record<string, string>;
 
@@ -73,7 +74,6 @@ export interface SettingsModalProps {
 export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFrom }: SettingsModalProps) {
   const [active, setActive] = useState<string>("general");
   const [query, setQuery] = useState("");
-  const [saved, setSaved] = useState(false);
   const [stats, setStats] = useState<{ chats: number; messages: number; memories: number } | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
 
@@ -89,14 +89,6 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
       fetch("/api/stats").then(r => r.json()).then(setStats).catch(() => {});
     }
   }, [open, active, stats]);
-
-  // reflect a lightweight "saved" pulse whenever keys change while open
-  useEffect(() => {
-    if (!open) return;
-    setSaved(true);
-    const t = setTimeout(() => setSaved(false), 1400);
-    return () => clearTimeout(t);
-  }, [keys, open]);
 
   const set = (k: string, v: string) => setKeys(s => ({ ...s, [k]: v }));
   const initials = useMemo(() => (initialsFrom || "NN").trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "NN", [initialsFrom]);
@@ -168,16 +160,21 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                       <div className="w-9 h-9 rounded-full accent-surface grid place-items-center text-xs font-medium text-snow">{initials}</div>
                     </Row>
                     <Row label="Full name">
-                      <input value={keys.FULL_NAME ?? ""} onChange={e => set("FULL_NAME", e.target.value)}
-                        placeholder="Your name" className="glass-input px-3 py-1.5 text-sm w-52 outline-none" />
+                        <AckField value={keys.FULL_NAME ?? ""}>{({ className }) => (
+                          <input value={keys.FULL_NAME ?? ""} onChange={e => set("FULL_NAME", e.target.value)}
+                            placeholder="Your name" className={`${className} glass-input px-3 py-1.5 text-sm w-52 outline-none`} />
+                        )}</AckField>
                     </Row>
                     <Row label="Preferred name">
-                      <input value={keys.PREFERRED_NAME ?? ""} onChange={e => set("PREFERRED_NAME", e.target.value)}
-                        placeholder="Name" className="glass-input px-3 py-1.5 text-sm w-52 outline-none" />
+                      <AckField value={keys.PREFERRED_NAME ?? ""}>{({ className }) => (
+                        <input value={keys.PREFERRED_NAME ?? ""} onChange={e => set("PREFERRED_NAME", e.target.value)}
+                          placeholder="Name" className={`${className} glass-input px-3 py-1.5 text-sm w-52 outline-none`} />
+                      )}</AckField>
                     </Row>
                     <Row label="Work type">
-                      <select value={keys.WORK_TYPE ?? ""} onChange={e => set("WORK_TYPE", e.target.value)}
-                        className="glass-input px-3 py-1.5 text-sm w-52 outline-none">
+                      <AckField value={keys.WORK_TYPE ?? ""}>{({ className }) => (
+                        <select value={keys.WORK_TYPE ?? ""} onChange={e => set("WORK_TYPE", e.target.value)}
+                        className={`${className} glass-input px-3 py-1.5 text-sm w-52 outline-none`}>
                         <option value="">Select</option>
                         <option value="dev">Development</option>
                         <option value="design">Design</option>
@@ -186,6 +183,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                         <option value="study">Education</option>
                         <option value="other">Other</option>
                       </select>
+                      )}</AckField>
                     </Row>
                     <div className="pt-4">
                       <div className="text-sm text-snow">Workspace instructions</div>
@@ -206,9 +204,11 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                     {KEY_FIELDS.map(f => (
                       <div key={f.k} className="py-2.5 border-b border-white/8">
                         <label className="text-sm text-snow flex items-center gap-2 mb-1.5"><Chip provider={f.provider} />{f.label} <span className="text-mist text-xs">· {f.hint}</span></label>
-                        <input value={keys[f.k] ?? ""} onChange={e => set(f.k, e.target.value)}
-                          placeholder="sk-…" autoComplete="off" spellCheck={false}
-                          className="w-full glass-input px-3 py-2 text-sm outline-none font-mono" />
+                        <AckField value={keys[f.k] ?? ""} maskOnSave>{({ className, displayValue }) => (
+                          <input value={displayValue ?? keys[f.k] ?? ""} onChange={e => set(f.k, e.target.value)}
+                            placeholder="sk-…" autoComplete="off" spellCheck={false}
+                            className={`${className} w-full glass-input px-3 py-2 text-sm outline-none font-mono`} />
+                        )}</AckField>
                       </div>
                     ))}
                   </>
@@ -409,15 +409,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                 )}
               </div>
 
-              {/* Saved indicator */}
-              <div className="h-8 px-5 flex items-center justify-end border-t border-white/8 shrink-0">
-                <AnimatePresence>
-                  {saved && (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="text-[11px] text-mist flex items-center gap-1"><Check size={12} className="accent-text" /> Saved</motion.span>
-                  )}
-                </AnimatePresence>
-              </div>
+              <div className="h-8 px-5 border-t border-white/8 shrink-0 settings-footer-saved" />
             </div>
           </motion.div>
         </motion.div>
