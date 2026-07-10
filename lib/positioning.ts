@@ -51,6 +51,12 @@ export const POSITIONING = {
       line: "Every claim is backed, inferred, or flagged — and every correction you make becomes a guard.",
       fallback: "Every claim is backed, inferred, or flagged.",
     },
+    {
+      id: "eye",
+      name: "Your taste, on file",
+      line: "It learns your judgment from real decisions — then judges, ranks and defends like you would.",
+      fallback: "Built to learn your judgment from real decisions.",
+    },
   ],
 
   // Honest competitor reframes — factual, no trash talk. Used ONLY in the Why sheet.

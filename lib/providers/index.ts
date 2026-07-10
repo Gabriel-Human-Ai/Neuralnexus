@@ -102,7 +102,6 @@ async function anthropicChat(model: string, messages: ChatMsg[], options: ChatOp
   };
 }
 
-// Gemini: text-only for now (image blocks are dropped with a note rather than silently mis-sent).
 async function googleChat(model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
   const key = await getKey("GOOGLE_API_KEY");
   if (!key) throw new Error("No Google key is connected. Add a key in Settings.");
@@ -110,7 +109,9 @@ async function googleChat(model: string, messages: ChatMsg[], options: ChatOptio
   const contents = messages.filter(m => m.role !== "system").map(m => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: Array.isArray(m.content)
-      ? m.content.filter(b => b.type === "text").map(b => ({ text: (b as any).text }))
+      ? m.content.map(b => b.type === "image"
+          ? { inlineData: { mimeType: b.mediaType, data: b.data } }
+          : { text: b.text })
       : [{ text: m.content }],
   }));
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {

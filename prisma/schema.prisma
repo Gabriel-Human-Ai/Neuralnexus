@@ -145,6 +145,28 @@ model CorrectionRecord {
   createdAt      DateTime @default(now())
 }
 
+model DecisionRecord {
+  id            String   @id @default(cuid())
+  contextTag    String   @default("general") // design | copy | product | content | brand | review | coaching | audit | research | general
+  chosenDesc    String                        // descriptor JSON or raw text (≤1500 chars)
+  rejectedDesc  String   @default("")         // same; empty for single-artifact signals
+  medium        String   @default("text")     // text | image | mixed-url
+  source        String                        // duel | curation | verdict-override | fork-final | regen-final | edit-final
+  projectId     String?
+  outputId      String?
+  note          String   @default("")
+  createdAt     DateTime @default(now())
+}
+
+model TasteRule {
+  id         String   @id @default(cuid())
+  contextTag String   @default("general")
+  text       String                            // ≤140 chars, imperative
+  confidence Int      @default(2)              // supporting decision count at synthesis time
+  status     String   @default("proposed")     // proposed | active | rejected
+  createdAt  DateTime @default(now())
+}
+
 model SkillRule {
   id             String   @id @default(cuid())
   skillId        String

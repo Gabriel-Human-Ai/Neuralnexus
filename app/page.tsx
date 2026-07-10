@@ -57,6 +57,7 @@ const WizardOrb = dynamic(() => import("@/components/WizardOrb").then((module) =
   loading: () => <div className="wizard-orb-fallback" aria-hidden="true" />,
 });
 const GenomePanel = dynamic(() => import("@/components/features/GenomePanel").then((module) => module.GenomePanel), { ssr: false });
+const EyeView = dynamic(() => import("@/components/features/EyeView").then((module) => module.EyeView), { ssr: false });
 const Crucible = dynamic(() => import("@/components/immersive/Crucible").then((module) => module.Crucible), { ssr: false });
 const LineageCanvas = dynamic(() => import("@/components/immersive/LineageCanvas").then((module) => module.LineageCanvas), { ssr: false });
 const WorkflowSpine = dynamic(() => import("@/components/immersive/WorkflowSpine").then((module) => module.WorkflowSpine), { ssr: false });
@@ -98,7 +99,7 @@ type WorkspaceMode = {
   output: string;
 };
 
-type View = "home" | "chat" | "workspaces" | "skills" | "templates" | "knowledge" | "usage" | "settings";
+type View = "home" | "chat" | "workspaces" | "skills" | "eye" | "templates" | "knowledge" | "usage" | "settings";
 type WorkspacePanel = "overview" | "workflow" | "outputs" | "client";
 type CommandItem = {
   id: string;
@@ -968,6 +969,7 @@ export default function Home() {
     { id: "chat", label: "Ask", icon: MessageCircle },
     { id: "workspaces", label: "Workspaces", icon: Layers3 },
     { id: "skills", label: "Skills", icon: Sparkles },
+    { id: "eye", label: "Eye", icon: Sparkles },
     { id: "templates", label: "Templates", icon: Boxes },
     { id: "knowledge", label: "Knowledge", icon: Database },
     { id: "usage", label: "Usage", icon: BarChart3 },
@@ -979,6 +981,7 @@ export default function Home() {
   ] as const;
   const mobileMoreNav = [
     { id: "chat", label: "Ask", icon: MessageCircle },
+    { id: "eye", label: "Eye", icon: Sparkles },
     { id: "templates", label: "Templates", icon: Boxes },
     { id: "knowledge", label: "Knowledge", icon: Database },
     { id: "usage", label: "Usage", icon: BarChart3 },
@@ -1083,6 +1086,8 @@ export default function Home() {
       ? "gates"
       : extractorOpen
         ? "extraction"
+        : view === "eye"
+          ? "taste"
         : "idle";
 
   function runCommand(item?: CommandItem) {
@@ -1544,6 +1549,8 @@ export default function Home() {
             ))}
           </CollectionScreen>
         )}
+
+        {view === "eye" && <EyeView />}
 
         {view === "templates" && (
           <CollectionScreen

@@ -10,6 +10,13 @@ const META_LADDER = [
   { id: "gemini-2.0-flash-001", provider: "google", key: "GOOGLE_API_KEY" },
 ] as const;
 
+const VISION_LADDER = [
+  { id: "claude-haiku-4-5", provider: "anthropic", key: "ANTHROPIC_API_KEY" },
+  { id: "gpt-4o-mini", provider: "openai", key: "OPENAI_API_KEY" },
+  { id: "google/gemini-2.0-flash-001", provider: "openrouter", key: "OPENROUTER_API_KEY" },
+  { id: "gemini-2.0-flash-001", provider: "google", key: "GOOGLE_API_KEY" },
+] as const;
+
 async function availableMetaModels() {
   const s = await getAllSettings();
   return META_LADDER.filter((item) => s[item.key] || process.env[item.key]).map(({ id, provider }) => ({ id, provider }));
@@ -25,4 +32,9 @@ export async function pickVerifierModel(excludeProvider: string, excludeModel = 
   const independent = models.find((item) => item.provider !== excludeProvider);
   if (independent) return independent;
   return models.find((item) => item.id !== excludeModel) ?? null;
+}
+
+export async function pickVisionModel(): Promise<MetaModel> {
+  const s = await getAllSettings();
+  return VISION_LADDER.find((item) => s[item.key] || process.env[item.key]) ?? null;
 }

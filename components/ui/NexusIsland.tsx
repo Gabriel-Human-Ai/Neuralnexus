@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 
 type NexusIslandProps = {
-  activity?: "idle" | "generation" | "gates" | "extraction";
+  activity?: "idle" | "generation" | "gates" | "extraction" | "taste";
   label?: string;
 };
 
@@ -17,6 +17,8 @@ export function NexusIsland({ activity = "idle", label }: NexusIslandProps) {
         ? "Checking quality"
         : activity === "extraction"
           ? "Extracting"
+          : activity === "taste"
+            ? "Taste rules"
           : "Ready");
 
   return (
