@@ -485,6 +485,24 @@ export default function Home() {
   const orbHue = parseNumberSetting(keys.ORB_HUE, 238);
   const orbSpeed = keys.ORB_BREATHING === "0" ? 1 : parseNumberSetting(keys.ORB_SPEED, 18);
   const orbIntensity = parseNumberSetting(keys.ORB_INTENSITY || keys.ORB_GLOW, 68);
+  const orbSettings = {
+    primaryColor: keys.ORB_PRIMARY_COLOR || "#00B3FF",
+    secondaryColor: keys.ORB_SECONDARY_COLOR || "#FF2ED2",
+    atmosphereGlow: parseNumberSetting(keys.ORB_ATMOSPHERE_GLOW, 0.15),
+    atmosphereLevel: parseNumberSetting(keys.ORB_ATMOSPHERE_LEVEL, 1),
+    atmosphereScale: parseNumberSetting(keys.ORB_ATMOSPHERE_SCALE, 1.03),
+    internalSpeed: parseNumberSetting(keys.ORB_INTERNAL_SPEED, 0.5),
+    autoRotation: parseNumberSetting(keys.ORB_AUTO_ROTATION, 0.89),
+    globalDensity: parseNumberSetting(keys.ORB_GLOBAL_DENSITY, 3),
+    chromaticAberration: parseNumberSetting(keys.ORB_CHROMATIC_ABERRATION, 0.025),
+    resolutionDpr: parseNumberSetting(keys.ORB_RESOLUTION_DPR, 0.7),
+    internalAnimSpeed: parseNumberSetting(keys.ORB_INTERNAL_ANIM_SPEED, 0.43),
+    cornerSmoothness: parseNumberSetting(keys.ORB_CORNER_SMOOTHNESS, 0.031),
+    asymmetry: parseNumberSetting(keys.ORB_ASYMMETRY, 0.55),
+    iterations: parseNumberSetting(keys.ORB_ITERATIONS, 4),
+    fractalScale: parseNumberSetting(keys.ORB_FRACTAL_SCALE, 0.97),
+    energyDecay: parseNumberSetting(keys.ORB_ENERGY_DECAY, -16.7),
+  };
   const recentWorkspace = projects[0];
   const guidance = useMemo(() => nextBestAction({
     workspaces: projects.map((project) => ({ ...project, hasKnowledge: workspaceSources.length > 0 || Boolean(project.goal?.toLowerCase().includes("source context")) })),
@@ -1098,7 +1116,7 @@ export default function Home() {
             <section className="home-orb-zone">
               {showHomeOrb && (
                 <div className="wizard-orb-panel">
-                  <WizardOrb size={hasWorkspaces ? 360 : 390} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive />
+                  <WizardOrb size={hasWorkspaces ? 360 : 390} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive {...orbSettings} />
                 </div>
               )}
               <div className="home-guidance-copy">
@@ -1362,7 +1380,7 @@ export default function Home() {
 
             <section className="free-chat-panel liquid-panel">
               <div className="free-chat-orb">
-                <WizardOrb size={160} hue={orbHue} speed={generalBusy ? 42 : orbSpeed} intensity={generalBusy ? 88 : orbIntensity} state={generalBusy ? "generating" : "listening"} interactive />
+                <WizardOrb size={160} hue={orbHue} speed={generalBusy ? 42 : orbSpeed} intensity={generalBusy ? 88 : orbIntensity} state={generalBusy ? "generating" : "listening"} interactive {...orbSettings} />
                 <div>
                   <span className="object-label">WIZARD</span>
                   <h2>{generalBusy ? "Thinking" : "Ready for a question."}</h2>

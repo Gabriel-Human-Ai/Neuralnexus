@@ -13,6 +13,22 @@ type NexusOrbProps = {
   interactive?: boolean;
   reducedMotion?: boolean;
   className?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  atmosphereGlow?: number;
+  atmosphereLevel?: number;
+  atmosphereScale?: number;
+  internalSpeed?: number;
+  autoRotation?: number;
+  globalDensity?: number;
+  chromaticAberration?: number;
+  resolutionDpr?: number;
+  internalAnimSpeed?: number;
+  cornerSmoothness?: number;
+  asymmetry?: number;
+  iterations?: number;
+  fractalScale?: number;
+  energyDecay?: number;
 };
 
 const STATE_TARGETS: Record<OrbState, { amplitude: number; speed: number; fresnel: number; rotation: number; energy: number }> = {
@@ -27,7 +43,29 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function NexusOrb({ size = 360, state = "idle", interactive = false, reducedMotion = false, className = "" }: NexusOrbProps) {
+export function NexusOrb({
+  size = 360,
+  state = "idle",
+  interactive = false,
+  reducedMotion = false,
+  className = "",
+  primaryColor = "#00B3FF",
+  secondaryColor = "#FF2ED2",
+  atmosphereGlow = 0.15,
+  atmosphereLevel = 1,
+  atmosphereScale = 1.03,
+  internalSpeed = 0.5,
+  autoRotation = 0.89,
+  globalDensity = 3,
+  chromaticAberration = 0.025,
+  resolutionDpr = 0.7,
+  internalAnimSpeed = 0.43,
+  cornerSmoothness = 0.031,
+  asymmetry = 0.55,
+  iterations = 4,
+  fractalScale = 0.97,
+  energyDecay = -16.7,
+}: NexusOrbProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OrbState>(state);
   const pulseRef = useRef(0);
@@ -59,7 +97,7 @@ export function NexusOrb({ size = 360, state = "idle", interactive = false, redu
     const lowQuality = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4);
     const detail = lowQuality ? 24 : 48;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.max(0.5, Math.min(window.devicePixelRatio || 1, Math.max(0.5, resolutionDpr) * 2)));
     renderer.setSize(size, size);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
@@ -81,6 +119,20 @@ export function NexusOrb({ size = 360, state = "idle", interactive = false, redu
       uSpeed: { value: STATE_TARGETS[stateRef.current].speed },
       uEnergy: { value: STATE_TARGETS[stateRef.current].energy },
       uFresnel: { value: STATE_TARGETS[stateRef.current].fresnel },
+      uRim: { value: new THREE.Color(primaryColor) },
+      uSecondary: { value: new THREE.Color(secondaryColor) },
+      uAtmosphereGlow: { value: atmosphereGlow },
+      uAtmosphereLevel: { value: atmosphereLevel },
+      uAtmosphereScale: { value: atmosphereScale },
+      uInternalSpeed: { value: internalSpeed },
+      uGlobalDensity: { value: globalDensity },
+      uChromaticAberration: { value: chromaticAberration },
+      uInternalAnimSpeed: { value: internalAnimSpeed },
+      uCornerSmoothness: { value: cornerSmoothness },
+      uAsymmetry: { value: asymmetry },
+      uIterations: { value: iterations },
+      uFractalScale: { value: fractalScale },
+      uEnergyDecay: { value: energyDecay },
     });
     const material = createOrbMaterial(uniforms);
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, detail), material);
@@ -90,7 +142,7 @@ export function NexusOrb({ size = 360, state = "idle", interactive = false, redu
       ? new THREE.Mesh(
           new THREE.IcosahedronGeometry(1.06, 3),
           new THREE.MeshBasicMaterial({
-            color: 0xc8a96a,
+            color: new THREE.Color(primaryColor),
             wireframe: true,
             transparent: true,
             opacity: 0.05,
@@ -152,11 +204,11 @@ export function NexusOrb({ size = 360, state = "idle", interactive = false, redu
 
       const breath = reduce ? 0 : Math.sin(time * Math.PI * 2 / 6) * 0.015;
       core.scale.setScalar(1 + breath);
-      core.rotation.y += reduce ? 0 : current.rotation / 60;
+      core.rotation.y += reduce ? 0 : (current.rotation * autoRotation) / 38;
       core.rotation.x = stateRef.current === "listening" ? -0.03 : Math.sin(time * 0.16) * 0.025;
       if (halo) {
-        halo.rotation.y -= reduce ? 0 : current.rotation / 75;
-        halo.rotation.x += reduce ? 0 : current.rotation / 120;
+        halo.rotation.y -= reduce ? 0 : (current.rotation * autoRotation) / 65;
+        halo.rotation.x += reduce ? 0 : (current.rotation * autoRotation) / 120;
       }
 
       renderer.render(scene, camera);
@@ -185,7 +237,7 @@ export function NexusOrb({ size = 360, state = "idle", interactive = false, redu
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
       releaseWebGL("orb");
     };
-  }, [blockedByConstellation, reducedMotion, size]);
+  }, [asymmetry, atmosphereGlow, atmosphereLevel, atmosphereScale, autoRotation, blockedByConstellation, chromaticAberration, cornerSmoothness, energyDecay, fractalScale, globalDensity, internalAnimSpeed, internalSpeed, iterations, primaryColor, reducedMotion, resolutionDpr, secondaryColor, size]);
 
   return (
     <button

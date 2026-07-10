@@ -48,6 +48,19 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
+function OrbSlider({ value, min, max, step = "0.01", onChange, suffix = "" }: { value: string; min: number; max: number; step?: string; onChange: (value: string) => void; suffix?: string }) {
+  return (
+    <div className="flex items-center gap-2 w-64">
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(e.target.value)} className="flex-1 accent-[rgb(0,179,255)]" />
+      <span className="text-xs font-mono text-mist w-14">{value}{suffix}</span>
+    </div>
+  );
+}
+
+function safeHexColor(value: string | undefined, fallback: string) {
+  return /^#[0-9a-fA-F]{6}$/.test(value ?? "") ? value! : fallback;
+}
+
 export interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
@@ -292,38 +305,72 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                 {active === "orb" && (
                   <>
                     <div className="text-[11px] uppercase tracking-widest text-mist py-2">Resonance Orb</div>
-                    <Row label="Color hue" hint="0 = amber, 60 = green, 180 = cyan, 240 = blue, 300 = violet">
-                      <div className="flex items-center gap-2 w-52">
-                        <input type="range" min={0} max={330} value={keys.ORB_HUE ?? "0"}
-                          onChange={e => set("ORB_HUE", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
-                        <span className="text-xs font-mono text-mist w-8">{keys.ORB_HUE ?? 0}°</span>
+                    <Row label="Preset" hint="Default matches the blue-magenta fractal orb reference.">
+                      <select value={keys.ORB_PRESET || "Default"} onChange={e => {
+                        set("ORB_PRESET", e.target.value);
+                        if (e.target.value === "Default") {
+                          set("ORB_PRIMARY_COLOR", "#00B3FF");
+                          set("ORB_SECONDARY_COLOR", "#FF2ED2");
+                          set("ORB_ATMOSPHERE_GLOW", "0.15");
+                          set("ORB_ATMOSPHERE_LEVEL", "1");
+                          set("ORB_ATMOSPHERE_SCALE", "1.03");
+                          set("ORB_INTERNAL_SPEED", "0.5");
+                          set("ORB_AUTO_ROTATION", "0.89");
+                          set("ORB_GLOBAL_DENSITY", "3");
+                          set("ORB_CHROMATIC_ABERRATION", "0.025");
+                          set("ORB_RESOLUTION_DPR", "0.7");
+                          set("ORB_INTERNAL_ANIM_SPEED", "0.43");
+                          set("ORB_CORNER_SMOOTHNESS", "0.031");
+                          set("ORB_ASYMMETRY", "0.55");
+                          set("ORB_ITERATIONS", "4");
+                          set("ORB_FRACTAL_SCALE", "0.97");
+                          set("ORB_ENERGY_DECAY", "-16.7");
+                        }
+                      }} className="glass-input rounded px-3 py-2 text-sm text-snow">
+                        <option>Default</option>
+                        <option>Deep Glass</option>
+                        <option>Electric Core</option>
+                      </select>
+                    </Row>
+                    <div className="text-[11px] uppercase tracking-widest text-mist py-2">Energy Style</div>
+                    <Row label="Primary Color">
+                      <div className="flex items-center gap-2 w-64">
+                        <input type="color" value={safeHexColor(keys.ORB_PRIMARY_COLOR, "#00B3FF")} onChange={e => set("ORB_PRIMARY_COLOR", e.target.value)} className="h-10 flex-1 rounded bg-transparent" />
+                        <input value={(keys.ORB_PRIMARY_COLOR || "#00B3FF").replace("#", "")} onChange={e => set("ORB_PRIMARY_COLOR", `#${e.target.value.replace("#", "").slice(0, 6)}`)} className="glass-input rounded px-2 py-2 text-xs font-mono w-20 text-snow" />
                       </div>
                     </Row>
-                    <Row label="Animation speed" hint="Lower values feel calmer.">
-                      <div className="flex items-center gap-2 w-52">
-                        <input type="range" min={1} max={100} value={keys.ORB_SPEED ?? "20"}
-                          onChange={e => set("ORB_SPEED", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
-                        <span className="text-xs font-mono text-mist w-8">{keys.ORB_SPEED ?? 20}%</span>
+                    <Row label="Secondary Color">
+                      <div className="flex items-center gap-2 w-64">
+                        <input type="color" value={safeHexColor(keys.ORB_SECONDARY_COLOR, "#FF2ED2")} onChange={e => set("ORB_SECONDARY_COLOR", e.target.value)} className="h-10 flex-1 rounded bg-transparent" />
+                        <input value={(keys.ORB_SECONDARY_COLOR || "#FF2ED2").replace("#", "")} onChange={e => set("ORB_SECONDARY_COLOR", `#${e.target.value.replace("#", "").slice(0, 6)}`)} className="glass-input rounded px-2 py-2 text-xs font-mono w-20 text-snow" />
                       </div>
                     </Row>
-                    <Row label="Surface morphing" hint="Controls how much the orb changes shape.">
-                      <div className="flex items-center gap-2 w-52">
-                        <input type="range" min={1} max={100} value={keys.ORB_MORPH ?? "50"}
-                          onChange={e => set("ORB_MORPH", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
-                        <span className="text-xs font-mono text-mist w-8">{keys.ORB_MORPH ?? 50}%</span>
-                      </div>
-                    </Row>
-                    <Row label="Core glow" hint="Controls the inner glow intensity.">
-                      <div className="flex items-center gap-2 w-52">
-                        <input type="range" min={1} max={100} value={keys.ORB_GLOW ?? "60"}
-                          onChange={e => set("ORB_GLOW", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
-                        <span className="text-xs font-mono text-mist w-8">{keys.ORB_GLOW ?? 60}%</span>
+                    <Row label="Atmosphere Glow"><OrbSlider min={0} max={1} value={keys.ORB_ATMOSPHERE_GLOW ?? "0.15"} onChange={v => set("ORB_ATMOSPHERE_GLOW", v)} /></Row>
+                    <Row label="Atmosphere Level"><OrbSlider min={0} max={2} value={keys.ORB_ATMOSPHERE_LEVEL ?? "1"} onChange={v => set("ORB_ATMOSPHERE_LEVEL", v)} /></Row>
+                    <Row label="Atmosphere Scale"><OrbSlider min={0.5} max={1.8} value={keys.ORB_ATMOSPHERE_SCALE ?? "1.03"} onChange={v => set("ORB_ATMOSPHERE_SCALE", v)} /></Row>
+                    <Row label="Internal Speed"><OrbSlider min={0} max={2} value={keys.ORB_INTERNAL_SPEED ?? "0.5"} onChange={v => set("ORB_INTERNAL_SPEED", v)} /></Row>
+                    <Row label="Orb Auto-Rotation"><OrbSlider min={0} max={2} value={keys.ORB_AUTO_ROTATION ?? "0.89"} onChange={v => set("ORB_AUTO_ROTATION", v)} /></Row>
+                    <Row label="Global Density"><OrbSlider min={0.5} max={6} value={keys.ORB_GLOBAL_DENSITY ?? "3"} onChange={v => set("ORB_GLOBAL_DENSITY", v)} /></Row>
+                    <Row label="Chromatic Aberr."><OrbSlider min={0} max={0.12} step="0.001" value={keys.ORB_CHROMATIC_ABERRATION ?? "0.025"} onChange={v => set("ORB_CHROMATIC_ABERRATION", v)} /></Row>
+                    <Row label="Resolution (DPR)"><OrbSlider min={0.5} max={1.5} value={keys.ORB_RESOLUTION_DPR ?? "0.7"} onChange={v => set("ORB_RESOLUTION_DPR", v)} /></Row>
+                    <div className="text-[11px] uppercase tracking-widest text-mist py-2">Fractal Structure</div>
+                    <Row label="Internal Anim Speed"><OrbSlider min={0} max={2} value={keys.ORB_INTERNAL_ANIM_SPEED ?? "0.43"} onChange={v => set("ORB_INTERNAL_ANIM_SPEED", v)} /></Row>
+                    <Row label="Corner Smoothness"><OrbSlider min={0} max={0.2} step="0.001" value={keys.ORB_CORNER_SMOOTHNESS ?? "0.031"} onChange={v => set("ORB_CORNER_SMOOTHNESS", v)} /></Row>
+                    <Row label="Asymmetry"><OrbSlider min={0} max={1.5} value={keys.ORB_ASYMMETRY ?? "0.55"} onChange={v => set("ORB_ASYMMETRY", v)} /></Row>
+                    <Row label="Iterations"><OrbSlider min={1} max={7} step="1" value={keys.ORB_ITERATIONS ?? "4"} onChange={v => set("ORB_ITERATIONS", v)} /></Row>
+                    <Row label="Scale"><OrbSlider min={0.2} max={2.5} value={keys.ORB_FRACTAL_SCALE ?? "0.97"} onChange={v => set("ORB_FRACTAL_SCALE", v)} /></Row>
+                    <Row label="Energy Decay"><OrbSlider min={-30} max={-1} value={keys.ORB_ENERGY_DECAY ?? "-16.7"} onChange={v => set("ORB_ENERGY_DECAY", v)} /></Row>
+                    <Row label="Legacy hue" hint="Kept for older orb presets.">
+                      <div className="flex items-center gap-2 w-64">
+                        <input type="range" min={0} max={330} value={keys.ORB_HUE ?? "238"}
+                          onChange={e => set("ORB_HUE", e.target.value)} className="flex-1 accent-[rgb(0,179,255)]" />
+                        <span className="text-xs font-mono text-mist w-12">{keys.ORB_HUE ?? 238}°</span>
                       </div>
                     </Row>
                     <Row label="Wizard intensity" hint="Controls the Home wizard orb glow.">
-                      <div className="flex items-center gap-2 w-52">
+                      <div className="flex items-center gap-2 w-64">
                         <input type="range" min={1} max={100} value={keys.ORB_INTENSITY ?? keys.ORB_GLOW ?? "68"}
-                          onChange={e => set("ORB_INTENSITY", e.target.value)} className="flex-1 accent-[rgb(201,160,92)]" />
+                          onChange={e => set("ORB_INTENSITY", e.target.value)} className="flex-1 accent-[rgb(0,179,255)]" />
                         <span className="text-xs font-mono text-mist w-8">{keys.ORB_INTENSITY ?? keys.ORB_GLOW ?? 68}%</span>
                       </div>
                     </Row>
