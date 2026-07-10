@@ -33,6 +33,7 @@ import {
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
 import { WhySheet } from "@/components/WhySheet";
 import { AutopilotCard } from "@/components/features/AutopilotCard";
+import { VaultIntro } from "@/components/features/VaultIntro";
 import { ExtractorSheet } from "@/components/features/ExtractorSheet";
 import { OutputCard, type OutputCardOutput } from "@/components/features/OutputCard";
 import type { WizardIntent } from "@/lib/wizardActions";
@@ -972,7 +973,7 @@ export default function Home() {
     { id: "eye", label: "Eye", icon: Sparkles },
     { id: "templates", label: "Templates", icon: Boxes },
     { id: "knowledge", label: "Knowledge", icon: Database },
-    { id: "usage", label: "Usage", icon: BarChart3 },
+    { id: "usage", label: "Vault", icon: Layers3 },
   ] as const;
   const mobilePrimaryNav = [
     { id: "home", label: "Home", icon: Compass },
@@ -984,7 +985,7 @@ export default function Home() {
     { id: "eye", label: "Eye", icon: Sparkles },
     { id: "templates", label: "Templates", icon: Boxes },
     { id: "knowledge", label: "Knowledge", icon: Database },
-    { id: "usage", label: "Usage", icon: BarChart3 },
+    { id: "usage", label: "Vault", icon: Layers3 },
   ] as const;
 
   const commandItems = useMemo<CommandItem[]>(() => {
@@ -1606,9 +1607,10 @@ export default function Home() {
 
         {view === "usage" && (
           <div className="screen-stack">
+            <VaultIntro onOpenEye={() => setView("eye")} onOpenSkills={() => setView("skills")} consent={keys.INDEX_CONSENT} />
             <header className="screen-header">
               <div>
-              <span className="eyebrow">USAGE</span>
+              <span className="eyebrow">COSTS & AUTOPILOT</span>
                 <h1>Cost clarity for serious work</h1>
                 <p>Understand model usage, budget posture and cost per workspace output.</p>
               </div>

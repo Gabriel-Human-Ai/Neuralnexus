@@ -6,7 +6,7 @@ const KEYS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "GOOG
 
 export async function GET() {
   try {
-  const rows = await db.setting.findMany({ where: { OR: [{ key: { in: KEYS } }, { key: { startsWith: "STRICT_FACTS_" } }, { key: { startsWith: "EYE_SYNTH_" } }, { key: { startsWith: "EYE_SEEN_" } }] } });
+  const rows = await db.setting.findMany({ where: { OR: [{ key: { in: KEYS } }, { key: { startsWith: "STRICT_FACTS_" } }, { key: { startsWith: "EYE_SYNTH_" } }, { key: { startsWith: "EYE_SEEN_" } }, { key: { in: ["INDEX_CONSENT", "INDEX_INSTANCE_ID", "INDEX_LAST_SYNC"] } }] } });
   // Never send full keys to the browser – only masked status.
   const out: Record<string, string> = {};
   for (const k of KEYS) {
@@ -16,13 +16,14 @@ export async function GET() {
   }
   rows.filter((row) => row.key.startsWith("STRICT_FACTS_")).forEach((row) => { out[row.key] = row.value; });
   rows.filter((row) => row.key.startsWith("EYE_SYNTH_") || row.key.startsWith("EYE_SEEN_")).forEach((row) => { out[row.key] = row.value; });
+  rows.filter((row) => ["INDEX_CONSENT", "INDEX_INSTANCE_ID", "INDEX_LAST_SYNC"].includes(row.key)).forEach((row) => { out[row.key] = row.value; });
   return NextResponse.json(out);
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const allowedKeys = [...KEYS, ...Object.keys(body).filter((key) => key.startsWith("STRICT_FACTS_") || key.startsWith("EYE_SEEN_"))];
+  const allowedKeys = [...KEYS, ...Object.keys(body).filter((key) => key.startsWith("STRICT_FACTS_") || key.startsWith("EYE_SEEN_") || key === "INDEX_CONSENT" || key === "INDEX_INSTANCE_ID")];
   for (const k of allowedKeys) {
     const v = body[k];
     if (typeof v === "string" && v.trim() && !v.startsWith("••••")) {

@@ -167,6 +167,17 @@ model TasteRule {
   createdAt  DateTime @default(now())
 }
 
+model CollectiveGuard {
+  id        String   @id @default(cuid())
+  model     String
+  domainTag String
+  warning   String
+  count     Int
+  updatedAt DateTime @default(now())
+
+  @@unique([model, domainTag, warning])
+}
+
 model SkillRule {
   id             String   @id @default(cuid())
   skillId        String

@@ -4,6 +4,7 @@ import { runChat } from "@/lib/providers";
 import { parseModelJson } from "@/lib/safe-parse";
 import { estimateCost } from "@/lib/tokens";
 import type { Claim, ClaimStatus } from "@/lib/types";
+import { collectiveGuardLines } from "@/lib/index-protocol";
 
 type MemoryLike = { id: string; content: string };
 type RawClaim = { text?: string; status?: string; sourceIndex?: number | null; sourceQuote?: string | null };
@@ -42,8 +43,12 @@ export async function knownFailurePatternBlock(args: { model: string; domainTag:
   const counts = new Map<string, number>();
   records.forEach((record) => counts.set(record.warning, (counts.get(record.warning) ?? 0) + 1));
   const warnings = Array.from(counts.entries()).filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([warning]) => warning);
-  if (!warnings.length) return "";
-  return `KNOWN FAILURE PATTERNS for this model in this domain — humans corrected these before. Do not repeat them:\n${warnings.map((warning) => `- ${warning}`).join("\n")}`;
+  const collective = await collectiveGuardLines(args.model, args.domainTag);
+  if (!warnings.length && !collective.length) return "";
+  return `KNOWN FAILURE PATTERNS for this model in this domain — humans corrected these before. Do not repeat them:\n${[
+    ...warnings.map((warning) => `- ${warning}`),
+    ...collective,
+  ].join("\n")}`;
 }
 
 export async function extractClaimsForOutput(args: {
