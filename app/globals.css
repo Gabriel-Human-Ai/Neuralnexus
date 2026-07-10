@@ -3370,6 +3370,21 @@ kbd { border: 1px solid var(--hairline); background: var(--surface-2); color: va
 .collection-grid, .template-grid, .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; align-items: stretch; }
 .collection-card, .template-card, .mode-option { display: grid; grid-template-rows: auto auto 1fr auto; min-height: 100%; padding: 24px; }
 .collection-card:hover, .template-card:hover, .output-list-row:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) !important; border-color: var(--hairline-strong) !important; transition: transform 160ms ease-out, box-shadow 160ms ease-out, border-color 160ms ease-out; }
+.instant-workspace-card {
+  align-content: start;
+}
+.instant-workspace-card h3 {
+  margin-bottom: 18px;
+}
+.instant-extract-button {
+  width: fit-content !important;
+  min-width: 164px;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 22px !important;
+  justify-self: start;
+  align-self: end;
+}
 
 .primary-pill, .home-primary-button, .guided-wizard-footer .primary-pill { min-height: 44px; border-radius: 999px; border: 0 !important; background: var(--action) !important; color: var(--action-text) !important; box-shadow: var(--shadow-sm); font: 500 15px/1 var(--font-ui); }
 .primary-pill:hover, .home-primary-button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }

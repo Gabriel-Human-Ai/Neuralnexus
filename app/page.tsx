@@ -1491,7 +1491,7 @@ export default function Home() {
             <div className="template-card liquid-card instant-workspace-card">
               <span className="object-label">INSTANT WORKSPACE</span>
               <h3>Turn any PDF, method or prompt pack into a runnable workspace.</h3>
-              <button className="primary-pill" onClick={() => setExtractorOpen(true)}>Extract now</button>
+              <button className="primary-pill instant-extract-button" onClick={() => setExtractorOpen(true)}>Extract now</button>
             </div>
             {templateCards.map((template) => (
               <div key={template.name} className="template-card liquid-card">
