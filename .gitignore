@@ -25,3 +25,4 @@ npm-debug.log*
 
 # Build
 .turbo
+extensions/neuralnexus-browser/dist/

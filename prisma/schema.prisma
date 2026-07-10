@@ -158,6 +158,23 @@ model DecisionRecord {
   createdAt     DateTime @default(now())
 }
 
+model CaptureRecord {
+  id              String   @id @default(cuid())
+  title           String   @default("")
+  sourceUrl       String   @default("")
+  sourceHost      String   @default("")
+  captureType     String   @default("selection") // selection | page | screenshot
+  action          String   @default("save_reference") // save_reference | review | compare | verify | preflight
+  text            String   @default("")
+  screenshotData  String   @default("")
+  summary         String   @default("")
+  decision        String   @default("") // approve | reject | revise | keep | mark_wrong
+  decisionNote    String   @default("")
+  indexEligible   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  decidedAt       DateTime?
+}
+
 model TasteRule {
   id         String   @id @default(cuid())
   contextTag String   @default("general")
