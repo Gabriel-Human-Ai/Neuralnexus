@@ -12,9 +12,10 @@ export function ExtractorSheet({ open, onClose, onDone }: { open: boolean; onClo
   const [stage, setStage] = useState(0);
   useEffect(() => {
     if (status !== "working") return;
-    const id = setInterval(() => setStage((value) => Math.min(stages.length - 1, value + 1)), 1800);
-    return () => clearInterval(id);
-  }, [status]);
+    if (stage >= stages.length - 1) return;
+    const id = window.setTimeout(() => setStage((value) => Math.min(stages.length - 1, value + 1)), 1800);
+    return () => window.clearTimeout(id);
+  }, [stage, stages.length, status]);
   if (!open) return null;
   const build = async () => {
     setStatus("working");
@@ -39,7 +40,9 @@ export function ExtractorSheet({ open, onClose, onDone }: { open: boolean; onClo
             if (file && file.type.startsWith("text")) void file.text().then(setText);
             else if (file) setMessage("PDF extraction needs an Anthropic or OpenRouter key. Paste the text instead.");
           }} /></label>
-          <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="...or paste your method, framework or prompt pack" rows={8} />
+          <div className="extractor-focus aurora-focus">
+            <textarea className="af-field" value={text} onChange={(event) => setText(event.target.value)} placeholder="...or paste your method, framework or prompt pack" rows={8} />
+          </div>
           {message && <p>{message}</p>}
           <button className="primary-pill" disabled={!text.trim()} onClick={build}>Build workspace</button>
         </>}

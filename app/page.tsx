@@ -42,8 +42,11 @@ import { POSITIONING, POSITIONING_UI } from "@/lib/positioning";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { RollingNumber } from "@/components/ui/RollingNumber";
 import { AuroraDisc } from "@/components/ui/AuroraDisc";
+import { AuraCard } from "@/components/ui/AuraCard";
+import { HeroCTA } from "@/components/ui/HeroCTA";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MessageActions } from "@/components/chat/MessageActions";
+import { useTypingGlow } from "@/lib/useTypingGlow";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -389,10 +392,10 @@ function WorkspaceObject({ mode, featured = false }: { mode: WorkspaceMode; feat
 
 function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="nn-stat">
-      <span>{label}</span>
+    <AuraCard variant="fade" className="nn-stat usage-card">
+      <span className="stat-label">{label}</span>
       <strong>{value}</strong>
-    </div>
+    </AuraCard>
   );
 }
 
@@ -420,6 +423,8 @@ function ModeSelector({
 }
 
 export default function Home() {
+  useTypingGlow();
+
   const [view, setView] = useState<View>("home");
   const [projects, setProjects] = useState<Project[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -1064,6 +1069,14 @@ export default function Home() {
 
   return (
     <MotionConfig reducedMotion="user" transition={MOTION.spring}>
+    <svg className="nn-aurora-defs" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="nn-aurora" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="var(--aurora-a)" />
+          <stop offset="100%" stopColor="var(--aurora-b)" />
+        </linearGradient>
+      </defs>
+    </svg>
     <main className="nn-shell">
       <aside className="nn-sidebar">
         <button className="brand-lockup" onClick={() => setView("home")}>
@@ -1137,9 +1150,9 @@ export default function Home() {
                   <button className="quiet-link" onClick={() => setWizardOpen(true)}>or create a new workspace</button>
                 </>
               ) : (
-                <button className="primary-pill home-primary-button" onClick={() => setWizardOpen(true)}>
+                <HeroCTA onClick={() => setWizardOpen(true)}>
                   <Plus size={18} /> Create workspace
-                </button>
+                </HeroCTA>
               )}
             </section>
 
@@ -1181,23 +1194,24 @@ export default function Home() {
                     const mode = inferMode(project);
                     const active = selectedWorkspace?.id === project.id;
                     return (
-                      <button
+                      <AuraCard
                         key={project.id}
-                        className={`workspace-card liquid-card ${active ? "is-selected" : ""}`}
+                        variant="bloom"
+                        className={`workspace-card aura-soft ${active ? "is-selected" : ""}`}
                         onClick={() => {
                           setSelectedWorkspaceId(project.id);
                           setWorkspacePanel("overview");
                         }}
                       >
-                        <span className="object-label">WORKSPACE</span>
+                        <span className="nn-chip-emboss">WORKSPACE</span>
                         <h3>{project.name}</h3>
                         <p>{mode.output}</p>
-                        <div className="card-meta">
-                          <span>Skills: {mode.skills.slice(0, 2).join(" · ")}</span>
-                          <span>Knowledge: prepared</span>
+                        <div className="card-meta workspace-card-meta">
+                          <span>{mode.skills.length} skills</span>
+                          <span>0 sources</span>
                           <span>{timeAgo(project.createdAt)}</span>
                         </div>
-                      </button>
+                      </AuraCard>
                     );
                   })}
                 </div>
@@ -1431,27 +1445,29 @@ export default function Home() {
                 </div>
               )}
 
-              <motion.div className="free-chat-composer hero-composer" layoutId="nn-composer">
-                <label className="chat-file-button">
-                  <Upload size={16} />
-                  <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readGeneralChatFiles(event.target.files)} />
-                </label>
-                <textarea
-                  value={generalInput}
-                  onChange={(event) => setGeneralInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                      event.preventDefault();
-                      void sendGeneralChat();
-                    }
-                  }}
-                  placeholder="Ask a question. Cmd+Enter sends."
-                  rows={3}
-                />
-                <button className="primary-pill chat-send-button" onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
-                  {generalBusy && <span className="thinking-button-dot" aria-hidden="true" />}
-                  {generalBusy ? "Thinking" : "Send"} <ChevronRight size={16} />
-                </button>
+              <motion.div className="chat-composer-shell aurora-focus" layoutId="nn-composer">
+                <div className={`free-chat-composer hero-composer af-field ${generalInput.trim() ? "is-charged" : "is-empty"} ${generalBusy ? "is-sending" : ""}`}>
+                  <label className="chat-file-button">
+                    <Upload size={16} />
+                    <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readGeneralChatFiles(event.target.files)} />
+                  </label>
+                  <textarea
+                    value={generalInput}
+                    onChange={(event) => setGeneralInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                        event.preventDefault();
+                        void sendGeneralChat();
+                      }
+                    }}
+                    placeholder="Ask a question. Cmd+Enter sends."
+                    rows={3}
+                  />
+                  <button className={`primary-pill chat-send-button ${generalInput.trim() ? "is-charged" : "is-empty"}`} onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
+                    {generalBusy && <span className="thinking-button-dot" aria-hidden="true" />}
+                    {generalBusy ? "Thinking" : "Send"} <ChevronRight size={16} />
+                  </button>
+                </div>
               </motion.div>
           </div>
         )}
@@ -1467,17 +1483,21 @@ export default function Home() {
               { id: "offer-architect", name: "Offer Architect", description: "Turns rough expertise into a sharp, sellable offer structure." },
               { id: "copy-editor", name: "Copy Critic", description: "Improves clarity, specificity and conversion intent." },
             ]).map((skill) => (
-              <button key={skill.id} className="skill-card liquid-card" onClick={() => setGenomeSkill(skill)}>
-                <span className="object-label">SKILL</span>
-                <h3>{skill.name}</h3>
-                <p>{skill.description}</p>
-                <div className="card-meta">
-                  <span>Genome: v{skill.version ?? 1}</span>
-                  <span>Output: structured result</span>
-                  <span>Mode: critical</span>
+              <AuraCard key={skill.id} variant="bloom" className="skill-card" onClick={() => setGenomeSkill(skill)}>
+                <span className="skill-icon-badge" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3.75L13.75 10.25L20.25 12L13.75 13.75L12 20.25L10.25 13.75L3.75 12L10.25 10.25L12 3.75Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <div className="skill-card-copy">
+                  <h3>{skill.name}</h3>
+                  <p>{skill.description}</p>
+                  <span className="skill-micro">GENOME V{skill.version ?? 1} · CRITICAL</span>
                 </div>
-                <span className="skill-card-cta">Open Genome</span>
-              </button>
+                <span className="skill-card-footer">
+                  <span className="skill-card-link">Open Genome <i aria-hidden="true">→</i></span>
+                </span>
+              </AuraCard>
             ))}
           </CollectionScreen>
         )}
@@ -1488,17 +1508,21 @@ export default function Home() {
             title="Premium workspace library"
             description="Start from a valuable system, then adapt the knowledge, skills and workflow to your method."
           >
-            <div className="template-card liquid-card instant-workspace-card">
-              <span className="object-label">INSTANT WORKSPACE</span>
+            <AuraCard variant="leak" className="template-card instant-workspace-card instant-aura-card">
+              <span className="instant-spark" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3.75L13.75 10.25L20.25 12L13.75 13.75L12 20.25L10.25 13.75L3.75 12L10.25 10.25L12 3.75Z" stroke="url(#nn-aurora)" strokeWidth="1.7" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span className="nn-chip-emboss">INSTANT WORKSPACE</span>
               <h3>Turn any PDF, method or prompt pack into a runnable workspace.</h3>
               <button className="primary-pill instant-extract-button" onClick={() => setExtractorOpen(true)}>Extract now</button>
-            </div>
+            </AuraCard>
             {templateCards.map((template) => (
-              <div key={template.name} className="template-card liquid-card">
-                <span className="object-label">{template.category}</span>
+              <AuraCard key={template.name} variant="leak" className="template-card template-aura-card">
+                <span className="nn-chip-emboss">{template.category}</span>
                 <h3>{template.name}</h3>
                 <p>{template.forWho}</p>
-                <p>{template.produces}</p>
                 <button
                   className="secondary-pill"
                   onClick={() => {
@@ -1509,7 +1533,7 @@ export default function Home() {
                 >
                   Use template <ChevronRight size={16} />
                 </button>
-              </div>
+              </AuraCard>
             ))}
           </CollectionScreen>
         )}
@@ -1704,7 +1728,7 @@ export default function Home() {
                 <>
                   <h2>Who is this workspace for?</h2>
                   <p>One clear audience keeps the AI system useful instead of generic.</p>
-                  <label className="guided-field">
+                  <label className="guided-field aurora-focus">
                     Audience
                     <input
                       autoFocus
@@ -1738,7 +1762,7 @@ export default function Home() {
                     <small>Text, Markdown, CSV, JSON, images and PDFs</small>
                     <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readWorkspaceFiles(event.target.files)} />
                   </label>
-                  <label className="guided-field">
+                  <label className="guided-field aurora-focus">
                     Quick source note
                     <textarea
                       value={workspaceSourceNote}
@@ -1766,11 +1790,11 @@ export default function Home() {
                 <>
                   <h2>What should the workspace produce?</h2>
                   <p>Write the outcome in plain language. This becomes the workspace's operating direction.</p>
-                  <label className="guided-field">
+                  <label className="guided-field aurora-focus">
                     Workspace name
                     <input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} />
                   </label>
-                  <label className="guided-field">
+                  <label className="guided-field aurora-focus">
                     Purpose
                     <textarea
                       autoFocus
@@ -1822,7 +1846,7 @@ export default function Home() {
       {commandOpen && (
         <div className="command-backdrop" role="dialog" aria-modal="true" aria-label="Command center" onClick={() => setCommandOpen(false)}>
           <div className="command-panel" onClick={(event) => event.stopPropagation()}>
-            <div className="command-input-row">
+            <div className="command-input-row aurora-focus af-field">
               <Sparkles size={18} />
               <input
                 autoFocus
