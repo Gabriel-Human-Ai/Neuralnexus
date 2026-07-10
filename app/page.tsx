@@ -1459,6 +1459,7 @@ export default function Home() {
                   <span>Output: structured result</span>
                   <span>Mode: critical</span>
                 </div>
+                <span className="skill-card-cta">Open Genome</span>
               </button>
             ))}
           </CollectionScreen>

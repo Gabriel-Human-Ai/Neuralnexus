@@ -1734,6 +1734,26 @@ kbd {
   min-height: 230px;
 }
 
+.skill-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-card-cta {
+  margin-top: auto;
+  width: fit-content;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(200,169,106,0.32);
+  border-radius: 999px;
+  color: var(--nn-warm);
+  background: rgba(200,169,106,0.08);
+  padding: 0 14px;
+  font-size: 12px;
+}
+
 .template-card {
   display: flex;
   flex-direction: column;
