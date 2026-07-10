@@ -73,3 +73,15 @@ export interface ModelProfile {
 }
 export type QualityCheck = { check: string; passed: boolean; fixed: boolean; reason?: string };
 export type QualityReport = { checks: QualityCheck[]; revisions: number };
+
+export type ClaimStatus = "grounded" | "inferred" | "external" | "disputed" | "corrected";
+export type Claim = {
+  id: string;
+  text: string;
+  status: ClaimStatus;
+  sourceMemoryId?: string;
+  sourceTitle?: string;
+  sourceQuote?: string;
+  verdictNote?: string;
+  verifierModel?: string;
+};

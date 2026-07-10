@@ -5196,3 +5196,242 @@ button.aura-card {
     max-width: calc(100vw - 44px) !important;
   }
 }
+
+/* ===== Ground Truth layer ===== */
+.output-content-head {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 34px;
+}
+
+.read-edit-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.read-edit-toggle button {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--secondary);
+  font: 500 12px/1 var(--font-ui);
+}
+
+.read-edit-toggle button.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.claim-read-mode {
+  position: relative;
+  min-height: 220px;
+  white-space: pre-wrap;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  padding: 16px;
+  line-height: 1.65;
+}
+
+.claim { border-radius:2px; }
+.claim--external  { text-decoration:underline dotted var(--muted); text-decoration-thickness:1px; text-underline-offset:3px; cursor:help; }
+.claim--disputed  { text-decoration:underline wavy var(--danger);  text-decoration-thickness:1px; text-underline-offset:3px; cursor:help; }
+.claim--corrected { text-decoration:none; opacity:0.85; }
+.claim--grounded, .claim--inferred { text-decoration:none; }
+.claim.is-hl      { background:color-mix(in srgb, var(--aurora-a) 9%, transparent); }
+.claim-read-mode.trust-hidden .claim {
+  text-decoration: none !important;
+  background: transparent !important;
+}
+
+.claim-popover {
+  position: absolute;
+  z-index: 20;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  max-width: 320px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  white-space: normal;
+}
+
+.claim-popover strong {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.claim-popover p,
+.claim-popover blockquote {
+  margin: 0;
+  color: var(--secondary);
+}
+
+.claim-popover blockquote {
+  padding-left: 10px;
+  border-left: 2px solid var(--hairline-strong);
+}
+
+.claim-popover button,
+.claim-correction-row button {
+  min-height: 30px;
+  width: fit-content;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink);
+  padding: 0 10px;
+  font: 500 12px/1 var(--font-ui);
+}
+
+.claim-correction-row {
+  display: grid;
+  gap: 8px;
+}
+
+.claim-correction-row input {
+  width: 100%;
+  min-height: 34px;
+  border-radius: 8px;
+}
+
+.claim-popover .danger,
+.trust-bar .danger {
+  color: var(--danger);
+}
+
+.claim-ack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+}
+
+.trust-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  min-height: 32px;
+  color: var(--muted);
+  font: 500 11px/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trust-bar > button:not(.trust-eye) {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.trust-eye {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--secondary);
+}
+
+.strict-facts-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.strict-facts-toggle span {
+  display: grid;
+  gap: 4px;
+}
+
+.strict-facts-toggle strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.strict-facts-toggle small {
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.strict-facts-toggle input {
+  width: 42px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.truth-map {
+  display: grid;
+  gap: 12px;
+}
+
+.truth-map p,
+.truth-map strong,
+.truth-map article {
+  margin: 0;
+}
+
+.truth-map article {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.truth-map article span {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.truth-map article small {
+  color: var(--secondary);
+}
+
+@media (max-width: 760px) {
+  .trust-bar {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .trust-eye {
+    margin-left: 0;
+  }
+
+  .claim-popover {
+    max-width: none;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+}

@@ -126,7 +126,23 @@ model Output {
   parentOutputId      String?
   forkChangedVariable String?  // "model" | "skill" | null
   qualityReport       String   @default("") // JSON string, see §4
+  claimsJson          String   @default("") // JSON string: Claim[] (see §2)
   createdAt           DateTime @default(now())
+}
+
+model CorrectionRecord {
+  id             String   @id @default(cuid())
+  projectId      String
+  outputId       String
+  skillId        String?
+  model          String
+  provider       String
+  domainTag      String   @default("general") // content|brand|review|coaching|audit|research|general
+  claimText      String
+  correctionText String   @default("")
+  warning        String   @default("")        // reusable imperative rule, max 140 chars
+  source         String   @default("manual")  // manual | edit-diff
+  createdAt      DateTime @default(now())
 }
 
 model SkillRule {

@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });
     }
     const result = await runWorkspaceStep({ ...body, checklist: Array.isArray(body.checklist) ? body.checklist : [] });
-    return NextResponse.json({ outputId: result.output.id, content: result.content, model: result.model, provider: result.provider, costUsd: result.costUsd, qualityReport: result.qualityReport });
+    return NextResponse.json({ outputId: result.output.id, content: result.content, model: result.model, provider: result.provider, costUsd: result.costUsd, qualityReport: result.qualityReport, claims: result.claims, droppedClaims: result.droppedClaims, trustUnavailable: result.trustUnavailable });
   } catch (error: any) {
     const message = error.message ?? "provider_failure";
     const status = message.includes("API-Key") || message.includes("model key") ? 402 : message === "missing_fields" ? 400 : 502;

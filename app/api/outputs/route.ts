@@ -18,6 +18,7 @@ export async function GET(req: Request) {
     draftContent: row.draftContent,
     knowledgeIds: row.knowledgeIds,
     qualityReport: row.qualityReport,
+    claimsJson: row.claimsJson,
     createdAt: row.createdAt,
     parentOutputId: row.parentOutputId,
     forkChangedVariable: row.forkChangedVariable,

@@ -45,6 +45,12 @@ export const POSITIONING = {
       line: "Every output keeps its lineage. Fork any result, change one variable, compare.",
       fallback: "Every output keeps its model, skill version and cost on record.",
     },
+    {
+      id: "truth",
+      name: "It admits when it guesses",
+      line: "Every claim is backed, inferred, or flagged — and every correction you make becomes a guard.",
+      fallback: "Every claim is backed, inferred, or flagged.",
+    },
   ],
 
   // Honest competitor reframes — factual, no trash talk. Used ONLY in the Why sheet.

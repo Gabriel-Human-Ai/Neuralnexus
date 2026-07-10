@@ -22,5 +22,5 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     parentOutputId: parent.id,
     forkChangedVariable: change.type,
   });
-  return NextResponse.json({ outputId: result.output.id, content: result.content, model: result.model, provider: result.provider, costUsd: result.costUsd, qualityReport: result.qualityReport });
+  return NextResponse.json({ outputId: result.output.id, content: result.content, model: result.model, provider: result.provider, costUsd: result.costUsd, qualityReport: result.qualityReport, claims: result.claims, droppedClaims: result.droppedClaims });
 }

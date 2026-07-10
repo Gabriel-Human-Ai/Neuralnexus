@@ -133,10 +133,17 @@ type OutputListItem = {
   draftContent?: string;
   knowledgeIds?: string;
   qualityReport?: string;
+  claimsJson?: string;
   createdAt: string;
   preview?: string;
   parentOutputId?: string | null;
   forkChangedVariable?: string | null;
+};
+
+type TruthMap = {
+  totalCorrections: number;
+  byModel: { model: string; count: number; topWarnings: string[] }[];
+  activeGuards: number;
 };
 
 const workspaceModes: WorkspaceMode[] = [
@@ -446,6 +453,7 @@ export default function Home() {
   const [stepState, setStepState] = useState<"idle" | "loading" | "complete">("idle");
   const [finalState, setFinalState] = useState<"idle" | "loading" | "complete">("idle");
   const [currentOutput, setCurrentOutput] = useState<OutputCardOutput | null>(null);
+  const [truthMap, setTruthMap] = useState<TruthMap | null>(null);
   const [outputs, setOutputs] = useState<OutputListItem[]>([]);
   const [crucibleInput, setCrucibleInput] = useState("");
   const [builtMaterialization, setBuiltMaterialization] = useState(false);
@@ -592,6 +600,7 @@ export default function Home() {
     if (!selectedWorkspace?.id) return;
     void loadOutputs(selectedWorkspace.id);
     void loadAutopilot(selectedWorkspace.id);
+    void loadTruthMap(selectedWorkspace.id);
     setChecklist(defaultChecklist(selectedWorkspaceMode.id));
   }, [selectedWorkspace?.id, selectedWorkspaceMode.id]);
 
@@ -629,6 +638,15 @@ export default function Home() {
   async function loadAutopilot(projectId: string) {
     const data = await safeJson(`/api/autopilot?projectId=${projectId}`);
     if (data) setAutopilot(data);
+  }
+
+  async function loadTruthMap(projectId: string) {
+    const data = await safeJson(`/api/truth/patterns?projectId=${projectId}`);
+    if (data && !data.error) setTruthMap(data);
+  }
+
+  function setStrictFacts(projectId: string, enabled: boolean) {
+    updateKeys((state) => ({ ...state, [`STRICT_FACTS_${projectId}`]: enabled ? "1" : "0" }));
   }
 
   function updateKeys(fn: (state: Record<string, string>) => Record<string, string>) {
@@ -819,7 +837,7 @@ export default function Home() {
 
   async function openOutput(output: OutputListItem) {
     const full = output.finalContent || output.draftContent ? output : await safeJson(`/api/outputs/${output.id}`);
-    if (full?.id) setCurrentOutput({ id: full.id, stepName: full.stepName, model: full.model, provider: full.provider, costUsd: full.costUsd, content: full.finalContent || full.draftContent, skillVersion: full.skillVersion, knowledgeIds: full.knowledgeIds, qualityReport: full.qualityReport ? typeof full.qualityReport === "string" ? JSON.parse(full.qualityReport) : full.qualityReport : null });
+    if (full?.id) setCurrentOutput({ id: full.id, stepName: full.stepName, model: full.model, provider: full.provider, costUsd: full.costUsd, content: full.finalContent || full.draftContent, skillVersion: full.skillVersion, knowledgeIds: full.knowledgeIds, qualityReport: full.qualityReport ? typeof full.qualityReport === "string" ? JSON.parse(full.qualityReport) : full.qualityReport : null, claimsJson: full.claimsJson });
   }
 
   async function saveAsFinal(content?: string) {
@@ -843,7 +861,7 @@ export default function Home() {
     });
     const data = await response.json();
     if (response.ok && selectedWorkspace) {
-      setCurrentOutput({ ...currentOutput, id: data.outputId, model: data.model, costUsd: data.costUsd, content: data.content, qualityReport: data.qualityReport });
+      setCurrentOutput({ ...currentOutput, id: data.outputId, model: data.model, costUsd: data.costUsd, content: data.content, qualityReport: data.qualityReport, claims: data.claims, claimsJson: data.claims ? JSON.stringify(data.claims) : "" });
       await loadOutputs(selectedWorkspace.id);
     }
   }
@@ -1288,6 +1306,17 @@ export default function Home() {
                         <div className="checklist-editor">
                           <span className="object-label">QUALITY GATES</span>
                           <p className="muted-helper">{POSITIONING_UI.microcopy.qualityGates}</p>
+                          <label className="strict-facts-toggle">
+                            <span>
+                              <strong>Strict facts</strong>
+                              <small>External claims get cross-examined by a second provider before you see them.</small>
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={keys[`STRICT_FACTS_${selectedWorkspace.id}`] === "1"}
+                              onChange={(event) => setStrictFacts(selectedWorkspace.id, event.target.checked)}
+                            />
+                          </label>
                           <div className="check-chip-row">
                             {checklist.map((check) => (
                               <button key={check} onClick={() => setChecklist((items) => items.filter((item) => item !== check))}>{check} <X size={12} /></button>
@@ -1308,6 +1337,7 @@ export default function Home() {
                             userInput={crucibleInput}
                             skillId={skills[0]?.id}
                             checklist={checklist}
+                            strictFacts={keys[`STRICT_FACTS_${selectedWorkspace.id}`] === "1"}
                             onCancel={() => setStepState("idle")}
                             onFinal={async (data) => {
                               setCurrentOutput({
@@ -1319,6 +1349,9 @@ export default function Home() {
                                 content: data.content,
                                 skillVersion: skills[0]?.version ?? 1,
                                 qualityReport: data.qualityReport,
+                                claims: data.claims,
+                                claimsJson: data.claims ? JSON.stringify(data.claims) : "",
+                                trustUnavailable: data.trustUnavailable,
                               });
                               await loadOutputs(selectedWorkspace.id);
                               setStepState("complete");
@@ -1606,6 +1639,26 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+              )}
+            </section>
+            <section className="liquid-panel usage-panel ground-truth-panel">
+              <div className="section-head">
+                <span>GROUND TRUTH</span>
+                <small>Hallucination map</small>
+              </div>
+              {truthMap && truthMap.totalCorrections > 0 ? (
+                <div className="truth-map">
+                  <p>Your corrections: <RollingNumber value={truthMap.totalCorrections} /> — each one trains this workspace's truth layer.</p>
+                  {truthMap.activeGuards > 0 && <strong>{truthMap.activeGuards} guard{truthMap.activeGuards === 1 ? "" : "s"} now injected into every matching generation.</strong>}
+                  {truthMap.byModel.map((item) => (
+                    <article key={item.model}>
+                      <span>{item.model} · {item.count} corrected</span>
+                      {item.topWarnings.map((warning) => <small key={warning}>{warning}</small>)}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-inline"><p>No corrections yet. Mark a wrong claim in any output — the layer learns from you.</p></div>
               )}
             </section>
             <div className="usage-layout">

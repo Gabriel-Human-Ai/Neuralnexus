@@ -17,6 +17,7 @@ export function WhySheet({ open, hasWorkspaces, onClose, onCreate }: {
     gates: FEATURE_FLAGS.gates,
     models: FEATURE_FLAGS.autopilot,
     provenance: FEATURE_FLAGS.forkDiff,
+    truth: true,
   };
 
   return (

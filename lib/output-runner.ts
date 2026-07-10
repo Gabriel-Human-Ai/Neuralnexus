@@ -3,6 +3,8 @@ import { MODELS, pickModelForTask, runChatWithFallback } from "@/lib/providers";
 import { estimateCost } from "@/lib/tokens";
 import { runQualityGates } from "@/lib/judge";
 import { parseModelJson } from "@/lib/safe-parse";
+import { domainTagFromProject, extractClaimsForOutput, knownFailurePatternBlock, verifyExternalClaims } from "@/lib/truth";
+import type { Claim } from "@/lib/types";
 
 export type RunOutputRequest = {
   projectId: string;
@@ -14,6 +16,8 @@ export type RunOutputRequest = {
   checklist: string[];
   parentOutputId?: string;
   forkChangedVariable?: string;
+  trust?: boolean;
+  strictFacts?: boolean;
 };
 
 export async function resolveModel(projectId: string, stepName: string, explicit?: string) {
@@ -35,6 +39,8 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
   const activeRules = skill ? await db.skillRule.findMany({ where: { skillId: skill.id, status: "active" }, orderBy: { createdAt: "asc" } }) : [];
   const knowledge = await db.memory.findMany({ where: { projectId, kind: "knowledge" }, orderBy: { createdAt: "desc" }, take: 8 });
   const model = await resolveModel(projectId, stepName, body.model);
+  const domainTag = domainTagFromProject(project, stepName);
+  const guardBlock = await knownFailurePatternBlock({ model, domainTag });
 
   const systemPrompt = [
     "You are executing one step of a reusable AI workspace.",
@@ -47,6 +53,7 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
     "",
     skill ? `METHOD (Skill: ${skill.name} v${skill.version}):\n${skill.instructions}` : "",
     activeRules.length ? `LEARNED RULES — follow every rule strictly:\n${activeRules.map((rule) => `- ${rule.text}`).join("\n")}` : "",
+    guardBlock,
     knowledge.length ? `KNOWLEDGE SOURCES:\n${knowledge.map((item) => `--- ${item.content.slice(0, 1200)}`).join("\n")}` : "",
     "Produce the step output directly. No preamble, no meta commentary.",
   ].filter(Boolean).join("\n");
@@ -62,6 +69,19 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
 
   const gated = await runQualityGates({ projectId, content: result.text, checklist: body.checklist ?? [], systemPrompt, primaryModel: result.usedModel });
   const totalCost = primaryCost + gated.extraCost;
+  let claims: Claim[] | null = null;
+  let droppedClaims = 0;
+  let claimsJson = "";
+  let trustUnavailable = false;
+  try {
+    const extracted = await extractClaimsForOutput({ projectId, text: gated.content, knowledge, trust: body.trust });
+    claims = extracted.claims;
+    droppedClaims = extracted.dropped;
+    trustUnavailable = extracted.unavailable;
+    claimsJson = claims ? JSON.stringify(claims) : "";
+  } catch (error) {
+    console.error("truth extraction failed", error);
+  }
   const output = await db.output.create({
     data: {
       projectId,
@@ -79,9 +99,17 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
       parentOutputId: body.parentOutputId,
       forkChangedVariable: body.forkChangedVariable,
       qualityReport: gated.report ? JSON.stringify(gated.report) : "",
+      claimsJson,
     },
   });
-  return { output, content: gated.content, model: result.usedModel, provider, costUsd: totalCost, qualityReport: gated.report, systemPrompt };
+  if (body.strictFacts && claims?.some((claim) => claim.status === "external")) {
+    try {
+      claims = await verifyExternalClaims({ output: { ...output, claimsJson }, claimIds: claims.filter((claim) => claim.status === "external").slice(0, 8).map((claim) => claim.id) });
+    } catch (error: any) {
+      if (error.message !== "no_independent_verifier") console.error("strict facts verify failed", error);
+    }
+  }
+  return { output, content: gated.content, model: result.usedModel, provider, costUsd: totalCost, qualityReport: gated.report, systemPrompt, claims, droppedClaims, trustUnavailable };
 }
 
 type StreamEvent =
@@ -90,7 +118,10 @@ type StreamEvent =
   | { type: "judging"; round: number }
   | { type: "verdict"; round: number; checks: { check: string; passed: boolean; reason: string }[] }
   | { type: "revising"; round: number; failed: string[] }
-  | { type: "final"; outputId: string; content: string; qualityReport: any; model: string; provider: string; costUsd: number }
+  | { type: "final"; outputId: string; content: string; qualityReport: any; model: string; provider: string; costUsd: number; claims?: Claim[] | null; trustUnavailable?: boolean }
+  | { type: "verifying"; count: number }
+  | { type: "verify_skipped"; reason: string }
+  | { type: "claims"; claims: Claim[] | null; droppedClaims?: number; unavailable?: boolean }
   | { type: "error"; message: string };
 
 type JudgeResult = { results: { check: string; passed: boolean; reason: string }[] };
@@ -105,6 +136,8 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
   const activeRules = skill ? await db.skillRule.findMany({ where: { skillId: skill.id, status: "active" }, orderBy: { createdAt: "asc" } }) : [];
   const knowledge = await db.memory.findMany({ where: { projectId, kind: "knowledge" }, orderBy: { createdAt: "desc" }, take: 8 });
   const model = await resolveModel(projectId, stepName, body.model);
+  const domainTag = domainTagFromProject(project, stepName);
+  const guardBlock = await knownFailurePatternBlock({ model, domainTag });
 
   const systemPrompt = [
     "You are executing one step of a reusable AI workspace.",
@@ -117,6 +150,7 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
     "",
     skill ? `METHOD (Skill: ${skill.name} v${skill.version}):\n${skill.instructions}` : "",
     activeRules.length ? `LEARNED RULES — follow every rule strictly:\n${activeRules.map((rule) => `- ${rule.text}`).join("\n")}` : "",
+    guardBlock,
     knowledge.length ? `KNOWLEDGE SOURCES:\n${knowledge.map((item) => `--- ${item.content.slice(0, 1200)}`).join("\n")}` : "",
     "Produce the step output directly. No preamble, no meta commentary.",
   ].filter(Boolean).join("\n");
@@ -183,6 +217,19 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
     revisions,
   } : null;
   const totalCost = primaryCost + extraCost;
+  let claims: Claim[] | null = null;
+  let droppedClaims = 0;
+  let claimsJson = "";
+  let trustUnavailable = false;
+  try {
+    const extracted = await extractClaimsForOutput({ projectId, text: content, knowledge, trust: body.trust });
+    claims = extracted.claims;
+    droppedClaims = extracted.dropped;
+    trustUnavailable = extracted.unavailable;
+    claimsJson = claims ? JSON.stringify(claims) : "";
+  } catch (error) {
+    console.error("truth extraction failed", error);
+  }
   const output = await db.output.create({
     data: {
       projectId,
@@ -200,8 +247,20 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
       parentOutputId: body.parentOutputId,
       forkChangedVariable: body.forkChangedVariable,
       qualityReport: qualityReport ? JSON.stringify(qualityReport) : "",
+      claimsJson,
     },
   });
-  emit({ type: "final", outputId: output.id, content, qualityReport, model: result.usedModel, provider, costUsd: totalCost });
-  return { output, content, model: result.usedModel, provider, costUsd: totalCost, qualityReport, systemPrompt };
+  emit({ type: "final", outputId: output.id, content, qualityReport, model: result.usedModel, provider, costUsd: totalCost, claims, trustUnavailable });
+  if (body.strictFacts && claims?.some((claim) => claim.status === "external")) {
+    const externalIds = claims.filter((claim) => claim.status === "external").slice(0, 8).map((claim) => claim.id);
+    emit({ type: "verifying", count: externalIds.length });
+    try {
+      claims = await verifyExternalClaims({ output: { ...output, claimsJson }, claimIds: externalIds });
+    } catch (error: any) {
+      if (error.message === "no_independent_verifier") emit({ type: "verify_skipped", reason: "no_independent_verifier" });
+      else console.error("strict facts verify failed", error);
+    }
+  }
+  emit({ type: "claims", claims, droppedClaims, unavailable: trustUnavailable });
+  return { output, content, model: result.usedModel, provider, costUsd: totalCost, qualityReport, systemPrompt, claims, droppedClaims, trustUnavailable };
 }
