@@ -44,6 +44,7 @@ import { RollingNumber } from "@/components/ui/RollingNumber";
 import { AuroraDisc } from "@/components/ui/AuroraDisc";
 import { AuraCard } from "@/components/ui/AuraCard";
 import { HeroCTA } from "@/components/ui/HeroCTA";
+import { NexusIsland } from "@/components/ui/NexusIsland";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { useTypingGlow } from "@/lib/useTypingGlow";
@@ -1058,6 +1059,14 @@ export default function Home() {
     setCommandIndex((index) => Math.min(index, Math.max(0, filteredCommands.length - 1)));
   }, [filteredCommands.length]);
 
+  const islandActivity = generalBusy || sessionState === "loading" || buildState === "loading"
+    ? "generation"
+    : stepState === "loading"
+      ? "gates"
+      : extractorOpen
+        ? "extraction"
+        : "idle";
+
   function runCommand(item?: CommandItem) {
     if (!item) return;
     rememberCommand(item.id);
@@ -1112,6 +1121,7 @@ export default function Home() {
       </aside>
 
       <section className="nn-stage">
+        <NexusIsland activity={islandActivity} />
         <div className="stage-tools">
           <ThemeToggle />
           <button className="command-launcher" onClick={() => setCommandOpen(true)} aria-label="Open command center">

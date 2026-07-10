@@ -51,19 +51,14 @@ export function ThemeToggle() {
   }
 
   return (
-    <button ref={ref} className="theme-toggle" type="button" onClick={toggle} aria-label={`Switch to ${active === "dark" ? "light" : "dark"} theme`}>
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <mask id="nn-moon-mask">
-          <rect width="24" height="24" fill="white" />
-          <motion.circle animate={{ cx: active === "dark" ? 11 : 18, cy: active === "dark" ? 7 : -18, r: 7 }} transition={{ type: "spring", stiffness: 280, damping: 26 }} fill="black" />
-        </mask>
-        <motion.g animate={{ opacity: active === "dark" ? 0 : 1, scale: active === "dark" ? 0.55 : 1 }} transition={{ duration: 0.24, staggerChildren: 0.02 }} transformOrigin="12px 12px">
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((rotation) => (
-            <line key={rotation} x1="12" y1="2.5" x2="12" y2="5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" transform={`rotate(${rotation} 12 12)`} />
-          ))}
-        </motion.g>
-        <motion.circle cx="12" cy="12" animate={{ r: active === "dark" ? 7 : 5 }} transition={{ type: "spring", stiffness: 280, damping: 26 }} fill="currentColor" mask="url(#nn-moon-mask)" />
-      </svg>
+    <button ref={ref} className={`theme-toggle scenic-theme-toggle is-${active}`} type="button" onClick={toggle} aria-label={`Switch to ${active === "dark" ? "light" : "dark"} theme`}>
+      <span className="scenic-theme-toggle__sky" aria-hidden="true">
+        <motion.span className="scenic-theme-toggle__sun" animate={{ x: active === "dark" ? 34 : 0, y: active === "dark" ? 14 : 0, opacity: active === "dark" ? 0 : 1 }} transition={{ type: "spring", stiffness: 220, damping: 24 }} />
+        <motion.span className="scenic-theme-toggle__moon" animate={{ x: active === "dark" ? 0 : -34, y: active === "dark" ? 0 : 12, opacity: active === "dark" ? 1 : 0 }} transition={{ type: "spring", stiffness: 220, damping: 24 }} />
+        <span className="scenic-theme-toggle__stars" />
+        <span className="scenic-theme-toggle__dune dune-a" />
+        <span className="scenic-theme-toggle__dune dune-b" />
+      </span>
     </button>
   );
 }
