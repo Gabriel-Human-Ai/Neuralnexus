@@ -31,7 +31,6 @@ import {
   X,
 } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
-import { FloatingWizard } from "@/components/FloatingWizard";
 import { WhySheet } from "@/components/WhySheet";
 import { AutopilotCard } from "@/components/features/AutopilotCard";
 import { ExtractorSheet } from "@/components/features/ExtractorSheet";
@@ -42,6 +41,9 @@ import { MOTION, viewMotion } from "@/lib/motion";
 import { POSITIONING, POSITIONING_UI } from "@/lib/positioning";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { RollingNumber } from "@/components/ui/RollingNumber";
+import { AuroraDisc } from "@/components/ui/AuroraDisc";
+import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MessageActions } from "@/components/chat/MessageActions";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -461,7 +463,6 @@ export default function Home() {
   const [generalInput, setGeneralInput] = useState("");
   const [generalBusy, setGeneralBusy] = useState(false);
   const [generalAttachments, setGeneralAttachments] = useState<UploadedSource[]>([]);
-  const [copiedMessage, setCopiedMessage] = useState<number | null>(null);
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -483,7 +484,6 @@ export default function Home() {
   const userName = (keys.PREFERRED_NAME || keys.FULL_NAME || "").trim().split(/\s+/)[0] || "";
   const apiKeyReady = hasAnyApiKey(keys);
   const showHomeOrb = keys.WIZARD_HOME_ORB_ENABLED !== "0";
-  const floatingWizardEnabled = keys.WIZARD_FLOATING_ENABLED !== "0";
   const orbHue = parseNumberSetting(keys.ORB_HUE, 238);
   const orbSpeed = keys.ORB_BREATHING === "0" ? 1 : parseNumberSetting(keys.ORB_SPEED, 18);
   const orbIntensity = parseNumberSetting(keys.ORB_INTENSITY || keys.ORB_GLOW, 68);
@@ -524,6 +524,8 @@ export default function Home() {
 
   useEffect(() => {
     void loadData();
+    window.dispatchEvent(new Event("nn:client-mounted"));
+    window.setTimeout(() => document.getElementById("nn-boot")?.remove(), 700);
     try {
       const stored = window.localStorage.getItem("CMDK_RECENT");
       if (stored) setRecentCommands(JSON.parse(stored).slice(0, 3));
@@ -765,16 +767,6 @@ export default function Home() {
       setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not answer. Check your API keys in Settings." }]);
     } finally {
       setGeneralBusy(false);
-    }
-  }
-
-  async function copyChatMessage(content: string, index: number) {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopiedMessage(index);
-      window.setTimeout(() => setCopiedMessage(null), 1300);
-    } catch {
-      setCopiedMessage(null);
     }
   }
 
@@ -1075,7 +1067,7 @@ export default function Home() {
     <main className="nn-shell">
       <aside className="nn-sidebar">
         <button className="brand-lockup" onClick={() => setView("home")}>
-          <span className="brand-mark">N</span>
+          <AuroraDisc size={24} label="NeuralNexus" />
           <span>
             <strong>{keys.BRAND_NAME?.trim() || "NeuralNexus"}</strong>
             <small>Workspace Builder</small>
@@ -1107,10 +1099,13 @@ export default function Home() {
       </aside>
 
       <section className="nn-stage">
-        <button className="command-launcher" onClick={() => setCommandOpen(true)} aria-label="Open command center">
-          <span>Command</span>
-          <kbd>⌘K</kbd>
-        </button>
+        <div className="stage-tools">
+          <ThemeToggle />
+          <button className="command-launcher" onClick={() => setCommandOpen(true)} aria-label="Open command center">
+            <span>Command</span>
+            <kbd>⌘K</kbd>
+          </button>
+        </div>
         <AnimatePresence mode="wait">
         <motion.div key={view} className="view-fade" {...viewMotion}>
         {view === "home" && (
@@ -1368,56 +1363,47 @@ export default function Home() {
         )}
 
         {view === "chat" && (
-          <div className="screen-stack free-chat-screen">
-            <header className="screen-header">
-              <div>
-                <span className="eyebrow">OPEN QUESTION</span>
-                <h1>Ask outside a workspace.</h1>
-                <p>Use the same model routing for general questions without creating a workspace.</p>
-              </div>
-              <button className="secondary-pill" onClick={() => setGeneralMessages([])} disabled={generalMessages.length === 0}>
-                Clear
-              </button>
-            </header>
+          <div className={`aurora-chat ${generalMessages.length === 0 ? "is-zero" : "has-messages"} ${generalBusy ? "is-generating" : ""}`}>
+            {generalBusy && <div className="generation-edge" aria-hidden="true" />}
+            <div className="chat-topbar">
+              <strong>{selectedWorkspace?.name ? selectedWorkspace.name : "Quick chat"}</strong>
+              <details className="chat-menu">
+                <summary aria-label="Chat options">⋯</summary>
+                <button type="button" onClick={() => setGeneralMessages([])} disabled={generalMessages.length === 0}>Clear conversation</button>
+                <button type="button">Export</button>
+              </details>
+            </div>
 
-            <section className="free-chat-panel liquid-panel">
-              <div className="free-chat-orb">
-                <WizardOrb size={160} hue={orbHue} speed={generalBusy ? 42 : orbSpeed} intensity={generalBusy ? 88 : orbIntensity} state={generalBusy ? "generating" : "listening"} interactive {...orbSettings} />
-                <div>
-                  <span className="object-label">WIZARD</span>
-                  <h2>{generalBusy ? "Thinking" : "Ready for a question."}</h2>
-                  <p>{apiKeyReady ? "Connected to your available model keys." : "Add an API key in Settings to get answers."}</p>
-                </div>
-              </div>
+            {generalMessages.length === 0 && (
+              <section className="chat-zero-copy">
+                <p>Hello, {userName || "there"}</p>
+                <h1>What are we building today?</h1>
+              </section>
+            )}
 
-              <div className="free-chat-messages">
-                {generalMessages.length === 0 ? (
-                  <div className="empty-inline">
-                    <MessageCircle size={24} />
-                    <p>Ask a question, paste text, or attach a readable file or image.</p>
-                  </div>
-                ) : (
-                  generalMessages.map((message, index) => (
-                    <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
-                      <div className="chat-bubble-meta">
-                        <span>{message.role === "user" ? "You" : "Wizard"}</span>
-                        {message.role === "assistant" && (
-                          <div className="chat-bubble-actions" aria-label="Message actions">
-                            <CopyButton text={message.content} label="Copy" />
-                            <button onClick={() => void regenerateChatMessage(index)} disabled={generalBusy} aria-label="Regenerate answer" title="Regenerate">
-                              <RefreshCcw size={14} />
-                            </button>
-                            <button onClick={() => editChatMessage(message)} aria-label="Edit answer as draft" title="Edit">
-                              <PencilLine size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <p>{message.content}</p>
+            <section className="chat-stream" aria-live="polite">
+              {generalMessages.map((message, index) => (
+                <article key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
+                  {message.role === "assistant" && (
+                    <div className="assistant-provenance">
+                      <AuroraDisc size={20} />
+                      <span>{message.model || "Wizard"}</span>
                     </div>
-                  ))
-                )}
-              </div>
+                  )}
+                  <p className={message.role === "assistant" && index === generalMessages.length - 1 && generalBusy ? "is-streaming" : ""}>{message.content}</p>
+                  {message.role === "assistant" && (
+                    <MessageActions
+                      text={message.content}
+                      onRegenerate={() => void regenerateChatMessage(index)}
+                      disabled={generalBusy}
+                    />
+                  )}
+                </article>
+              ))}
+              {generalBusy && (
+                <div className="chat-status-line">Reading your knowledge…</div>
+              )}
+            </section>
 
               {generalAttachments.length > 0 && (
                 <div className="source-list chat-attachment-list">
@@ -1432,7 +1418,14 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="free-chat-composer">
+              {!apiKeyReady && (
+                <div className="key-notice-chip">
+                  <span>Connect a model to get answers.</span>
+                  <button type="button" onClick={() => setSettingsOpen(true)}>Add key</button>
+                </div>
+              )}
+
+              <motion.div className="free-chat-composer hero-composer" layoutId="nn-composer">
                 <label className="chat-file-button">
                   <Upload size={16} />
                   <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readGeneralChatFiles(event.target.files)} />
@@ -1452,8 +1445,7 @@ export default function Home() {
                 <button className="primary-pill" onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
                   {generalBusy ? "Thinking" : "Send"} <ChevronRight size={16} />
                 </button>
-              </div>
-            </section>
+              </motion.div>
           </div>
         )}
 
@@ -1672,6 +1664,10 @@ export default function Home() {
               <Compass size={17} />
               <span>{POSITIONING_UI.home.whyLabel}</span>
             </button>
+            <div className="mobile-appearance-row">
+              <span>Appearance</span>
+              <ThemeSegmentedControl />
+            </div>
           </div>
         </div>
       )}
@@ -1863,15 +1859,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-      )}
-
-      {view !== "home" && (
-        <FloatingWizard
-          enabled={floatingWizardEnabled}
-          status={wizardStatus}
-          onIntent={handleWizardIntent}
-          onAsk={(input) => askWizard(input)}
-        />
       )}
 
       {genomeSkill && <GenomePanel skill={genomeSkill} onClose={() => setGenomeSkill(null)} />}

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Settings, KeyRound, ShieldCheck, BarChart3, GitBranch, Monitor, Tag, Database, Search, X, Check, Sparkles } from "lucide-react";
 import { POSITIONING_UI } from "@/lib/positioning";
 import { AckField } from "@/components/ui/AckField";
+import { ThemeSegmentedControl } from "@/components/ui/ThemeToggle";
 
 type Keys = Record<string, string>;
 
@@ -52,7 +53,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 function OrbSlider({ value, min, max, step = "0.01", onChange, suffix = "" }: { value: string; min: number; max: number; step?: string; onChange: (value: string) => void; suffix?: string }) {
   return (
     <div className="flex items-center gap-2 w-64">
-      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(e.target.value)} className="flex-1 accent-[rgb(0,179,255)]" />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(e.target.value)} className="flex-1 accent-[var(--aurora-a)]" />
       <span className="text-xs font-mono text-mist w-14">{value}{suffix}</span>
     </div>
   );
@@ -195,6 +196,15 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                   </>
                 )}
 
+                {active === "appearance" && (
+                  <>
+                    <div className="text-[11px] uppercase tracking-widest text-mist py-2">Theme</div>
+                    <Row label="Appearance" hint="Choose light, dark or follow your system setting.">
+                      <ThemeSegmentedControl />
+                    </Row>
+                  </>
+                )}
+
                 {active === "models" && (
                   <>
                     <p className="text-xs text-mist py-2">
@@ -257,7 +267,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                     <div className="text-sm text-snow">Cost ↔ Quality</div>
                     <div className="text-[11px] text-mist mt-0.5 mb-3">Controls how Auto chooses models.</div>
                     <input type="range" min={0} max={100} value={keys.ROUTING_THRESHOLD ?? "50"}
-                      onChange={e => set("ROUTING_THRESHOLD", e.target.value)} className="w-full accent-[rgb(201,160,92)]" />
+                      onChange={e => set("ROUTING_THRESHOLD", e.target.value)} className="w-full accent-[var(--aurora-a)]" />
                     <div className="flex justify-between text-[10px] text-mist font-mono mt-1">
                       <span>Efficient</span><span>{keys.ROUTING_THRESHOLD ?? 50}%</span><span>Quality</span>
                     </div>
@@ -363,14 +373,14 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
                     <Row label="Legacy hue" hint="Kept for older orb presets.">
                       <div className="flex items-center gap-2 w-64">
                         <input type="range" min={0} max={330} value={keys.ORB_HUE ?? "238"}
-                          onChange={e => set("ORB_HUE", e.target.value)} className="flex-1 accent-[rgb(0,179,255)]" />
+                          onChange={e => set("ORB_HUE", e.target.value)} className="flex-1 accent-[var(--aurora-a)]" />
                         <span className="text-xs font-mono text-mist w-12">{keys.ORB_HUE ?? 238}°</span>
                       </div>
                     </Row>
                     <Row label="Wizard intensity" hint="Controls the Home wizard orb glow.">
                       <div className="flex items-center gap-2 w-64">
                         <input type="range" min={1} max={100} value={keys.ORB_INTENSITY ?? keys.ORB_GLOW ?? "68"}
-                          onChange={e => set("ORB_INTENSITY", e.target.value)} className="flex-1 accent-[rgb(0,179,255)]" />
+                          onChange={e => set("ORB_INTENSITY", e.target.value)} className="flex-1 accent-[var(--aurora-a)]" />
                         <span className="text-xs font-mono text-mist w-8">{keys.ORB_INTENSITY ?? keys.ORB_GLOW ?? 68}%</span>
                       </div>
                     </Row>

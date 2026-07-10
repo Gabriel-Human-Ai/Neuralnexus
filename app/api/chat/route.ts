@@ -41,7 +41,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const { projectId, model, content, agentId, image } = await req.json();
-    if (!projectId || !content?.trim()) return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+    if (!projectId || !content?.trim()) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
     let chosen = model;
     if (model === "agent" && agentId) {
@@ -66,9 +66,9 @@ export async function POST(req: Request) {
       const monthRatio = monthlyBudget > 0 ? monthSpent / monthlyBudget : 0;
       const dayRatio = dailyBudget > 0 ? daySpent / dailyBudget : 0;
       const ratio = Math.max(monthRatio, dayRatio);
-      const label = dayRatio >= monthRatio ? `Tagesbudget ($${dailyBudget})` : `Monatsbudget ($${monthlyBudget})`;
-      if (ratio >= 1) { chosen = "gpt-4o-mini"; budgetWarning = `⚠️ ${label} erreicht — auf günstigstes Modell umgeschaltet.\n\n`; }
-      else if (ratio >= 0.8) { budgetWarning = `⚠️ ${Math.round(ratio * 100)}% des ${label} verbraucht.\n\n`; }
+      const label = dayRatio >= monthRatio ? `daily budget ($${dailyBudget})` : `monthly budget ($${monthlyBudget})`;
+      if (ratio >= 1) { chosen = "gpt-4o-mini"; budgetWarning = `${label} reached. Switched to the lowest-cost model.\n\n`; }
+      else if (ratio >= 0.8) { budgetWarning = `${Math.round(ratio * 100)}% of the ${label} is used.\n\n`; }
     }
 
     // Auto: score available models by cost-vs-quality, weighted by the user's routing threshold (0=billig, 100=Qualität).

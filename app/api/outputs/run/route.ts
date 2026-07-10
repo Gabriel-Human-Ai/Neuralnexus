@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ outputId: result.output.id, content: result.content, model: result.model, provider: result.provider, costUsd: result.costUsd, qualityReport: result.qualityReport });
   } catch (error: any) {
     const message = error.message ?? "provider_failure";
-    const status = message.includes("API-Key") || message.includes("Kein API") ? 402 : message === "missing_fields" ? 400 : 502;
+    const status = message.includes("API-Key") || message.includes("model key") ? 402 : message === "missing_fields" ? 400 : 502;
     return NextResponse.json({ error: status === 402 ? "no_api_key" : message }, { status });
   }
 }

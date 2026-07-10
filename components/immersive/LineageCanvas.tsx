@@ -88,11 +88,11 @@ export function LineageCanvas({ outputs, onOpen }: { outputs: Output[]; onOpen?:
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
       ctx.bezierCurveTo(start.x + 60, start.y, end.x - 60, end.y, end.x, end.y);
-      ctx.strokeStyle = output.forkChangedVariable ? "rgba(200,169,106,0.25)" : "rgba(255,255,255,0.10)";
+      ctx.strokeStyle = output.forkChangedVariable ? "color-mix(in srgb, var(--aurora-a) 35%, transparent)" : "rgba(255,255,255,0.10)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
       if (output.forkChangedVariable) {
-        ctx.fillStyle = "rgba(244,241,234,0.38)";
+        ctx.fillStyle = "var(--muted)";
         ctx.fillText(output.forkChangedVariable.toUpperCase(), (start.x + end.x) / 2 - 18, (start.y + end.y) / 2 - 8);
       }
     }

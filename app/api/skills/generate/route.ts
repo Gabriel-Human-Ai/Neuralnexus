@@ -9,11 +9,11 @@ export async function POST(req: Request) {
     let sourceText = singleMessage as string | undefined;
 
     if (!sourceText) {
-      if (!projectId) return NextResponse.json({ error: "projectId fehlt" }, { status: 400 });
+      if (!projectId) return NextResponse.json({ error: "projectId is missing" }, { status: 400 });
       const msgs = await db.message.findMany({ where: { projectId }, orderBy: { createdAt: "desc" }, take: 20 });
       sourceText = msgs.reverse().map(m => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
     }
-    if (!sourceText?.trim()) return NextResponse.json({ error: "Kein Chat-Inhalt zum Extrahieren" }, { status: 400 });
+    if (!sourceText?.trim()) return NextResponse.json({ error: "No chat content to extract" }, { status: 400 });
 
     const extraction = await runChatWithFallback("claude-haiku-4-5", [
       { role: "system", content: `Extrahiere aus diesem Chat-Verlauf eine wiederverwendbare Fähigkeit (Skill).
@@ -24,9 +24,9 @@ name: 2-4 Worte. description: 1 Satz. instructions: konkrete Anweisung, wie eine
 
     let parsed: any;
     try { parsed = JSON.parse(extraction.text.trim().replace(/^```json\n?|```$/g, "")); }
-    catch { return NextResponse.json({ error: "Extraktion fehlgeschlagen — Modell lieferte kein valides JSON." }, { status: 500 }); }
+    catch { return NextResponse.json({ error: "Extraction failed. The model did not return valid JSON." }, { status: 500 }); }
 
-    const skill = await db.skill.create({ data: { name: parsed.name ?? "Neuer Skill", description: parsed.description ?? "", instructions: parsed.instructions ?? "" } });
+    const skill = await db.skill.create({ data: { name: parsed.name ?? "New Skill", description: parsed.description ?? "", instructions: parsed.instructions ?? "" } });
     return NextResponse.json(skill);
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }

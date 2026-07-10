@@ -53,7 +53,7 @@ const OPENAI_COMPAT_KEY: Record<string, string> = {
 async function openaiCompatChat(provider: string, model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
   const base = OPENAI_COMPAT_BASE[provider] ?? "https://api.openai.com/v1";
   const key = await getKey(OPENAI_COMPAT_KEY[provider] ?? "OPENAI_API_KEY");
-  if (!key) throw new Error(`Kein ${provider}-Key. Trage ihn oben rechts unter ⚙︎ Einstellungen ein.`);
+  if (!key) throw new Error(`No ${provider} key is connected. Add a key in Settings.`);
   const mapped = messages.map(m => ({
     role: m.role,
     content: Array.isArray(m.content)
@@ -67,7 +67,7 @@ async function openaiCompatChat(provider: string, model: string, messages: ChatM
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({ model, messages: mapped, max_tokens: options.maxTokens, temperature: options.temperature }),
   });
-  if (!res.ok) throw new Error(`${provider} Fehler (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`${provider} error (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
   return {
     text: data.choices?.[0]?.message?.content ?? "",
@@ -78,7 +78,7 @@ async function openaiCompatChat(provider: string, model: string, messages: ChatM
 
 async function anthropicChat(model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
   const key = await getKey("ANTHROPIC_API_KEY");
-  if (!key) throw new Error("Kein Anthropic-Key. Trage ihn oben rechts unter ⚙︎ Einstellungen ein.");
+  if (!key) throw new Error("No Anthropic key is connected. Add a key in Settings.");
   const system = messages.filter(m => m.role === "system").map(m => typeof m.content === "string" ? m.content : "").join("\n");
   const rest = messages.filter(m => m.role !== "system").map(m => ({
     role: m.role,
@@ -93,7 +93,7 @@ async function anthropicChat(model: string, messages: ChatMsg[], options: ChatOp
     headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({ model, max_tokens: options.maxTokens ?? 4000, temperature: options.temperature, system: system || undefined, messages: rest }),
   });
-  if (!res.ok) throw new Error(`Anthropic Fehler (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`Anthropic error (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
   return {
     text: data.content?.map((c: any) => c.text ?? "").join("") ?? "",
@@ -105,7 +105,7 @@ async function anthropicChat(model: string, messages: ChatMsg[], options: ChatOp
 // Gemini: text-only for now (image blocks are dropped with a note rather than silently mis-sent).
 async function googleChat(model: string, messages: ChatMsg[], options: ChatOptions = {}): Promise<ChatResult> {
   const key = await getKey("GOOGLE_API_KEY");
-  if (!key) throw new Error("Kein Google-Key. Trage ihn oben rechts unter ⚙︎ Einstellungen ein.");
+  if (!key) throw new Error("No Google key is connected. Add a key in Settings.");
   const system = messages.filter(m => m.role === "system").map(m => typeof m.content === "string" ? m.content : "").join("\n");
   const contents = messages.filter(m => m.role !== "system").map(m => ({
     role: m.role === "assistant" ? "model" : "user",
@@ -118,7 +118,7 @@ async function googleChat(model: string, messages: ChatMsg[], options: ChatOptio
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: options.maxTokens, temperature: options.temperature }, systemInstruction: system ? { parts: [{ text: system }] } : undefined }),
   });
-  if (!res.ok) throw new Error(`Google Fehler (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`Google error (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
   return {
     text: data.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "",
@@ -161,7 +161,7 @@ export async function runChatWithFallback(model: string, messages: ChatMsg[]) {
     const prov = MODELS.find(x => x.id === m)?.provider;
     if (prov && await keyAvailable(prov)) chain.push(m);
   }
-  if (chain.length === 0) throw new Error("Kein API-Key konfiguriert. Öffne ⚙︎ Einstellungen.");
+  if (chain.length === 0) throw new Error("No model key is connected. Add a key in Settings.");
   let lastErr: any;
   for (const m of chain) {
     const prov = MODELS.find(x => x.id === m)?.provider;
@@ -171,5 +171,5 @@ export async function runChatWithFallback(model: string, messages: ChatMsg[]) {
       return { ...r, usedModel: m, fellBack: m !== model };
     } catch (e) { lastErr = e; }
   }
-  throw lastErr ?? new Error("Kein Modell verfügbar. API-Keys in .env prüfen.");
+  throw lastErr ?? new Error("No model is available. Check your API keys in Settings.");
 }

@@ -28,7 +28,7 @@ export function ResonanceOrb({ size = 280, tone = null, hue = 0, speed = 20, mor
       const t = document.createElement("canvas");
       if (!t.getContext("webgl") && !t.getContext("experimental-webgl")) throw new Error("no webgl");
     } catch {
-      el.innerHTML = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:radial-gradient(circle at 38% 35%,#F1D9A8,#C9A05C 50%,#6B4A32);box-shadow:0 0 60px rgba(201,160,92,0.5)"></div>`;
+      el.innerHTML = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:radial-gradient(circle at 38% 35%,#F1D9A8,#C9A05C 50%,#6B4A32);box-shadow:0 0 60px color-mix(in srgb, var(--aurora-a) 35%, transparent)"></div>`;
       return;
     }
 

@@ -31,7 +31,7 @@ export function ThinkingOrb({ isLoading, fallbackModel, size = "hero" }: Thinkin
         animate={isLoading ? { rotate: 360 } : { rotate: 0 }}
         transition={isLoading ? { duration: 8, ease: "linear", repeat: Infinity } : { duration: 0.3 }}
       />
-      <div className="absolute inset-0 rounded-full shadow-[0_0_40px_rgba(201,160,92,0.5)]" />
+      <div className="absolute inset-0 rounded-full shadow-[0_0_40px_color-mix(in srgb, var(--aurora-a) 35%, transparent)]" />
     </motion.div>
   );
 }

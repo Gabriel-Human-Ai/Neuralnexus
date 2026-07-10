@@ -54,7 +54,7 @@ export function WorkflowSpine({ steps, outputs, built, running, completed, onRun
     <section ref={panelRef} className="workflow-spine-panel" aria-label="Workspace workflow">
       <svg className="workflow-spine-svg" viewBox="0 0 24 100" preserveAspectRatio="none" aria-hidden="true">
         <motion.path d="M12 0 V100" stroke="rgba(255,255,255,0.10)" strokeWidth="2" pathLength={pathLength as any} />
-        <motion.path d="M12 0 V100" stroke="#C8A96A" strokeWidth="2" pathLength={reduce ? state.completedFraction : state.completedFraction} transition={MOTION.springSoft as any} />
+        <motion.path d="M12 0 V100" stroke="var(--aurora-a)" strokeWidth="2" pathLength={reduce ? state.completedFraction : state.completedFraction} transition={MOTION.springSoft as any} />
       </svg>
       <ol className="workflow-step-list">
         {state.mapped.map((item, index) => {
