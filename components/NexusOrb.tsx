@@ -95,7 +95,7 @@ export function NexusOrb({
 
     const reduce = reducedMotion || prefersReducedMotion();
     const lowQuality = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4);
-    const detail = lowQuality ? 24 : 48;
+    const detail = lowQuality ? 48 : 96;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
     renderer.setPixelRatio(Math.max(0.5, Math.min(window.devicePixelRatio || 1, Math.max(0.5, resolutionDpr) * 2)));
     renderer.setSize(size, size);
@@ -135,19 +135,19 @@ export function NexusOrb({
       uEnergyDecay: { value: energyDecay },
     });
     const material = createOrbMaterial(uniforms);
-    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, detail), material);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(1, detail, detail), material);
     scene.add(core);
 
     const halo = !lowQuality
       ? new THREE.Mesh(
-          new THREE.IcosahedronGeometry(1.06, 3),
+          new THREE.SphereGeometry(1.04, 64, 64),
           new THREE.MeshBasicMaterial({
             color: new THREE.Color(primaryColor),
-            wireframe: true,
             transparent: true,
-            opacity: 0.05,
+            opacity: 0.12,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
+            side: THREE.BackSide,
           }),
         )
       : null;

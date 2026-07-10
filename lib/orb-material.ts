@@ -67,6 +67,7 @@ const vertexShader = `
 `;
 
 const fragmentShader = `
+  uniform float uTime;
   uniform float uEnergy;
   uniform float uFresnel;
   uniform float uAtmosphereGlow;
@@ -149,17 +150,18 @@ const fragmentShader = `
     float inner = clamp((filament * 0.58 + fine * 0.32 + ribbon * 0.82) * leftLight, 0.0, 1.0);
     float secondaryPocket = smoothstep(0.42, 0.9, field + sin(p.y * 5.0 - t * 0.25) * 0.22) * leftLight;
 
-    vec3 deep = mix(uCore, vec3(0.0, 0.018, 0.035), 0.6);
-    vec3 cyan = uRim * (inner * (1.0 + uEnergy * 0.8));
-    vec3 magenta = uSecondary * secondaryPocket * 0.42;
-    vec3 atmosphere = uRim * (fresnel * uFresnel * (0.52 + uAtmosphereGlow * 2.3));
+    float coreGlow = smoothstep(0.92, 0.08, length(vObjectPosition.xy)) * (0.28 + uEnergy * 0.52);
+    vec3 deep = mix(uCore, vec3(0.0, 0.018, 0.035), 0.45);
+    vec3 cyan = uRim * (inner * (1.45 + uEnergy * 1.25));
+    vec3 magenta = uSecondary * secondaryPocket * 0.62;
+    vec3 atmosphere = uRim * (fresnel * uFresnel * (0.92 + uAtmosphereGlow * 3.1));
     vec3 aberration = mix(uRim, uSecondary, 0.55) * fresnel * uChromaticAberration * 8.0;
-    vec3 color = deep + cyan + magenta + atmosphere + aberration;
+    vec3 color = deep + cyan + magenta + atmosphere + aberration + uRim * coreGlow;
     color *= mix(0.34, 1.0, 1.0 - shadow * 0.55);
     color += uRim * edge * uAtmosphereLevel * 0.11;
 
-    float alpha = 0.2 + inner * 0.55 + fresnel * (0.32 + uAtmosphereGlow) + edge * 0.1;
-    gl_FragColor = vec4(color, clamp(alpha, 0.18, 0.96));
+    float alpha = 0.34 + coreGlow * 0.34 + inner * 0.58 + fresnel * (0.42 + uAtmosphereGlow) + edge * 0.14;
+    gl_FragColor = vec4(color, clamp(alpha, 0.28, 0.98));
   }
 `;
 
