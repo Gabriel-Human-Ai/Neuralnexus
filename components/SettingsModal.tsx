@@ -114,7 +114,7 @@ export function SettingsModal({ open, onClose, keys, setKeys, costs, initialsFro
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm grid place-items-center p-3 md:p-6"
+        <motion.div className="settings-backdrop fixed inset-0 z-[90] grid place-items-center p-3 md:p-6"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
           onClick={onClose}>
           <motion.div

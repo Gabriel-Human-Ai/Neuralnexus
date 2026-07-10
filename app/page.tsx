@@ -1401,7 +1401,13 @@ export default function Home() {
                 </article>
               ))}
               {generalBusy && (
-                <div className="chat-status-line">Reading your knowledge…</div>
+                <div className="thinking-indicator" role="status" aria-live="polite">
+                  <AuroraDisc size={20} />
+                  <span>Thinking through your request</span>
+                  <i />
+                  <i />
+                  <i />
+                </div>
               )}
             </section>
 
@@ -1442,7 +1448,8 @@ export default function Home() {
                   placeholder="Ask a question. Cmd+Enter sends."
                   rows={3}
                 />
-                <button className="primary-pill" onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
+                <button className="primary-pill chat-send-button" onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
+                  {generalBusy && <span className="thinking-button-dot" aria-hidden="true" />}
                   {generalBusy ? "Thinking" : "Send"} <ChevronRight size={16} />
                 </button>
               </motion.div>
