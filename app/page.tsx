@@ -29,6 +29,7 @@ import {
   Sparkles,
   Upload,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { PremiumSlideAction } from "@/components/PremiumSlideAction";
 import { WhySheet } from "@/components/WhySheet";
@@ -39,7 +40,7 @@ import { OutputCard, type OutputCardOutput } from "@/components/features/OutputC
 import type { WizardIntent } from "@/lib/wizardActions";
 import { nextBestAction } from "@/lib/guidance";
 import { MOTION, viewMotion } from "@/lib/motion";
-import { POSITIONING, POSITIONING_UI } from "@/lib/positioning";
+import { POSITIONING_UI } from "@/lib/positioning";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { RollingNumber } from "@/components/ui/RollingNumber";
 import { AuroraDisc } from "@/components/ui/AuroraDisc";
@@ -102,6 +103,7 @@ type WorkspaceMode = {
 
 type View = "home" | "chat" | "workspaces" | "skills" | "eye" | "templates" | "knowledge" | "usage" | "settings";
 type WorkspacePanel = "overview" | "workflow" | "outputs" | "client";
+type StartPath = "ask" | "build" | "improve";
 type CommandItem = {
   id: string;
   label: string;
@@ -442,6 +444,7 @@ export default function Home() {
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [selectedStartPath, setSelectedStartPath] = useState<StartPath>("build");
   const [selectedModeId, setSelectedModeId] = useState("brand");
   const [workspaceName, setWorkspaceName] = useState("Brand Strategy System");
   const [workspaceAudience, setWorkspaceAudience] = useState("Founders, designers and consultants");
@@ -988,6 +991,92 @@ export default function Home() {
     { id: "usage", label: "Vault", icon: Layers3 },
   ] as const;
 
+  const startPaths: {
+    id: StartPath;
+    title: string;
+    kicker: string;
+    body: string;
+    actionLabel: string;
+    icon: LucideIcon;
+    action: () => void;
+  }[] = [
+    {
+      id: "ask",
+      title: "Ask a question",
+      kicker: "Clean chat",
+      body: "Open a normal chat for general questions, ideas, images or files.",
+      actionLabel: "Open Ask",
+      icon: MessageCircle,
+      action: () => setView("chat"),
+    },
+    {
+      id: "build",
+      title: "Build a workspace",
+      kicker: "Guided system",
+      body: "Turn one repeatable method into a workspace with steps, skills and sources.",
+      actionLabel: "Create workspace",
+      icon: Layers3,
+      action: () => setWizardOpen(true),
+    },
+    {
+      id: "improve",
+      title: "Improve existing work",
+      kicker: hasWorkspaces ? "Next step" : "Start from structure",
+      body: hasWorkspaces
+        ? "Continue your active workspace and run the next useful step."
+        : "Use a template or the Eye to teach NeuralNexus what good looks like.",
+      actionLabel: hasWorkspaces ? "Continue workspace" : "Browse templates",
+      icon: Eye,
+      action: () => {
+        if (hasWorkspaces) {
+          setSelectedWorkspaceId(projects[0]?.id ?? null);
+          setWorkspacePanel("workflow");
+          setView("workspaces");
+          return;
+        }
+        setView("templates");
+      },
+    },
+  ];
+  const activeStartPath = startPaths.find((path) => path.id === selectedStartPath) ?? startPaths[1];
+  const ActiveStartIcon = activeStartPath.icon;
+  const featureMap: {
+    label: string;
+    benefit: string;
+    text: string;
+    action: () => void;
+  }[] = [
+    {
+      label: "Templates",
+      benefit: "Start with structure",
+      text: "Use when you want a proven workspace shape before customizing.",
+      action: () => setView("templates"),
+    },
+    {
+      label: "Eye",
+      benefit: "Teach taste",
+      text: "Use when the app should learn your judgment from real examples.",
+      action: () => setView("eye"),
+    },
+    {
+      label: "Skills",
+      benefit: "Package methods",
+      text: "Use when a repeatable decision or craft move should become reusable.",
+      action: () => setView("skills"),
+    },
+    {
+      label: "Vault",
+      benefit: "Keep the work",
+      text: "Use when outputs, sources and patterns should compound over time.",
+      action: () => setView("usage"),
+    },
+  ];
+
+  function runStartPath(path = activeStartPath) {
+    setSelectedStartPath(path.id);
+    path.action();
+  }
+
   const commandItems = useMemo<CommandItem[]>(() => {
     const navigate = (target: View): (() => void) => () => {
       if (target === "settings") setSettingsOpen(true);
@@ -1156,38 +1245,97 @@ export default function Home() {
         <AnimatePresence mode="wait">
         <motion.div key={view} className="view-fade" {...viewMotion}>
         {view === "home" && (
-          <div className="nn-home reduced-home">
-            <section className="home-orb-zone">
+          <div className="nn-home start-experience">
+            <section className="start-hero" aria-label="Start here">
+              <div className="start-copy">
+                <span className="eyebrow">PERSONAL WIZARD</span>
+                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : "What should we do first?"}</h1>
+                <p>
+                  {hasWorkspaces
+                    ? `Next: ${selectedWorkspaceMode.steps[0]}. ${guidance.description}`
+                    : "Choose one path. NeuralNexus keeps the rest out of your way."}
+                </p>
+              </div>
               {showHomeOrb && (
-                <div className="wizard-orb-panel">
-                  <WizardOrb size={hasWorkspaces ? 300 : 320} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state={hasWorkspaces ? "thinking" : "idle"} interactive {...orbSettings} />
+                <div className="start-orb-card">
+                  <WizardOrb
+                    size={hasWorkspaces ? 220 : 238}
+                    hue={orbHue}
+                    speed={orbSpeed}
+                    intensity={orbIntensity}
+                    state={selectedStartPath === "ask" ? "listening" : selectedStartPath === "improve" ? "thinking" : "idle"}
+                    interactive
+                    {...orbSettings}
+                  />
                 </div>
               )}
-              <div className="home-guidance-copy">
-                <span className="eyebrow">PERSONAL WIZARD</span>
-                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : POSITIONING_UI.home.firstTimeSentence}</h1>
-                <p>{hasWorkspaces ? `Next: ${selectedWorkspaceMode.steps[0]}.` : POSITIONING_UI.home.firstTimeSubLine}</p>
-                <small>{hasWorkspaces ? guidance.description : POSITIONING.oneLiner}</small>
-              </div>
             </section>
 
-            <section className="home-primary-zone">
-              {hasWorkspaces ? (
-                <>
-                  <PremiumSlideAction
-                    label="Slide to start session"
-                    completionText="Opening workspace"
-                    loading={sessionState === "loading"}
-                    completed={sessionState === "complete"}
-                    onComplete={startWorkspaceSession}
-                  />
-                  <button className="quiet-link" onClick={() => setWizardOpen(true)}>or create a new workspace</button>
-                </>
-              ) : (
-                <HeroCTA onClick={() => setWizardOpen(true)}>
+            <section className="start-path-panel" aria-label="Choose a starting path">
+              {startPaths.map((path) => {
+                const Icon = path.icon;
+                return (
+                  <button
+                    key={path.id}
+                    className={`start-path-card ${selectedStartPath === path.id ? "is-selected" : ""}`}
+                    onClick={() => setSelectedStartPath(path.id)}
+                    aria-pressed={selectedStartPath === path.id}
+                  >
+                    <span className="start-path-icon"><Icon size={17} strokeWidth={2.2} /></span>
+                    <span>
+                      <small>{path.kicker}</small>
+                      <strong>{path.title}</strong>
+                      <em>{path.body}</em>
+                    </span>
+                  </button>
+                );
+              })}
+            </section>
+
+            <section className="start-primary-zone">
+              {activeStartPath.id === "build" && !hasWorkspaces ? (
+                <HeroCTA onClick={() => runStartPath(activeStartPath)}>
                   <Plus size={18} /> Create workspace
                 </HeroCTA>
+              ) : activeStartPath.id === "improve" && hasWorkspaces ? (
+                <PremiumSlideAction
+                  label="Slide to continue workspace"
+                  completionText="Opening workspace"
+                  loading={sessionState === "loading"}
+                  completed={sessionState === "complete"}
+                  onComplete={startWorkspaceSession}
+                />
+              ) : (
+                <button className="start-action-button" onClick={() => runStartPath(activeStartPath)}>
+                  <ActiveStartIcon size={18} strokeWidth={2.2} />
+                  <span>{activeStartPath.actionLabel}</span>
+                  <ChevronRight size={18} />
+                </button>
               )}
+              {activeStartPath.id !== "build" && (
+                <button className="quiet-link" onClick={() => {
+                  setSelectedStartPath("build");
+                  setWizardOpen(true);
+                }}>
+                  or create a workspace
+                </button>
+              )}
+            </section>
+
+            <section className="start-feature-map" aria-label="Feature guide">
+              <div className="feature-map-head">
+                <span className="eyebrow">WHERE THINGS LIVE</span>
+                <p>Use this when you are unsure where to begin.</p>
+              </div>
+              <div className="feature-map-grid">
+                {featureMap.map((item) => (
+                  <button key={item.label} className="feature-map-card" onClick={item.action}>
+                    <strong>{item.label}</strong>
+                    <span>{item.benefit}</span>
+                    <small>{item.text}</small>
+                  </button>
+                ))}
+              </div>
             </section>
 
             <section className="home-context-strip" aria-label="Workspace context">
