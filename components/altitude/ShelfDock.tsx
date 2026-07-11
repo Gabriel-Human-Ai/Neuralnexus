@@ -40,7 +40,10 @@ export function ShelfDock({ activeShelf, streamCount, onOpen, onCreate }: ShelfD
             >
               <Icon size={18} />
               {item.id === "stream" && streamCount > 0 && <span className="shelf-badge"><RollingNumber value={streamCount} /></span>}
-              <em>{item.label}</em>
+              <em>
+                <strong>{item.label}</strong>
+                <small>Open shelf</small>
+              </em>
             </button>
           );
         })}

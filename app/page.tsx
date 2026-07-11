@@ -1340,7 +1340,7 @@ export default function Home() {
     <main className={`nn-shell altitude-shell altitude-${altitude.level} ${activeShelf ? "has-open-shelf" : ""}`} data-altitude={altitude.level}>
       <PresenceLine active={altitude.level === 1 && (generalBusy || stepState === "loading" || finalState === "loading")} />
       <div className="altitude-live" aria-live="polite">
-        {altitude.level === 3 ? "Orbit" : altitude.level === 2 ? `System ${selectedWorkspace?.name ?? ""}` : `Craft ${currentOutput?.stepName ?? "focused step"}`}
+        {altitude.level === 3 ? "Overview" : altitude.level === 2 ? `Workspace ${selectedWorkspace?.name ?? ""}` : `Focus ${currentOutput?.stepName ?? "focused step"}`}
       </div>
       <AltitudeRail level={altitude.level} onAscendTo={ascendTo} />
       <ShelfDock activeShelf={activeShelf} streamCount={streamItems.length} onOpen={openShelf} onCreate={() => setWizardOpen(true)} />
@@ -1403,7 +1403,7 @@ export default function Home() {
         <motion.div key={`${altitude.level}-${view}`} className="altitude-layer" {...altitudeLayerMotion}>
         {view === "home" && (
           <div className="nn-home altitude-orbit">
-            <section className="orbit-core" aria-label="Orbit">
+            <section className="orbit-core" aria-label="Overview">
               {showHomeOrb && (
                 <div className="orbit-orb">
                   <WizardOrb
@@ -1418,6 +1418,19 @@ export default function Home() {
                 </div>
               )}
               <p className="orbit-sentence">{hasWorkspaces ? guidance.description : "Create your first workspace. The resources can wait."}</p>
+            </section>
+
+            <section className="guided-start-panel" aria-label="Start here">
+              <div>
+                <span className="object-label">START HERE</span>
+                <h2>{hasWorkspaces ? guidance.label : "Tell NeuralNexus what you want to build."}</h2>
+                <p>{hasWorkspaces ? guidance.description : "One guided flow creates the workspace, steps and first useful output. Chat, templates and the Eye can wait until you need them."}</p>
+              </div>
+              <div className="guided-start-steps" aria-label="How it works">
+                <span><strong>1</strong> Describe the method or result</span>
+                <span><strong>2</strong> Answer one question at a time</span>
+                <span><strong>3</strong> Run the first focused step</span>
+              </div>
             </section>
 
             {hasWorkspaces && (
@@ -1473,9 +1486,9 @@ export default function Home() {
         {altitude.level === 1 && selectedWorkspace && (
           <div className="craft-focus">
             <header className="craft-header">
-              <span className="eyebrow">CRAFT</span>
+              <span className="eyebrow">FOCUS</span>
               <h1>{currentOutput?.stepName || workspaceSteps[0]?.name || selectedWorkspaceMode.steps[0]}</h1>
-              <p>{currentOutput ? "Review, revise, finalize or fork this output." : "Run the next focused step without workspace chrome."}</p>
+              <p>{currentOutput ? "Review, revise, finalize or fork this output." : "One task. One output. No extra workspace chrome."}</p>
             </header>
             <section className="craft-body">
               {currentOutput ? (
@@ -1537,7 +1550,7 @@ export default function Home() {
           <div className="screen-stack altitude-system">
             <header className="screen-header">
               <div>
-                <span className="eyebrow">SYSTEM</span>
+                <span className="eyebrow">WORKSPACE</span>
                 <h1>{selectedWorkspace?.name || "Reusable execution systems"}</h1>
                 <p>{selectedWorkspace?.goal || "One workspace: spine, next step, outputs and client mode."}</p>
               </div>

@@ -7162,18 +7162,32 @@ button.aura-card {
 .shelf-dock button em {
   position: absolute;
   left: 38px;
-  padding: 5px 8px;
-  border-radius: 999px;
+  width: 190px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 3px;
+  border-radius: 14px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-sm);
-  font: 600 11px/1 var(--font-mono);
-  letter-spacing: 0.12em;
   opacity: 0;
   transform: translateX(-4px);
   pointer-events: none;
   transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+
+.altitude-rail button em strong,
+.shelf-dock button em strong {
+  font: 650 11px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+}
+
+.altitude-rail button em small,
+.shelf-dock button em small {
+  color: var(--secondary);
+  font: 450 12px/1.25 var(--font-ui);
+  letter-spacing: 0;
 }
 
 .altitude-rail button:hover em,
@@ -7364,6 +7378,65 @@ button.shelf-row:hover {
   margin: 0;
   color: var(--ink);
   font: 550 clamp(18px, 2vw, 24px)/1.35 var(--font-ui);
+}
+
+.guided-start-panel {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(240px, 0.9fr);
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  background:
+    radial-gradient(65% 110% at 50% 120%, color-mix(in srgb, var(--aurora-a) 18%, transparent), transparent 72%),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.guided-start-panel h2 {
+  margin: 8px 0 8px;
+  font: 650 clamp(20px, 2.1vw, 28px)/1.08 var(--font-ui);
+  letter-spacing: -0.03em;
+}
+
+.guided-start-panel p {
+  margin: 0;
+  color: var(--secondary);
+  font: 450 14px/1.45 var(--font-ui);
+}
+
+.guided-start-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.guided-start-steps span {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 16px;
+  color: var(--secondary);
+  background: var(--surface-2);
+  font: 500 13px/1.25 var(--font-ui);
+}
+
+.guided-start-steps strong {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  font: 650 11px/1 var(--font-mono);
 }
 
 .orbit-workspace-field {
@@ -7603,6 +7676,22 @@ button.shelf-row:hover {
   .orbit-orb {
     width: min(62vw, 260px);
     min-width: 0;
+  }
+
+  .guided-start-panel {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .guided-start-panel h2 {
+    font-size: 21px;
+  }
+
+  .guided-start-steps span {
+    min-height: 40px;
+    font-size: 12.5px;
   }
 
   .orbit-workspace-field {

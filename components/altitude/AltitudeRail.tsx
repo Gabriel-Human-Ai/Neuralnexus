@@ -7,10 +7,10 @@ type AltitudeRailProps = {
   onAscendTo: (level: AltitudeLevel) => void;
 };
 
-const LEVELS: { level: AltitudeLevel; label: string }[] = [
-  { level: 3, label: "ORBIT" },
-  { level: 2, label: "SYSTEM" },
-  { level: 1, label: "CRAFT" },
+const LEVELS: { level: AltitudeLevel; label: string; helper: string }[] = [
+  { level: 3, label: "OVERVIEW", helper: "Choose what to do next" },
+  { level: 2, label: "WORKSPACE", helper: "Work inside one system" },
+  { level: 1, label: "FOCUS", helper: "Finish one output" },
 ];
 
 export function AltitudeRail({ level, onAscendTo }: AltitudeRailProps) {
@@ -25,13 +25,16 @@ export function AltitudeRail({ level, onAscendTo }: AltitudeRailProps) {
             type="button"
             className={current ? "is-current" : ""}
             aria-current={current ? "step" : undefined}
-            aria-label={item.label}
-            title={item.label}
+            aria-label={`${item.label}: ${item.helper}`}
+            title={`${item.label}: ${item.helper}`}
             disabled={disabled}
             onClick={() => onAscendTo(item.level)}
           >
             <span aria-hidden="true" />
-            <em>{item.label}</em>
+            <em>
+              <strong>{item.label}</strong>
+              <small>{item.helper}</small>
+            </em>
           </button>
         );
       })}
