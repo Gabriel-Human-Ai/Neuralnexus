@@ -7716,3 +7716,334 @@ button.shelf-row:hover {
     transition: none !important;
   }
 }
+
+/* Public Lovable-style landing wireframe */
+.public-landing {
+  min-height: 100svh;
+  color: #f7f7f8;
+  background: #1b1b1c;
+  overflow: hidden;
+}
+
+.public-nav {
+  position: relative;
+  z-index: 10;
+  height: 82px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(22px, 3vw, 44px);
+  padding: 0 clamp(22px, 11vw, 228px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: rgba(25,25,26,0.98);
+}
+
+.public-brand,
+.public-menu,
+.public-actions,
+.public-menu a,
+.public-actions button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.public-brand {
+  gap: 10px;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.public-brand strong {
+  font: 700 30px/1 var(--font-ui);
+  letter-spacing: -0.04em;
+}
+
+.public-menu {
+  justify-content: center;
+  gap: clamp(22px, 2.5vw, 34px);
+}
+
+.public-menu a {
+  gap: 5px;
+  color: rgba(255,255,255,0.86);
+  text-decoration: none;
+  font: 520 18px/1 var(--font-ui);
+  white-space: nowrap;
+  transition: color 160ms ease-out;
+}
+
+.public-menu a:hover {
+  color: #ffffff;
+}
+
+.public-actions {
+  justify-content: end;
+  gap: 10px;
+}
+
+.public-actions button {
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font: 560 17px/1 var(--font-ui);
+  white-space: nowrap;
+}
+
+.public-login {
+  color: rgba(255,255,255,0.9);
+  border: 1px solid rgba(255,255,255,0.16);
+  background: transparent;
+}
+
+.public-get-started {
+  color: #222225;
+  border: 1px solid #f2f2f2;
+  background: #f2f2f2;
+}
+
+.public-hero {
+  position: relative;
+  min-height: calc(100svh - 82px);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 28px;
+  padding: clamp(70px, 10vh, 120px) 20px 64px;
+  background:
+    radial-gradient(65% 42% at 50% 43%, rgba(24,24,26,0.22) 0%, rgba(24,24,26,0.62) 56%, rgba(24,24,26,0.92) 100%),
+    linear-gradient(180deg, #1d1f23 0%, #202327 26%, #4378f2 52%, #f08df1 72%, #ff2a78 100%);
+}
+
+.public-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 28% at 50% 28%, rgba(255,255,255,0.06), transparent 72%),
+    linear-gradient(180deg, rgba(0,0,0,0.34) 0%, transparent 42%);
+}
+
+.public-hero-orb {
+  position: absolute;
+  z-index: 0;
+  top: clamp(74px, 9vh, 110px);
+  left: 50%;
+  width: min(300px, 35vw);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  opacity: 0.58;
+  filter: saturate(1.15);
+  pointer-events: none;
+}
+
+.public-hero-copy {
+  position: relative;
+  z-index: 1;
+  margin-top: clamp(118px, 14vh, 170px);
+  text-align: center;
+}
+
+.public-hero-copy h1 {
+  margin: 0;
+  color: #ffffff;
+  font: 760 clamp(44px, 5vw, 68px)/0.98 var(--font-ui);
+  letter-spacing: -0.055em;
+}
+
+.public-hero-copy p {
+  margin: 18px 0 0;
+  color: rgba(255,255,255,0.66);
+  font: 520 clamp(18px, 1.8vw, 27px)/1.25 var(--font-ui);
+}
+
+.public-prompt {
+  position: relative;
+  z-index: 1;
+  width: min(1094px, calc(100vw - 42px));
+  min-height: 208px;
+  display: grid;
+  grid-template-rows: minmax(110px, 1fr) auto;
+  padding: 28px 30px 18px;
+  border-radius: 38px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: #202020;
+  box-shadow: 0 30px 70px rgba(0,0,0,0.32);
+}
+
+.public-prompt textarea {
+  width: 100%;
+  min-height: 104px;
+  border: 0;
+  outline: none;
+  resize: none;
+  color: #f5f5f7;
+  background: transparent;
+  font: 520 22px/1.35 var(--font-ui);
+}
+
+.public-prompt textarea::placeholder {
+  color: rgba(255,255,255,0.45);
+}
+
+.public-prompt-footer,
+.public-prompt-tools {
+  display: flex;
+  align-items: center;
+}
+
+.public-prompt-footer {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.public-prompt-footer button {
+  border: 0;
+  color: rgba(255,255,255,0.64);
+  background: transparent;
+}
+
+.public-prompt-footer > button,
+.public-submit {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.public-prompt-footer > button {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+}
+
+.public-prompt-tools {
+  gap: 18px;
+}
+
+.public-build-mode {
+  gap: 6px;
+  font: 560 18px/1 var(--font-ui);
+}
+
+.public-submit {
+  color: #202020 !important;
+  background: rgba(245,245,247,0.72) !important;
+  transition: transform 160ms ease-out, background 160ms ease-out;
+}
+
+.public-submit:hover {
+  transform: translateY(-1px);
+  background: #ffffff !important;
+}
+
+.public-landing-strip {
+  position: relative;
+  z-index: 1;
+  width: min(1094px, calc(100vw - 42px));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  color: rgba(255,255,255,0.74);
+  font: 520 13px/1.25 var(--font-ui);
+  text-align: center;
+}
+
+.public-landing-strip span {
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.14);
+}
+
+@media (max-width: 1180px) {
+  .public-nav {
+    padding-inline: 34px;
+  }
+
+  .public-menu {
+    gap: 20px;
+  }
+
+  .public-menu a {
+    font-size: 16px;
+  }
+
+  .public-menu a:nth-child(3) {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .public-nav {
+    height: 72px;
+    grid-template-columns: auto auto;
+    justify-content: space-between;
+    padding-inline: 18px;
+  }
+
+  .public-menu {
+    display: none;
+  }
+
+  .public-brand strong {
+    font-size: 25px;
+  }
+
+  .public-actions button {
+    min-height: 40px;
+    padding-inline: 14px;
+    font-size: 15px;
+  }
+
+  .public-hero {
+    min-height: calc(100svh - 72px);
+    padding-top: 42px;
+    gap: 22px;
+  }
+
+  .public-hero-orb {
+    top: 42px;
+    width: min(220px, 58vw);
+  }
+
+  .public-hero-copy {
+    margin-top: 190px;
+  }
+
+  .public-hero-copy h1 {
+    font-size: clamp(40px, 11vw, 58px);
+  }
+
+  .public-hero-copy p {
+    font-size: 18px;
+  }
+
+  .public-prompt {
+    min-height: 184px;
+    padding: 22px 20px 16px;
+    border-radius: 28px;
+  }
+
+  .public-prompt textarea {
+    font-size: 18px;
+  }
+
+  .public-landing-strip {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 520px) {
+  .public-login {
+    display: none !important;
+  }
+
+  .public-prompt-tools {
+    gap: 12px;
+  }
+
+  .public-build-mode {
+    font-size: 15px;
+  }
+}

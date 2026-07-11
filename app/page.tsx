@@ -5,11 +5,13 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import {
   Archive,
+  ArrowUp,
   ArrowLeft,
   BarChart3,
   BookOpen,
   Boxes,
   Check,
+  ChevronDown,
   ChevronRight,
   Compass,
   Copy,
@@ -22,6 +24,7 @@ import {
   Layers3,
   Lock,
   MessageCircle,
+  Mic,
   PencilLine,
   Plus,
   RefreshCcw,
@@ -492,6 +495,8 @@ export default function Home() {
   const [generalInput, setGeneralInput] = useState("");
   const [generalBusy, setGeneralBusy] = useState(false);
   const [generalAttachments, setGeneralAttachments] = useState<UploadedSource[]>([]);
+  const [enteredApp, setEnteredApp] = useState(false);
+  const [landingPrompt, setLandingPrompt] = useState("");
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -557,6 +562,7 @@ export default function Home() {
     window.dispatchEvent(new Event("nn:client-mounted"));
     window.setTimeout(() => document.getElementById("nn-boot")?.remove(), 700);
     try {
+      setEnteredApp(window.localStorage.getItem("NN_ENTERED_APP") === "1");
       const stored = window.localStorage.getItem("CMDK_RECENT");
       if (stored) setRecentCommands(JSON.parse(stored).slice(0, 3));
     } catch {
@@ -1327,6 +1333,22 @@ export default function Home() {
     setCommandIndex(0);
   }
 
+  function enterWorkspaceApp(openWizard = false) {
+    const prompt = landingPrompt.trim();
+    setEnteredApp(true);
+    try {
+      window.localStorage.setItem("NN_ENTERED_APP", "1");
+    } catch {}
+    if (prompt) {
+      setWorkspaceIntent(prompt);
+      setWorkspaceSourceNote(prompt);
+    }
+    if (openWizard || prompt) {
+      setWizardOpen(true);
+      setWizardStep(prompt ? "audience" : "type");
+    }
+  }
+
   return (
     <MotionConfig reducedMotion="user" transition={MOTION.spring}>
     <svg className="nn-aurora-defs" aria-hidden="true" focusable="false">
@@ -1337,6 +1359,76 @@ export default function Home() {
         </linearGradient>
       </defs>
     </svg>
+    {!enteredApp ? (
+      <main className="public-landing">
+        <header className="public-nav">
+          <a className="public-brand" href="#top" aria-label="NeuralNexus home">
+            <AuroraDisc size={24} label={keys.BRAND_NAME?.trim() || "NeuralNexus"} />
+            <strong>{keys.BRAND_NAME?.trim() || "NeuralNexus"}</strong>
+          </a>
+          <nav className="public-menu" aria-label="Public navigation">
+            <a href="#solutions">Solutions <ChevronDown size={14} /></a>
+            <a href="#resources">Resources <ChevronDown size={14} /></a>
+            <a href="#enterprise">Enterprise</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#security">Security</a>
+          </nav>
+          <div className="public-actions">
+            <button type="button" className="public-login" onClick={() => enterWorkspaceApp(false)}>Log in</button>
+            <button type="button" className="public-get-started" onClick={() => enterWorkspaceApp(true)}>Get started</button>
+          </div>
+        </header>
+
+        <section className="public-hero" id="top">
+          <div className="public-hero-orb" aria-hidden="true">
+            <WizardOrb
+              size={300}
+              hue={orbHue}
+              speed={orbSpeed}
+              intensity={orbIntensity}
+              state="idle"
+              interactive={false}
+              {...orbSettings}
+            />
+          </div>
+          <div className="public-hero-copy">
+            <h1>Build a workspace that knows your method</h1>
+            <p>Turn your expertise into reusable AI workspaces with steps, skills, sources and trust marks.</p>
+          </div>
+
+          <form
+            className="public-prompt"
+            id="solutions"
+            onSubmit={(event) => {
+              event.preventDefault();
+              enterWorkspaceApp(true);
+            }}
+          >
+            <label htmlFor="landing-prompt" className="sr-only">Describe what you want to build</label>
+            <textarea
+              id="landing-prompt"
+              value={landingPrompt}
+              onChange={(event) => setLandingPrompt(event.target.value)}
+              placeholder="Ask NeuralNexus to create a workspace..."
+            />
+            <div className="public-prompt-footer">
+              <button type="button" aria-label="Add material"><Plus size={18} /></button>
+              <div className="public-prompt-tools">
+                <button type="button" className="public-build-mode">Build <ChevronDown size={14} /></button>
+                <button type="button" aria-label="Voice input"><Mic size={17} /></button>
+                <button type="submit" className="public-submit" aria-label="Create workspace"><ArrowUp size={18} /></button>
+              </div>
+            </div>
+          </form>
+
+          <div className="public-landing-strip" id="resources">
+            <span id="enterprise">Enterprise-ready workspaces</span>
+            <span id="pricing">Start free. Scale when your system works.</span>
+            <span id="security">Your keys stay under your control.</span>
+          </div>
+        </section>
+      </main>
+    ) : (
     <main className={`nn-shell altitude-shell altitude-${altitude.level} ${activeShelf ? "has-open-shelf" : ""}`} data-altitude={altitude.level}>
       <PresenceLine active={altitude.level === 1 && (generalBusy || stepState === "loading" || finalState === "loading")} />
       <div className="altitude-live" aria-live="polite">
@@ -2466,6 +2558,7 @@ export default function Home() {
         initialsFrom="NN"
       />
     </main>
+    )}
     </MotionConfig>
   );
 }
