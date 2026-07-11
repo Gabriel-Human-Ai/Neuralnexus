@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import {
   Archive,
+  ArrowDown,
   ArrowUp,
   ArrowLeft,
   BarChart3,
@@ -23,6 +24,7 @@ import {
   Image as ImageIcon,
   Layers3,
   Lock,
+  Menu,
   MessageCircle,
   Mic,
   PencilLine,
@@ -501,7 +503,12 @@ export default function Home() {
   const [landingPrompt, setLandingPrompt] = useState("");
   const [publicPage, setPublicPage] = useState<PublicPage>("home");
   const [publicMenu, setPublicMenu] = useState<PublicMenu>(null);
+  const [publicMobileMenu, setPublicMobileMenu] = useState(false);
+  const [landingWorld, setLandingWorld] = useState<"life" | "work">("work");
+  const [publicHeaderScrolled, setPublicHeaderScrolled] = useState(false);
+  const [publicStoryNavVisible, setPublicStoryNavVisible] = useState(true);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const publicLastScroll = useRef(0);
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -666,6 +673,31 @@ export default function Home() {
   useEffect(() => {
     document.title = keys.BRAND_NAME?.trim() || "NeuralNexus";
   }, [keys.BRAND_NAME]);
+
+  useEffect(() => {
+    if (enteredApp) return;
+    const onScroll = () => {
+      const current = window.scrollY;
+      const delta = current - publicLastScroll.current;
+      setPublicHeaderScrolled(current > 12);
+      if (Math.abs(delta) > 4) setPublicStoryNavVisible(delta < 0 || current < 120);
+      publicLastScroll.current = current;
+    };
+    publicLastScroll.current = window.scrollY;
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [enteredApp]);
+
+  useEffect(() => {
+    if (enteredApp || typeof window === "undefined" || !("IntersectionObserver" in window)) return;
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("is-in-view");
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -8%" });
+    document.querySelectorAll(".public-section, .public-final-cta").forEach((element) => revealObserver.observe(element));
+    return () => revealObserver.disconnect();
+  }, [enteredApp, publicPage]);
 
   useEffect(() => {
     if (!selectedWorkspace?.id) return;
@@ -1342,6 +1374,7 @@ export default function Home() {
     const prompt = (promptOverride ?? landingPrompt).trim();
     setEnteredApp(true);
     setPublicMenu(null);
+    setPublicMobileMenu(false);
     try {
       window.localStorage.removeItem("NN_ENTERED_APP");
     } catch {}
@@ -1358,6 +1391,7 @@ export default function Home() {
   function showPublicPage(page: PublicPage) {
     setPublicPage(page);
     setPublicMenu(null);
+    setPublicMobileMenu(false);
   }
 
   function startFromPublicPrompt(prompt: string) {
@@ -1366,6 +1400,7 @@ export default function Home() {
     setWorkspaceSourceNote(prompt);
     setPublicPage("home");
     setPublicMenu(null);
+    setPublicMobileMenu(false);
   }
 
   return (
@@ -1380,7 +1415,7 @@ export default function Home() {
     </svg>
     {!enteredApp ? (
       <main className={`public-landing public-page-${publicPage}`} onMouseLeave={() => setPublicMenu(null)}>
-        <header className="public-nav">
+        <header className={`public-nav ${publicHeaderScrolled ? "is-scrolled" : ""}`}>
           <button className="public-brand" type="button" onClick={() => showPublicPage("home")} aria-label="NeuralNexus home">
             <AuroraDisc size={24} label={keys.BRAND_NAME?.trim() || "NeuralNexus"} />
             <strong>{keys.BRAND_NAME?.trim() || "NeuralNexus"}</strong>
@@ -1412,6 +1447,9 @@ export default function Home() {
           <div className="public-actions">
             <button type="button" className="public-login" onClick={() => enterWorkspaceApp(false)}>Log in</button>
             <button type="button" className="public-get-started" onClick={() => enterWorkspaceApp(true)}>Get started</button>
+            <button type="button" className="public-mobile-menu-button" onClick={() => setPublicMobileMenu((open) => !open)} aria-expanded={publicMobileMenu} aria-label="Open navigation">
+              {publicMobileMenu ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
           <AnimatePresence>
             {publicMenu && (
@@ -1464,35 +1502,88 @@ export default function Home() {
               </motion.div>
             )}
           </AnimatePresence>
+          <AnimatePresence>
+            {publicMobileMenu && (
+              <motion.div className="public-mobile-menu" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18, ease: MOTION.easeOut }}>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu("solutions"); }}>Solutions <ChevronDown size={16} /></button>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu("resources"); }}>Resources <ChevronDown size={16} /></button>
+                <button type="button" onClick={() => showPublicPage("enterprise")}>Enterprise</button>
+                <button type="button" onClick={() => showPublicPage("pricing")}>Pricing</button>
+                <button type="button" onClick={() => showPublicPage("security")}>Security</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </header>
 
         {publicPage === "home" && (
-          <section className="public-hero" id="top">
-            <div className="public-hero-orb" aria-hidden="true">
-              <WizardOrb size={300} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state="idle" interactive={false} {...orbSettings} />
-            </div>
-            <div className="public-hero-copy">
-              <h1>Build a workspace that knows your method</h1>
-              <p>Turn expertise into reusable AI workspaces with steps, skills, sources and trust marks.</p>
-            </div>
-            <form className="public-prompt" onSubmit={(event) => { event.preventDefault(); enterWorkspaceApp(true); }}>
-              <label htmlFor="landing-prompt" className="sr-only">Describe what you want to build</label>
-              <textarea id="landing-prompt" value={landingPrompt} onChange={(event) => setLandingPrompt(event.target.value)} placeholder="Ask NeuralNexus to create a workspace..." />
-              <div className="public-prompt-footer">
-                <button type="button" aria-label="Add material" onClick={() => { enterWorkspaceApp(false); setExtractorOpen(true); }}><Plus size={18} /></button>
-                <div className="public-prompt-tools">
-                  <button type="button" className="public-build-mode" onClick={() => setPublicMenu("solutions")}>Build <ChevronDown size={14} /></button>
-                  <button type="button" aria-label="Open Ask" onClick={() => { enterWorkspaceApp(false); setActiveShelf("chat"); }}><Mic size={17} /></button>
-                  <button type="submit" className="public-submit" aria-label="Create workspace"><ArrowUp size={18} /></button>
+          <>
+            <section className="public-hero" id="top">
+              <div className="public-hero-copy">
+                <span className="public-eyebrow">PERSONAL AI WORKSPACE</span>
+                <h1>NeuralNexus</h1>
+                <p>One AI Twin for the life you live and the work you shape.</p>
+                <div className="public-world-switch" role="tablist" aria-label="Explore NeuralNexus worlds">
+                  <button type="button" role="tab" aria-selected={landingWorld === "life"} className={landingWorld === "life" ? "is-active" : ""} onClick={() => setLandingWorld("life")}>Explore LIFE</button>
+                  <button type="button" role="tab" aria-selected={landingWorld === "work"} className={landingWorld === "work" ? "is-active" : ""} onClick={() => setLandingWorld("work")}>Explore WORK</button>
                 </div>
+                <form className="public-prompt" onSubmit={(event) => { event.preventDefault(); enterWorkspaceApp(true); }}>
+                  <label htmlFor="landing-prompt" className="sr-only">Describe what you want to build</label>
+                  <textarea id="landing-prompt" value={landingPrompt} onChange={(event) => setLandingPrompt(event.target.value)} placeholder={landingWorld === "life" ? "Describe what you want to understand..." : "Describe the method you want to build..."} />
+                  <div className="public-prompt-footer">
+                    <button type="button" aria-label="Add material" onClick={() => { enterWorkspaceApp(false); setExtractorOpen(true); }}><Plus size={18} /></button>
+                    <div className="public-prompt-tools">
+                      <button type="button" className="public-build-mode" onClick={() => setPublicMenu("solutions")}>{landingWorld === "life" ? "Reflect" : "Build"} <ChevronDown size={14} /></button>
+                      <button type="button" aria-label="Open Ask" onClick={() => { enterWorkspaceApp(false); setActiveShelf("chat"); }}><Mic size={17} /></button>
+                      <button type="submit" className="public-submit" aria-label="Start with NeuralNexus"><ArrowUp size={18} /></button>
+                    </div>
+                  </div>
+                </form>
+                <button className="public-hero-cta" type="button" onClick={() => enterWorkspaceApp(true)}>Start with NeuralNexus <ChevronRight size={17} /></button>
+                <span className="public-hero-note">Separate by default. You choose what can cross.</span>
               </div>
-            </form>
-            <div className="public-landing-strip">
-              <button type="button" onClick={() => showPublicPage("enterprise")}>Enterprise-ready workspaces</button>
-              <button type="button" onClick={() => showPublicPage("pricing")}>Start free. Scale when it works.</button>
-              <button type="button" onClick={() => showPublicPage("security")}>Your keys stay under your control.</button>
+              <div className="public-hero-orb" aria-label="NeuralNexus Twin presence">
+                <WizardOrb size={220} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state="idle" interactive {...orbSettings} />
+                <div className="public-orb-caption"><span className="public-orb-dot" /> {landingWorld === "life" ? "LIFE context" : "WORK context"}</div>
+              </div>
+              <a className="public-scroll-cue" href="#twin">See how it works <ArrowDown size={15} /></a>
+            </section>
+
+            <div className={`public-story-nav ${publicStoryNavVisible ? "is-visible" : "is-hidden"}`}>
+              <span>NeuralNexus</span>
+              <nav aria-label="Story navigation">
+                <a href="#twin">The Twin</a>
+                <a href="#engine">The Engine</a>
+                <a href="#trust">Trust</a>
+                <button type="button" onClick={() => enterWorkspaceApp(true)}>Start</button>
+              </nav>
             </div>
-          </section>
+
+            <section className="public-section public-twin-section" id="twin">
+              <div className="public-section-heading"><span className="public-eyebrow">ONE TWIN, TWO WORLDS</span><h2>Separate by default.<br />Useful everywhere you are.</h2><p>The same Twin engine can learn your patterns without mixing the life you live with the work you shape.</p></div>
+              <div className="public-world-grid">
+                <article className={landingWorld === "life" ? "is-selected" : ""} onClick={() => setLandingWorld("life")}><span className="public-section-label">LIFE</span><h3>Notice what matters to you.</h3><p>Reflections, goals and patterns stay in their own context.</p><button type="button" onClick={() => { setLandingWorld("life"); enterWorkspaceApp(true, "Help me start a private LIFE workspace."); }}>Start with LIFE <ChevronRight size={16} /></button></article>
+                <article className={landingWorld === "work" ? "is-selected" : ""} onClick={() => setLandingWorld("work")}><span className="public-section-label">WORK</span><h3>Turn your method into a system.</h3><p>Sources, skills and outputs stay ready for repeatable work.</p><button type="button" onClick={() => { setLandingWorld("work"); enterWorkspaceApp(true); }}>Start with WORK <ChevronRight size={16} /></button></article>
+              </div>
+            </section>
+
+            <section className="public-section public-preview-section" id="engine">
+              <div className="public-section-heading"><span className="public-eyebrow">THE ENGINE</span><h2>Learning you can inspect.</h2><p>NeuralNexus keeps the useful parts visible: what it remembers, what good looks like, and how your method becomes reusable.</p></div>
+              <div className="public-preview-panel">
+                <div className="public-preview-window"><div className="public-window-bar"><span /><span /><span /><small>{landingWorld === "life" ? "LIFE / Today" : "WORK / Review"}</small></div><div className="public-preview-content"><div className="public-preview-orb"><span className="public-orb-dot" /></div><div><span className="public-section-label">{landingWorld === "life" ? "PATTERN REVIEW" : "WORKSPACE REVIEW"}</span><h3>{landingWorld === "life" ? "A tentative relationship, with evidence." : "A method you can run again."}</h3><p>{landingWorld === "life" ? "See the observations first. Decide whether it is useful." : "Review the source, compare the output, approve the rule."}</p><button type="button" onClick={() => enterWorkspaceApp(true)}>{landingWorld === "life" ? "See evidence" : "Open workspace"} <ChevronRight size={16} /></button></div></div></div>
+                <div className="public-preview-ledger"><span>01</span><strong>Evidence first</strong><p>Every useful suggestion shows where it came from.</p><span>02</span><strong>Your decision</strong><p>Nothing becomes a rule without your approval.</p><span>03</span><strong>Reusable output</strong><p>What works becomes part of the next run.</p></div>
+              </div>
+            </section>
+
+            <section className="public-section public-engine-bands">
+              {[["Vault", "What Nexus remembers", "Sources and decisions remain attached to the work that shaped them."], ["Eye", "What good looks like", "Approved and rejected examples make your taste legible."], ["Genome", "How your method compounds", "Corrections become rules you can read, edit and reuse."]].map(([label, title, body]) => <article key={label}><span className="public-section-label">{label}</span><h3>{title}</h3><p>{body}</p><button type="button" onClick={() => enterWorkspaceApp(true)}>Explore {label} <ChevronRight size={16} /></button></article>)}
+            </section>
+
+            <section className="public-section public-trust-section" id="trust"><div className="public-trust-copy"><span className="public-eyebrow">TRUST BY DESIGN</span><h2>Confidence is what Nexus knows. Autonomy is what you allow.</h2><p>Bring your own provider keys, keep contexts separate, and make every permission explicit.</p><button type="button" onClick={() => showPublicPage("security")}>See security and privacy <ChevronRight size={16} /></button></div><div className="public-trust-list"><span><Lock size={17} /> Separate contexts by default</span><span><Check size={17} /> Source-aware outputs</span><span><Settings size={17} /> Permission before action</span></div></section>
+
+            <section className="public-section public-pricing-preview"><div className="public-section-heading"><span className="public-eyebrow">SIMPLE START</span><h2>Start with the work that matters now.</h2><p>Begin with a workspace. Expand when the system earns a place in your workflow.</p><button type="button" onClick={() => showPublicPage("pricing")}>View plans <ChevronRight size={16} /></button></div></section>
+
+            <section className="public-final-cta"><AuroraDisc size={32} label="NeuralNexus Twin" /><span className="public-eyebrow">YOUR AI TWIN</span><h2>Start with a method<br />you already trust.</h2><div><button type="button" onClick={() => enterWorkspaceApp(true, "Help me turn my method into a workspace.")}>Start with WORK</button><button type="button" onClick={() => enterWorkspaceApp(true, "Help me start a private LIFE workspace.")}>Start with LIFE</button></div></section>
+          </>
         )}
 
         {publicPage === "enterprise" && (
