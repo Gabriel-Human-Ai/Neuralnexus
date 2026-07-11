@@ -39,7 +39,7 @@ import { ExtractorSheet } from "@/components/features/ExtractorSheet";
 import { OutputCard, type OutputCardOutput } from "@/components/features/OutputCard";
 import type { WizardIntent } from "@/lib/wizardActions";
 import { nextBestAction } from "@/lib/guidance";
-import { MOTION, viewMotion } from "@/lib/motion";
+import { MOTION } from "@/lib/motion";
 import { POSITIONING_UI } from "@/lib/positioning";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { RollingNumber } from "@/components/ui/RollingNumber";
@@ -50,6 +50,11 @@ import { NexusIsland } from "@/components/ui/NexusIsland";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { useTypingGlow } from "@/lib/useTypingGlow";
+import { AltitudeRail, type AltitudeLevel } from "@/components/altitude/AltitudeRail";
+import { ShelfDock, type ShelfId } from "@/components/altitude/ShelfDock";
+import { ShelfPanel } from "@/components/altitude/ShelfPanel";
+import { PresenceLine } from "@/components/altitude/PresenceLine";
+import { DecisionStream, type StreamItem } from "@/components/altitude/DecisionStream";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -104,6 +109,7 @@ type WorkspaceMode = {
 type View = "home" | "chat" | "workspaces" | "skills" | "eye" | "templates" | "knowledge" | "usage" | "settings";
 type WorkspacePanel = "overview" | "workflow" | "outputs" | "client";
 type StartPath = "ask" | "build" | "improve";
+type AltitudeState = { level: AltitudeLevel; workspaceId?: string; focusId?: string };
 type CommandItem = {
   id: string;
   label: string;
@@ -438,6 +444,10 @@ export default function Home() {
   useTypingGlow();
 
   const [view, setView] = useState<View>("home");
+  const [altitude, setAltitude] = useState<AltitudeState>({ level: 3 });
+  const [transitionLocked, setTransitionLocked] = useState(false);
+  const [activeShelf, setActiveShelf] = useState<ShelfId | null>(null);
+  const [streamItems, setStreamItems] = useState<StreamItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [costs, setCosts] = useState<{ runs: any[]; total: number }>({ runs: [], total: 0 });
@@ -543,6 +553,7 @@ export default function Home() {
 
   useEffect(() => {
     void loadData();
+    void loadStream();
     window.dispatchEvent(new Event("nn:client-mounted"));
     window.setTimeout(() => document.getElementById("nn-boot")?.remove(), 700);
     try {
@@ -590,6 +601,50 @@ export default function Home() {
   }, [commandOpen]);
 
   useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (commandOpen || wizardOpen || settingsOpen || whyOpen || extractorOpen || genomeSkill || activeShelf) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        ascendOne();
+      }
+      if (event.key === "1") ascendTo(1);
+      if (event.key === "2") ascendTo(2);
+      if (event.key === "3") ascendTo(3);
+      if (event.key.toLowerCase() === "s") setActiveShelf("stream");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [altitude, commandOpen, wizardOpen, settingsOpen, whyOpen, extractorOpen, genomeSkill, activeShelf]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (altitude.level === 3) {
+      url.searchParams.delete("altitude");
+      url.searchParams.delete("workspace");
+      url.searchParams.delete("focus");
+    } else {
+      url.searchParams.set("altitude", altitude.level === 2 ? "system" : "craft");
+      if (altitude.workspaceId) url.searchParams.set("workspace", altitude.workspaceId);
+      else url.searchParams.delete("workspace");
+      if (altitude.focusId) url.searchParams.set("focus", altitude.focusId);
+      else url.searchParams.delete("focus");
+    }
+    window.history.replaceState({}, "", url.toString());
+  }, [altitude]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const workspaceId = url.searchParams.get("workspace") || undefined;
+    const focusId = url.searchParams.get("focus") || undefined;
+    const level = url.searchParams.get("altitude") === "craft" ? 1 : url.searchParams.get("altitude") === "system" ? 2 : 3;
+    if (workspaceId) setSelectedWorkspaceId(workspaceId);
+    setAltitude({ level, workspaceId, focusId });
+    if (level < 3) setView("workspaces");
+  }, []);
+
+  useEffect(() => {
     const mode = workspaceModes.find((item) => item.id === selectedModeId);
     if (!mode) return;
     setWorkspaceName(mode.label === "BRAND STRATEGY" ? "Brand Strategy System" : `${mode.label.replace(/\b\w/g, (m) => m.toUpperCase())} Workspace`);
@@ -633,6 +688,11 @@ export default function Home() {
     if (settingsData && !settingsData.error) {
       setKeys(settingsData);
     }
+  }
+
+  async function loadStream() {
+    const data = await safeJson("/api/stream");
+    if (Array.isArray(data?.items)) setStreamItems(data.items);
   }
 
   async function loadOutputs(projectId: string) {
@@ -686,11 +746,67 @@ export default function Home() {
     setBuildState("complete");
     setTimeout(() => {
       setWizardOpen(false);
-      setView("workspaces");
+      descendToSystem(created?.id);
       setWorkspacePanel("overview");
       setBuildState("idle");
       setWizardStep("type");
     }, 650);
+  }
+
+  function lockTransition(ms = MOTION.descend * 1000) {
+    setTransitionLocked(true);
+    window.setTimeout(() => setTransitionLocked(false), ms);
+  }
+
+  function descendToSystem(workspaceId?: string) {
+    if (transitionLocked) return;
+    const id = workspaceId ?? selectedWorkspace?.id ?? projects[0]?.id;
+    if (!id) return;
+    lockTransition();
+    setSelectedWorkspaceId(id);
+    setView("workspaces");
+    setAltitude({ level: 2, workspaceId: id });
+  }
+
+  function descendToCraft(focusId?: string) {
+    if (transitionLocked) return;
+    const workspaceId = selectedWorkspace?.id ?? selectedWorkspaceId ?? projects[0]?.id;
+    if (!workspaceId) return;
+    lockTransition();
+    setView("workspaces");
+    setAltitude({ level: 1, workspaceId, focusId: focusId ?? currentOutput?.id ?? "next-step" });
+  }
+
+  function ascendOne() {
+    if (transitionLocked || altitude.level === 3) return;
+    lockTransition(MOTION.ascend * 1000);
+    if (altitude.level === 1) {
+      setAltitude({ level: 2, workspaceId: altitude.workspaceId ?? selectedWorkspace?.id });
+      return;
+    }
+    setAltitude({ level: 3 });
+    setView("home");
+  }
+
+  function ascendTo(level: AltitudeLevel) {
+    if (level <= altitude.level) return;
+    if (level === 2) {
+      setAltitude({ level: 2, workspaceId: altitude.workspaceId ?? selectedWorkspace?.id });
+      setView("workspaces");
+      return;
+    }
+    if (level === 3) {
+      setAltitude({ level: 3 });
+      setView("home");
+    }
+  }
+
+  function openShelf(shelf: ShelfId) {
+    if (shelf === "settings") {
+      setSettingsOpen(true);
+      return;
+    }
+    setActiveShelf((current) => current === shelf ? null : shelf);
   }
 
   function nextWizardStep() {
@@ -826,7 +942,7 @@ export default function Home() {
     setTimeout(() => {
       setSessionState("complete");
       setSelectedWorkspaceId(projects[0]?.id ?? null);
-      setView("workspaces");
+      descendToSystem(projects[0]?.id);
       setWorkspacePanel("workflow");
       setTimeout(() => setSessionState("idle"), 500);
     }, 500);
@@ -837,12 +953,14 @@ export default function Home() {
     setStepState("loading");
     setCrucibleInput(userInput);
     setWorkspacePanel("workflow");
+    descendToCraft("next-step");
     window.dispatchEvent(new CustomEvent("nexus:orb", { detail: { state: "thinking" } }));
   }
 
   async function openOutput(output: OutputListItem) {
     const full = output.finalContent || output.draftContent ? output : await safeJson(`/api/outputs/${output.id}`);
     if (full?.id) setCurrentOutput({ id: full.id, stepName: full.stepName, model: full.model, provider: full.provider, costUsd: full.costUsd, content: full.finalContent || full.draftContent, skillVersion: full.skillVersion, knowledgeIds: full.knowledgeIds, qualityReport: full.qualityReport ? typeof full.qualityReport === "string" ? JSON.parse(full.qualityReport) : full.qualityReport : null, claimsJson: full.claimsJson });
+    if (full?.id) descendToCraft(full.id);
   }
 
   async function saveAsFinal(content?: string) {
@@ -881,7 +999,7 @@ export default function Home() {
 
   function handleWizardIntent(intent: WizardIntent) {
     if (intent === "open_chat") {
-      setView("chat");
+      setActiveShelf("chat");
       return;
     }
     if (intent === "create_workspace") {
@@ -894,23 +1012,23 @@ export default function Home() {
       return;
     }
     if (intent === "create_skill") {
-      setView("skills");
+      setActiveShelf("skills");
       return;
     }
     if (intent === "open_knowledge") {
-      setView("knowledge");
+      setActiveShelf("knowledge");
       return;
     }
     if (intent === "open_usage") {
-      setView("usage");
+      setActiveShelf("vault");
       return;
     }
     if (intent === "open_templates") {
-      setView("templates");
+      setActiveShelf("templates");
       return;
     }
     if (intent === "open_outputs" || intent === "open_workspaces") {
-      setView("workspaces");
+      descendToSystem();
       if (intent === "open_outputs") setWorkspacePanel("outputs");
       return;
     }
@@ -1007,7 +1125,7 @@ export default function Home() {
       body: "Open a normal chat for general questions, ideas, images or files.",
       actionLabel: "Open Ask",
       icon: MessageCircle,
-      action: () => setView("chat"),
+      action: () => setActiveShelf("chat"),
     },
     {
       id: "build",
@@ -1031,10 +1149,10 @@ export default function Home() {
         if (hasWorkspaces) {
           setSelectedWorkspaceId(projects[0]?.id ?? null);
           setWorkspacePanel("workflow");
-          setView("workspaces");
+          descendToSystem(projects[0]?.id);
           return;
         }
-        setView("templates");
+        setActiveShelf("templates");
       },
     },
   ];
@@ -1050,25 +1168,25 @@ export default function Home() {
       label: "Templates",
       benefit: "Start with structure",
       text: "Use when you want a proven workspace shape before customizing.",
-      action: () => setView("templates"),
+      action: () => setActiveShelf("templates"),
     },
     {
       label: "Eye",
       benefit: "Teach taste",
       text: "Use when the app should learn your judgment from real examples.",
-      action: () => setView("eye"),
+      action: () => setActiveShelf("vault"),
     },
     {
       label: "Skills",
       benefit: "Package methods",
       text: "Use when a repeatable decision or craft move should become reusable.",
-      action: () => setView("skills"),
+      action: () => setActiveShelf("skills"),
     },
     {
       label: "Vault",
       benefit: "Keep the work",
       text: "Use when outputs, sources and patterns should compound over time.",
-      action: () => setView("usage"),
+      action: () => setActiveShelf("vault"),
     },
   ];
 
@@ -1080,6 +1198,19 @@ export default function Home() {
   const commandItems = useMemo<CommandItem[]>(() => {
     const navigate = (target: View): (() => void) => () => {
       if (target === "settings") setSettingsOpen(true);
+      if (target === "home") {
+        ascendTo(3);
+        return;
+      }
+      if (target === "workspaces") {
+        descendToSystem();
+        return;
+      }
+      if (target === "chat") return setActiveShelf("chat");
+      if (target === "skills") return setActiveShelf("skills");
+      if (target === "templates") return setActiveShelf("templates");
+      if (target === "knowledge") return setActiveShelf("knowledge");
+      if (target === "usage" || target === "eye") return setActiveShelf("vault");
       setView(target);
     };
     return [
@@ -1125,7 +1256,7 @@ export default function Home() {
         hint: "Open workspace detail",
         action: () => {
           setSelectedWorkspaceId(project.id);
-          setView("workspaces");
+          descendToSystem(project.id);
           setWorkspacePanel("overview");
         },
       })),
@@ -1134,7 +1265,7 @@ export default function Home() {
         label: skill.name,
         group: "Skills",
         hint: skill.description || "Open skills library",
-        action: () => setView("skills"),
+        action: () => setActiveShelf("skills"),
       })),
       ...templateCards.map((template) => ({
         id: `template-${template.name}`,
@@ -1178,7 +1309,14 @@ export default function Home() {
         ? "extraction"
         : view === "eye"
           ? "taste"
-        : "idle";
+      : "idle";
+
+  const altitudeLayerMotion = {
+    initial: { opacity: 0, scale: altitude.level === 3 ? 0.98 : 0.96, filter: "blur(2px)" },
+    animate: { opacity: 1, scale: 1, filter: "blur(0px)" },
+    exit: { opacity: 0, scale: 0.96, filter: "blur(2px)" },
+    transition: { duration: altitude.level === 3 ? MOTION.ascend : MOTION.descend, ease: MOTION.easeOut },
+  } as const;
 
   function runCommand(item?: CommandItem) {
     if (!item) return;
@@ -1199,9 +1337,15 @@ export default function Home() {
         </linearGradient>
       </defs>
     </svg>
-    <main className="nn-shell">
+    <main className={`nn-shell altitude-shell altitude-${altitude.level} ${activeShelf ? "has-open-shelf" : ""}`} data-altitude={altitude.level}>
+      <PresenceLine active={altitude.level === 1 && (generalBusy || stepState === "loading" || finalState === "loading")} />
+      <div className="altitude-live" aria-live="polite">
+        {altitude.level === 3 ? "Orbit" : altitude.level === 2 ? `System ${selectedWorkspace?.name ?? ""}` : `Craft ${currentOutput?.stepName ?? "focused step"}`}
+      </div>
+      <AltitudeRail level={altitude.level} onAscendTo={ascendTo} />
+      <ShelfDock activeShelf={activeShelf} streamCount={streamItems.length} onOpen={openShelf} onCreate={() => setWizardOpen(true)} />
       <aside className="nn-sidebar">
-        <button className="brand-lockup" onClick={() => setView("home")}>
+        <button className="brand-lockup" onClick={() => ascendTo(3)}>
           <AuroraDisc size={24} label="NeuralNexus" />
           <span>
             <strong>{keys.BRAND_NAME?.trim() || "NeuralNexus"}</strong>
@@ -1217,7 +1361,20 @@ export default function Home() {
                 key={item.id}
                 className={view === item.id ? "is-active" : ""}
                 onClick={() => {
-                  setView(item.id as View);
+                  if (item.id === "home") {
+                    ascendTo(3);
+                    return;
+                  }
+                  if (item.id === "workspaces") {
+                    descendToSystem();
+                    return;
+                  }
+                  if (item.id === "chat") setActiveShelf("chat");
+                  if (item.id === "skills") setActiveShelf("skills");
+                  if (item.id === "templates") setActiveShelf("templates");
+                  if (item.id === "knowledge") setActiveShelf("knowledge");
+                  if (item.id === "usage") setActiveShelf("vault");
+                  if (item.id === "eye") setActiveShelf("vault");
                 }}
               >
                 <Icon size={18} />
@@ -1243,117 +1400,146 @@ export default function Home() {
           </button>
         </div>
         <AnimatePresence mode="wait">
-        <motion.div key={view} className="view-fade" {...viewMotion}>
+        <motion.div key={`${altitude.level}-${view}`} className="altitude-layer" {...altitudeLayerMotion}>
         {view === "home" && (
-          <div className="nn-home start-experience">
-            <section className="start-hero" aria-label="Start here">
-              <div className="start-copy">
-                <span className="eyebrow">PERSONAL WIZARD</span>
-                <h1>{hasWorkspaces ? `Continue ${recentWorkspace.name}` : "What should we do first?"}</h1>
-                <p>
-                  {hasWorkspaces
-                    ? `Next: ${selectedWorkspaceMode.steps[0]}. ${guidance.description}`
-                    : "Choose one path. NeuralNexus keeps the rest out of your way."}
-                </p>
-              </div>
+          <div className="nn-home altitude-orbit">
+            <section className="orbit-core" aria-label="Orbit">
               {showHomeOrb && (
-                <div className="start-orb-card">
+                <div className="orbit-orb">
                   <WizardOrb
-                    size={hasWorkspaces ? 220 : 238}
+                    size={hasWorkspaces ? 300 : 340}
                     hue={orbHue}
                     speed={orbSpeed}
                     intensity={orbIntensity}
-                    state={selectedStartPath === "ask" ? "listening" : selectedStartPath === "improve" ? "thinking" : "idle"}
+                    state={hasWorkspaces ? "thinking" : "idle"}
                     interactive
                     {...orbSettings}
                   />
                 </div>
               )}
+              <p className="orbit-sentence">{hasWorkspaces ? guidance.description : "Create your first workspace. The resources can wait."}</p>
             </section>
 
-            <section className="start-path-panel" aria-label="Choose a starting path">
-              {startPaths.map((path) => {
-                const Icon = path.icon;
-                return (
-                  <button
-                    key={path.id}
-                    className={`start-path-card ${selectedStartPath === path.id ? "is-selected" : ""}`}
-                    onClick={() => setSelectedStartPath(path.id)}
-                    aria-pressed={selectedStartPath === path.id}
-                  >
-                    <span className="start-path-icon"><Icon size={17} strokeWidth={2.2} /></span>
-                    <span>
-                      <small>{path.kicker}</small>
-                      <strong>{path.title}</strong>
-                      <em>{path.body}</em>
-                    </span>
+            {hasWorkspaces && (
+              <section className="orbit-workspace-field" aria-label="Workspace field">
+                {projects.slice(0, 8).map((project) => {
+                  const mode = inferMode(project);
+                  return (
+                    <button
+                      key={project.id}
+                      className="orbit-workspace-object"
+                      onClick={() => descendToSystem(project.id)}
+                      disabled={transitionLocked}
+                    >
+                      <span className="nn-chip-emboss">WORKSPACE</span>
+                      <strong>{project.name}</strong>
+                      <small>{mode.output}</small>
+                    </button>
+                  );
+                })}
+                {projects.length > 8 && (
+                  <button className="orbit-workspace-object is-quiet" onClick={() => setActiveShelf("vault")}>
+                    All workspaces
                   </button>
-                );
-              })}
-            </section>
+                )}
+              </section>
+            )}
 
-            <section className="start-primary-zone">
-              {activeStartPath.id === "build" && !hasWorkspaces ? (
-                <HeroCTA onClick={() => runStartPath(activeStartPath)}>
-                  <Plus size={18} /> Create workspace
-                </HeroCTA>
-              ) : activeStartPath.id === "improve" && hasWorkspaces ? (
+            <section className="orbit-primary">
+              {hasWorkspaces ? (
                 <PremiumSlideAction
-                  label="Slide to continue workspace"
+                  label="Slide to start session"
                   completionText="Opening workspace"
                   loading={sessionState === "loading"}
                   completed={sessionState === "complete"}
                   onComplete={startWorkspaceSession}
                 />
               ) : (
-                <button className="start-action-button" onClick={() => runStartPath(activeStartPath)}>
-                  <ActiveStartIcon size={18} strokeWidth={2.2} />
-                  <span>{activeStartPath.actionLabel}</span>
-                  <ChevronRight size={18} />
-                </button>
+                <HeroCTA onClick={() => setWizardOpen(true)}>
+                  <Plus size={18} /> Create workspace
+                </HeroCTA>
               )}
-              {activeStartPath.id !== "build" && (
-                <button className="quiet-link" onClick={() => {
-                  setSelectedStartPath("build");
-                  setWizardOpen(true);
-                }}>
-                  or create a workspace
-                </button>
-              )}
-            </section>
-
-            <section className="start-feature-map" aria-label="Feature guide">
-              <div className="feature-map-head">
-                <span className="eyebrow">WHERE THINGS LIVE</span>
-                <p>Use this when you are unsure where to begin.</p>
-              </div>
-              <div className="feature-map-grid">
-                {featureMap.map((item) => (
-                  <button key={item.label} className="feature-map-card" onClick={item.action}>
-                    <strong>{item.label}</strong>
-                    <span>{item.benefit}</span>
-                    <small>{item.text}</small>
-                  </button>
-                ))}
-              </div>
             </section>
 
             <section className="home-context-strip" aria-label="Workspace context">
-              <button onClick={() => setView("workspaces")}><RollingNumber value={projects.length} /> workspaces</button>
-              <button onClick={() => setView("skills")}><RollingNumber value={skills.length} /> skills</button>
-              <button onClick={() => setView("usage")}><RollingNumber value={formatUsd(usage.month)} /> this month</button>
+              <button onClick={() => setActiveShelf("vault")}><RollingNumber value={projects.length} /> workspaces</button>
+              <button onClick={() => setActiveShelf("skills")}><RollingNumber value={skills.length} /> skills</button>
+              <button onClick={() => setActiveShelf("vault")}><RollingNumber value={formatUsd(usage.month)} /> this month</button>
               <button onClick={() => setWhyOpen(true)}>{POSITIONING_UI.home.whyLabel}</button>
             </section>
           </div>
         )}
 
-        {view === "workspaces" && (
-          <div className="screen-stack">
+        {altitude.level === 1 && selectedWorkspace && (
+          <div className="craft-focus">
+            <header className="craft-header">
+              <span className="eyebrow">CRAFT</span>
+              <h1>{currentOutput?.stepName || workspaceSteps[0]?.name || selectedWorkspaceMode.steps[0]}</h1>
+              <p>{currentOutput ? "Review, revise, finalize or fork this output." : "Run the next focused step without workspace chrome."}</p>
+            </header>
+            <section className="craft-body">
+              {currentOutput ? (
+                <OutputCard
+                  output={currentOutput}
+                  onRefine={(content, instruction) => runNextStep(`previous output:\n${content}\n\nRefine instruction: ${instruction}`)}
+                  onRegenerate={() => runNextStep()}
+                  onFinalize={(content) => saveAsFinal(content)}
+                  onFork={forkOutput}
+                />
+              ) : stepState === "loading" ? (
+                <Crucible
+                  projectId={selectedWorkspace.id}
+                  stepName={workspaceSteps[0]?.name ?? selectedWorkspaceMode.steps[0]}
+                  stepDescription={workspaceSteps[0]?.description ?? selectedWorkspaceMode.purpose}
+                  userInput={crucibleInput}
+                  skillId={skills[0]?.id}
+                  checklist={checklist}
+                  strictFacts={keys[`STRICT_FACTS_${selectedWorkspace.id}`] === "1"}
+                  onCancel={() => setStepState("idle")}
+                  onFinal={async (data) => {
+                    setCurrentOutput({
+                      id: data.outputId,
+                      stepName: workspaceSteps[0]?.name ?? selectedWorkspaceMode.steps[0],
+                      model: data.model,
+                      provider: data.provider,
+                      costUsd: data.costUsd,
+                      content: data.content,
+                      skillVersion: skills[0]?.version ?? 1,
+                      qualityReport: data.qualityReport,
+                      claims: data.claims,
+                      claimsJson: data.claims ? JSON.stringify(data.claims) : "",
+                      trustUnavailable: data.trustUnavailable,
+                    });
+                    await loadOutputs(selectedWorkspace.id);
+                    await loadStream();
+                    setStepState("complete");
+                  }}
+                />
+              ) : (
+                <div className="action-panel craft-run-panel">
+                  <span className="object-label">NEXT STEP</span>
+                  <h3>{workspaceSteps[0]?.name ?? selectedWorkspaceMode.steps[0]}</h3>
+                  <p>{workspaceSteps[0]?.description ?? selectedWorkspaceMode.purpose}</p>
+                  <PremiumSlideAction
+                    label="Slide to run"
+                    completionText="Step prepared"
+                    loading={false}
+                    completed={stepState === "complete"}
+                    onComplete={() => runNextStep()}
+                  />
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {altitude.level !== 1 && view === "workspaces" && (
+          <div className="screen-stack altitude-system">
             <header className="screen-header">
               <div>
-                <span className="eyebrow">WORKSPACES</span>
-                <h1>Reusable execution systems</h1>
-                <p>Projects, knowledge, skills, workflow steps and approved outputs live here.</p>
+                <span className="eyebrow">SYSTEM</span>
+                <h1>{selectedWorkspace?.name || "Reusable execution systems"}</h1>
+                <p>{selectedWorkspace?.goal || "One workspace: spine, next step, outputs and client mode."}</p>
               </div>
               <button className="primary-pill" onClick={() => setWizardOpen(true)}>
                 <Plus size={18} /> Create workspace
@@ -1382,6 +1568,7 @@ export default function Home() {
                         className={`workspace-card aura-soft ${active ? "is-selected" : ""}`}
                         onClick={() => {
                           setSelectedWorkspaceId(project.id);
+                          setAltitude({ level: 2, workspaceId: project.id });
                           setWorkspacePanel("overview");
                         }}
                       >
@@ -1426,7 +1613,7 @@ export default function Home() {
 
                     {workspacePanel === "overview" && (
                       <div className="workspace-overview-focus">
-                        <section className="next-step-card liquid-card">
+                        <section className="next-step-card liquid-card" onClick={() => descendToCraft("next-step")}>
                           <span className="object-label">NEXT STEP</span>
                           <h3>{selectedWorkspaceMode.steps[0]}</h3>
                           <p>{guidance.view === "workspaces" ? guidance.description : selectedWorkspaceMode.purpose}</p>
@@ -1442,7 +1629,7 @@ export default function Home() {
                         <section className="last-output-card liquid-card">
                           <span className="object-label">LAST OUTPUT</span>
                           <p>{POSITIONING_UI.emptyStates.outputs}</p>
-                          <button className="quiet-link" onClick={() => setWorkspacePanel("outputs")}>View outputs</button>
+                          <button className="quiet-link" onClick={() => outputs[0] ? void openOutput(outputs[0]) : setWorkspacePanel("outputs")}>View output</button>
                         </section>
                       </div>
                     )}
@@ -1540,7 +1727,7 @@ export default function Home() {
                         ) : (
                           <div className="empty-inline">
                             <p>{POSITIONING_UI.emptyStates.outputs}</p>
-                            <button className="secondary-pill" onClick={() => setWorkspacePanel("workflow")}>Run first step</button>
+                            <button className="secondary-pill" onClick={() => descendToCraft("next-step")}>Run first step</button>
                           </div>
                         )}
                       </div>
@@ -1867,6 +2054,111 @@ export default function Home() {
         </motion.div>
         </AnimatePresence>
       </section>
+
+      <ShelfPanel
+        shelf={activeShelf}
+        title={activeShelf === "skills" ? "Skills" : activeShelf === "templates" ? "Templates" : activeShelf === "knowledge" ? "Knowledge" : activeShelf === "vault" ? "Vault" : activeShelf === "chat" ? "Quick Chat" : activeShelf === "stream" ? "Stream" : "Settings"}
+        onClose={() => setActiveShelf(null)}
+      >
+        {activeShelf === "skills" && (
+          <div className="shelf-list">
+            {(skills.length ? skills : [
+              { id: "brand-critic", name: "Brand Critic", description: "Finds weak positioning, generic messaging and visual inconsistencies." },
+              { id: "offer-architect", name: "Offer Architect", description: "Turns rough expertise into a sharp, sellable offer structure." },
+              { id: "copy-editor", name: "Copy Critic", description: "Improves clarity, specificity and conversion intent." },
+            ]).map((skill) => (
+              <button key={skill.id} className="shelf-row" onClick={() => setGenomeSkill(skill)}>
+                <strong>{skill.name}</strong>
+                <span>{skill.description}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {activeShelf === "templates" && (
+          <div className="shelf-list">
+            <button className="shelf-row is-primary" onClick={() => { setExtractorOpen(true); setActiveShelf(null); }}>
+              <strong>Instant Workspace</strong>
+              <span>Extract steps, skills and knowledge from your material.</span>
+            </button>
+            {templateCards.map((template) => (
+              <button
+                key={template.name}
+                className="shelf-row"
+                onClick={() => {
+                  const match = workspaceModes.find((mode) => template.name.toLowerCase().includes(mode.id)) ?? workspaceModes[0];
+                  setSelectedModeId(match.id);
+                  setActiveShelf(null);
+                  setWizardOpen(true);
+                }}
+              >
+                <strong>{template.name}</strong>
+                <span>{template.forWho}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {activeShelf === "knowledge" && (
+          <div className="shelf-list">
+            {starterKnowledge.map((source) => (
+              <div key={source} className="shelf-row">
+                <strong>{source}</strong>
+                <span>Ready to link into a workspace knowledge set.</span>
+              </div>
+            ))}
+            <button className="secondary-pill" onClick={() => { setActiveShelf(null); setExtractorOpen(true); }}>Extract from material</button>
+          </div>
+        )}
+        {activeShelf === "vault" && (
+          <div className="shelf-list">
+            <div className="shelf-row">
+              <strong>{projects.length} workspaces</strong>
+              <span>{workspaceSummary}</span>
+            </div>
+            <div className="shelf-row">
+              <strong>{formatUsd(usage.month)} this month</strong>
+              <span>Usage, model policies, truth and learned taste live here.</span>
+            </div>
+            <button className="secondary-pill" onClick={() => { setActiveShelf(null); setView("usage"); }}>Open full Vault</button>
+          </div>
+        )}
+        {activeShelf === "chat" && (
+          <div className="shelf-chat">
+            <textarea
+              value={generalInput}
+              onChange={(event) => setGeneralInput(event.target.value)}
+              placeholder="Ask a quick question."
+              rows={5}
+            />
+            <button className="primary-pill" disabled={generalBusy || !generalInput.trim()} onClick={() => void sendGeneralChat()}>
+              {generalBusy ? "Thinking" : "Ask"}
+            </button>
+            {generalMessages.slice(-2).map((message, index) => (
+              <div key={`${message.role}-${index}`} className={`shelf-chat-message ${message.role}`}>{message.content}</div>
+            ))}
+          </div>
+        )}
+        {activeShelf === "stream" && (
+          <DecisionStream
+            items={streamItems}
+            onRefresh={async () => { await loadStream(); if (selectedWorkspace?.id) await loadOutputs(selectedWorkspace.id); }}
+            onRevise={(item) => {
+              setActiveShelf(null);
+              if (item.projectId) {
+                setSelectedWorkspaceId(item.projectId);
+                setView("workspaces");
+                setWorkspacePanel("outputs");
+              }
+              if (item.outputId) {
+                const found = outputs.find((output) => output.id === item.outputId);
+                if (found) void openOutput(found);
+                else descendToCraft(item.outputId);
+              } else {
+                descendToCraft("next-step");
+              }
+            }}
+          />
+        )}
+      </ShelfPanel>
 
       <nav className="mobile-tabbar" aria-label="Mobile navigation">
         {mobilePrimaryNav.map((item) => {
