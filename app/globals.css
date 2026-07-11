@@ -8433,3 +8433,188 @@ button.shelf-row:hover {
     transform: none !important;
   }
 }
+
+/* Public landing proportion correction */
+.public-nav {
+  grid-template-columns: minmax(260px, auto) auto minmax(260px, auto);
+  justify-content: center;
+  column-gap: clamp(42px, 5.4vw, 96px);
+  height: 76px;
+  padding-inline: clamp(28px, 6vw, 120px);
+}
+
+.public-nav .public-brand {
+  gap: 12px;
+  justify-self: end;
+}
+
+.public-nav .public-brand strong {
+  font: 750 30px/1 var(--font-ui) !important;
+  letter-spacing: -0.045em;
+}
+
+.public-menu {
+  gap: clamp(22px, 2vw, 34px);
+}
+
+.public-menu button {
+  min-height: 42px;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+}
+
+.public-actions {
+  justify-self: start;
+}
+
+.public-actions button {
+  min-height: 48px;
+  padding-inline: 17px;
+  border-radius: 13px;
+  font-size: 16px;
+}
+
+.public-hero {
+  min-height: calc(100svh - 76px);
+  gap: 24px;
+  padding-top: clamp(54px, 8vh, 86px);
+  padding-bottom: 54px;
+}
+
+.public-hero-orb {
+  top: clamp(82px, 12vh, 126px);
+  width: min(245px, 22vw);
+  opacity: 0.42;
+}
+
+.public-hero-copy {
+  max-width: 1120px;
+  margin-top: clamp(130px, 16vh, 180px);
+}
+
+.public-hero-copy h1 {
+  max-width: 1100px;
+  font-size: clamp(54px, 5.2vw, 82px);
+  line-height: 0.94;
+}
+
+.public-hero-copy p {
+  max-width: 980px;
+  margin-inline: auto;
+  font-size: clamp(20px, 1.65vw, 28px);
+}
+
+.public-prompt {
+  width: min(1090px, calc(100vw - 64px));
+  min-height: 196px;
+  padding: 26px 28px 18px;
+  border-radius: 36px;
+  box-shadow: 0 34px 74px rgba(0,0,0,0.34);
+}
+
+.public-prompt textarea {
+  min-height: 96px;
+  font-size: 21px;
+}
+
+.public-enterprise .public-demo-button {
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 13px;
+  color: #222225;
+  border: 1px solid #f3f3f3;
+  background: #f3f3f3;
+  font: 650 17px/1 var(--font-ui);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.22);
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.public-enterprise .public-demo-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 42px rgba(0,0,0,0.28);
+}
+
+.public-price-card {
+  grid-template-rows: auto auto 1fr auto auto auto;
+  min-height: 540px;
+}
+
+.public-price-card ul {
+  margin: 6px 0 0;
+  padding: 18px 0 0;
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.public-price-card li {
+  position: relative;
+  padding-left: 22px;
+  color: rgba(255,255,255,0.72);
+  font: 540 15px/1.35 var(--font-ui);
+}
+
+.public-price-card li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #8b7cf6, #5ac8fa);
+  box-shadow: 0 0 12px rgba(124,108,246,0.35);
+}
+
+@media (max-width: 1320px) {
+  .public-nav {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 34px;
+    padding-inline: 34px;
+  }
+
+  .public-nav .public-brand {
+    justify-self: start;
+  }
+
+  .public-actions {
+    justify-self: end;
+  }
+
+  .public-menu {
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .public-menu button {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  .public-nav {
+    height: 70px;
+    grid-template-columns: auto auto;
+  }
+
+  .public-nav .public-brand strong {
+    font-size: 24px !important;
+  }
+
+  .public-hero-orb {
+    width: min(210px, 56vw);
+  }
+
+  .public-hero-copy {
+    margin-top: 176px;
+  }
+
+  .public-hero-copy h1 {
+    font-size: clamp(38px, 10vw, 56px);
+  }
+
+  .public-prompt {
+    width: min(520px, calc(100vw - 28px));
+  }
+}

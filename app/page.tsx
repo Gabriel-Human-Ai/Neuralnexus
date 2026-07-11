@@ -1364,7 +1364,8 @@ export default function Home() {
     setLandingPrompt(prompt);
     setWorkspaceIntent(prompt);
     setWorkspaceSourceNote(prompt);
-    enterWorkspaceApp(true, prompt);
+    setPublicPage("home");
+    setPublicMenu(null);
   }
 
   return (
@@ -1445,9 +1446,9 @@ export default function Home() {
                     <div className="public-mega-main">
                       <span className="public-mega-label">Resources</span>
                       <button type="button" onClick={() => startFromPublicPrompt("Create a workspace from a product strategy article or brief.")}><strong>Blog</strong><span>Ideas, updates and product thinking.</span></button>
-                      <button type="button" onClick={() => { enterWorkspaceApp(false); setActiveShelf("templates"); }}><strong>Templates</strong><span>Begin with a proven structure.</span></button>
+                      <button type="button" onClick={() => startFromPublicPrompt("Start from a proven template for brand strategy, content or client audits.")}><strong>Templates</strong><span>Begin with a proven structure.</span></button>
                       <button type="button" onClick={() => startFromPublicPrompt("Create a workspace from my existing notes and docs.")}><strong>Guides</strong><span>Learn by building the first system.</span></button>
-                      <button type="button" onClick={() => { enterWorkspaceApp(false); setSettingsOpen(true); }}><strong>Connectors</strong><span>Bring your model keys and sources.</span></button>
+                      <button type="button" onClick={() => showPublicPage("security")}><strong>Connectors</strong><span>Bring your model keys and sources.</span></button>
                       <button type="button" onClick={() => startFromPublicPrompt("Teach me how to structure a reusable workspace.")}><strong>Academy</strong><span>Understand workflows and quality gates.</span></button>
                       <button type="button" onClick={() => showPublicPage("security")}><strong>Security docs</strong><span>Keys, sources and trust layer.</span></button>
                     </div>
@@ -1456,7 +1457,7 @@ export default function Home() {
                       <div className="public-announcement-card" aria-hidden="true" />
                       <strong>Workspace intelligence, with proof.</strong>
                       <p>See outputs, trust marks and reusable rules in one system.</p>
-                      <button type="button" onClick={() => enterWorkspaceApp(false)}>Learn more <ChevronRight size={16} /></button>
+                      <button type="button" onClick={() => showPublicPage("security")}>Learn more <ChevronRight size={16} /></button>
                     </aside>
                   </>
                 )}
@@ -1499,7 +1500,7 @@ export default function Home() {
             <span>NeuralNexus for teams</span>
             <h1>Ship systems faster</h1>
             <p>Prototype repeatable knowledge work, validate output quality, and turn your team's method into a workspace.</p>
-            <button type="button" className="public-get-started" onClick={() => enterWorkspaceApp(true)}>Get a demo</button>
+            <button type="button" className="public-demo-button" onClick={() => enterWorkspaceApp(true)}>Get a demo</button>
           </section>
         )}
 
@@ -1513,18 +1514,21 @@ export default function Home() {
             </div>
             <div className="public-price-grid">
               {[
-                ["Free", "$0", "Discover what NeuralNexus can do for you", "No credit card needed"],
-                ["Pro", billingCycle === "yearly" ? "$20" : "$25", "For builders turning methods into reusable work", "100 monthly workspace credits"],
-                ["Business", billingCycle === "yearly" ? "$40" : "$50", "Advanced controls for growing teams", "Shared workspaces and trust checks"],
-                ["Enterprise", "Custom", "For organizations needing governance and scale", "Volume-based pricing"],
-              ].map(([name, price, desc, meta], index) => (
-                <article className="public-price-card" key={name}>
-                  <h2>{name}</h2>
-                  <p>{desc}</p>
-                  <strong>{price}</strong>
-                  <small>{price.startsWith("$") ? "/ month" : "Platform fee"}</small>
+                ["Free", "$0", "Discover what NeuralNexus can do for you", "No credit card needed", ["1 workspace", "Normal Ask chat", "Templates preview"]],
+                ["Pro", billingCycle === "yearly" ? "$20" : "$25", "For builders turning methods into reusable work", "100 monthly workspace credits", ["Reusable workspaces", "Skill Genome rules", "File and image reading"]],
+                ["Business", billingCycle === "yearly" ? "$40" : "$50", "Advanced controls for growing teams", "Shared workspaces and trust checks", ["Team workspaces", "Quality gates", "Cost routing controls"]],
+                ["Enterprise", "Custom", "For organizations needing governance and scale", "Volume-based pricing", ["Bring your own keys", "Workspace governance", "Priority rollout support"]],
+              ].map(([name, price, desc, meta, features], index) => (
+                <article className="public-price-card" key={String(name)}>
+                  <h2>{String(name)}</h2>
+                  <p>{String(desc)}</p>
+                  <strong>{String(price)}</strong>
+                  <small>{String(price).startsWith("$") ? "/ month" : "Platform fee"}</small>
                   <button type="button" className={index === 1 ? "is-primary" : ""} onClick={() => index === 3 ? showPublicPage("enterprise") : enterWorkspaceApp(true)}>{index === 3 ? "Book a demo" : "Get started"}</button>
-                  <em>{meta}</em>
+                  <em>{String(meta)}</em>
+                  <ul>
+                    {(features as string[]).map((feature) => <li key={feature}>{feature}</li>)}
+                  </ul>
                 </article>
               ))}
             </div>
