@@ -1,27 +1,31 @@
 import { db } from "./db";
 import { BASE_PROMPT } from "./base-prompt";
+import { getSettingForProfile } from "./settings";
+import { resolveProfileId } from "./scope";
 
 // Context Builder: compact system prompt instead of dumping everything.
-async function readSetting(key: string): Promise<string> {
-  const r = await db.setting.findUnique({ where: { key } }).catch(() => null);
-  return r?.value ?? "";
+async function readSetting(profileId: string, key: string): Promise<string> {
+  return getSettingForProfile(profileId, key);
 }
 
-export async function buildContext(projectId: string) {
-  const custom = await readSetting("CUSTOM_INSTRUCTIONS");
-  const profile = await readSetting("USER_PROFILE");
+export async function buildContext(args: string | { projectId: string; profileId?: string }) {
+  const projectId = typeof args === "string" ? args : args.projectId;
+  const project = await db.project.findUnique({ where: { id: projectId } });
+  if (!project) return BASE_PROMPT;
+  const profileId = project.profileId ?? await resolveProfileId(typeof args === "string" ? null : args.profileId);
+  const custom = await readSetting(profileId, "CUSTOM_INSTRUCTIONS");
+  const profile = await readSetting(profileId, "USER_PROFILE");
   const prefix = [BASE_PROMPT];
   if (profile) prefix.push(`Nutzer-Profil:\n${profile}`);
   if (custom) prefix.push(`Zusätzliche Anweisungen:\n${custom}`);
-  const projectCtx = await buildProjectCtx(projectId);
+  const projectCtx = await buildProjectCtx({ projectId, profileId, project });
   return [prefix.join("\n\n"), projectCtx].filter(Boolean).join("\n\n");
 }
 
-async function buildProjectCtx(projectId: string) {
-  const project = await db.project.findUnique({ where: { id: projectId } });
-  if (!project) return "";
+async function buildProjectCtx(args: { projectId: string; profileId: string; project: { name: string; goal: string; techStack: string; rules: string } }) {
+  const { projectId, profileId, project } = args;
   const memories = await db.memory.findMany({
-    where: { OR: [{ projectId }, { projectId: null }] },
+    where: { profileId, OR: [{ projectId }, { projectId: null }] },
     orderBy: { createdAt: "desc" },
     take: 25,
   });
@@ -43,7 +47,9 @@ async function buildProjectCtx(projectId: string) {
 
 export async function buildMemoryFiles(projectId: string) {
   const ctx = await buildContext(projectId);
-  const handoffs = await db.memory.findMany({ where: { projectId, kind: "handoff" }, orderBy: { createdAt: "desc" }, take: 5 });
+  const project = await db.project.findUnique({ where: { id: projectId } });
+  const profileId = project?.profileId ?? await resolveProfileId();
+  const handoffs = await db.memory.findMany({ where: { profileId, projectId, kind: "handoff" }, orderBy: { createdAt: "desc" }, take: 5 });
   const h = handoffs.map(m => `- ${m.content}`).join("\n") || "- (keine)";
   const stamp = new Date().toISOString();
   return {

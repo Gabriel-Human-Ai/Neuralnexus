@@ -33,14 +33,16 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
   const { projectId, stepName, stepDescription, userInput } = body;
   if (!projectId || !stepName || !stepDescription) throw new Error("missing_fields");
   const project = await db.project.findUnique({ where: { id: projectId } });
-  if (!project) throw new Error("project_not_found");
+  if (!project?.profileId) throw new Error("project_not_found");
+  const profileId = project.profileId;
 
   const skill = body.skillId ? await db.skill.findUnique({ where: { id: body.skillId } }) : null;
-  const activeRules = skill ? await db.skillRule.findMany({ where: { skillId: skill.id, status: "active" }, orderBy: { createdAt: "asc" } }) : [];
-  const knowledge = await db.memory.findMany({ where: { projectId, kind: "knowledge" }, orderBy: { createdAt: "desc" }, take: 8 });
+  if (skill && skill.profileId !== profileId) throw new Error("skill_not_found");
+  const activeRules = skill ? await db.skillRule.findMany({ where: { profileId, skillId: skill.id, status: "active" }, orderBy: { createdAt: "asc" } }) : [];
+  const knowledge = await db.memory.findMany({ where: { profileId, projectId, kind: "knowledge" }, orderBy: { createdAt: "desc" }, take: 8 });
   const model = await resolveModel(projectId, stepName, body.model);
   const domainTag = domainTagFromProject(project, stepName);
-  const guardBlock = await knownFailurePatternBlock({ model, domainTag });
+  const guardBlock = await knownFailurePatternBlock({ model, domainTag, profileId });
 
   const systemPrompt = [
     "You are executing one step of a reusable AI workspace.",
@@ -65,7 +67,7 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
   ]);
   const provider = MODELS.find((item) => item.id === result.usedModel)?.provider ?? "unknown";
   const primaryCost = estimateCost(result.usedModel, result.inputTokens, result.outputTokens);
-  await db.modelRun.create({ data: { projectId, provider, model: result.usedModel, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: primaryCost, purpose: "user" } });
+  await db.modelRun.create({ data: { profileId, projectId, provider, model: result.usedModel, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: primaryCost, purpose: "user" } });
 
   const gated = await runQualityGates({ projectId, content: result.text, checklist: body.checklist ?? [], systemPrompt, primaryModel: result.usedModel });
   const totalCost = primaryCost + gated.extraCost;
@@ -74,7 +76,7 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
   let claimsJson = "";
   let trustUnavailable = false;
   try {
-    const extracted = await extractClaimsForOutput({ projectId, text: gated.content, knowledge, trust: body.trust });
+    const extracted = await extractClaimsForOutput({ profileId, projectId, text: gated.content, knowledge, trust: body.trust });
     claims = extracted.claims;
     droppedClaims = extracted.dropped;
     trustUnavailable = extracted.unavailable;
@@ -85,6 +87,7 @@ export async function runWorkspaceStep(body: RunOutputRequest) {
   const output = await db.output.create({
     data: {
       projectId,
+      profileId,
       stepName,
       prompt,
       draftContent: gated.content,
@@ -130,14 +133,16 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
   const { projectId, stepName, stepDescription, userInput } = body;
   if (!projectId || !stepName || !stepDescription) throw new Error("missing_fields");
   const project = await db.project.findUnique({ where: { id: projectId } });
-  if (!project) throw new Error("project_not_found");
+  if (!project?.profileId) throw new Error("project_not_found");
+  const profileId = project.profileId;
 
   const skill = body.skillId ? await db.skill.findUnique({ where: { id: body.skillId } }) : null;
-  const activeRules = skill ? await db.skillRule.findMany({ where: { skillId: skill.id, status: "active" }, orderBy: { createdAt: "asc" } }) : [];
-  const knowledge = await db.memory.findMany({ where: { projectId, kind: "knowledge" }, orderBy: { createdAt: "desc" }, take: 8 });
+  if (skill && skill.profileId !== profileId) throw new Error("skill_not_found");
+  const activeRules = skill ? await db.skillRule.findMany({ where: { profileId, skillId: skill.id, status: "active" }, orderBy: { createdAt: "asc" } }) : [];
+  const knowledge = await db.memory.findMany({ where: { profileId, projectId, kind: "knowledge" }, orderBy: { createdAt: "desc" }, take: 8 });
   const model = await resolveModel(projectId, stepName, body.model);
   const domainTag = domainTagFromProject(project, stepName);
-  const guardBlock = await knownFailurePatternBlock({ model, domainTag });
+  const guardBlock = await knownFailurePatternBlock({ model, domainTag, profileId });
 
   const systemPrompt = [
     "You are executing one step of a reusable AI workspace.",
@@ -163,7 +168,7 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
   emit({ type: "draft", content: result.text });
   const provider = MODELS.find((item) => item.id === result.usedModel)?.provider ?? "unknown";
   const primaryCost = estimateCost(result.usedModel, result.inputTokens, result.outputTokens);
-  await db.modelRun.create({ data: { projectId, provider, model: result.usedModel, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: primaryCost, purpose: "user" } });
+  await db.modelRun.create({ data: { profileId, projectId, provider, model: result.usedModel, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: primaryCost, purpose: "user" } });
 
   const checklist = (body.checklist ?? []).slice(0, 5).map((item) => item.slice(0, 120)).filter(Boolean);
   let content = result.text;
@@ -187,7 +192,7 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
       extraCost += judgeCost;
       extraInputTokens += judge.inputTokens;
       extraOutputTokens += judge.outputTokens;
-      await db.modelRun.create({ data: { projectId, provider: meta.provider, model: meta.id, inputTokens: judge.inputTokens, outputTokens: judge.outputTokens, costUsd: judgeCost, purpose: "judge" } });
+      await db.modelRun.create({ data: { profileId, projectId, provider: meta.provider, model: meta.id, inputTokens: judge.inputTokens, outputTokens: judge.outputTokens, costUsd: judgeCost, purpose: "judge" } });
       const parsed = parseModelJson<JudgeResult>(judge.text);
       if (!parsed?.results) break;
       finalResults = parsed.results.map((item) => ({ check: item.check, passed: Boolean(item.passed), reason: item.reason || "" }));
@@ -205,7 +210,7 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
       extraCost += revisionCost;
       extraInputTokens += revision.inputTokens;
       extraOutputTokens += revision.outputTokens;
-      await db.modelRun.create({ data: { projectId, provider: revisionProvider, model: revision.usedModel, inputTokens: revision.inputTokens, outputTokens: revision.outputTokens, costUsd: revisionCost, purpose: "user" } });
+      await db.modelRun.create({ data: { profileId, projectId, provider: revisionProvider, model: revision.usedModel, inputTokens: revision.inputTokens, outputTokens: revision.outputTokens, costUsd: revisionCost, purpose: "user" } });
       content = revision.text;
       revisions++;
       emit({ type: "draft", content });
@@ -222,7 +227,7 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
   let claimsJson = "";
   let trustUnavailable = false;
   try {
-    const extracted = await extractClaimsForOutput({ projectId, text: content, knowledge, trust: body.trust });
+    const extracted = await extractClaimsForOutput({ profileId, projectId, text: content, knowledge, trust: body.trust });
     claims = extracted.claims;
     droppedClaims = extracted.dropped;
     trustUnavailable = extracted.unavailable;
@@ -233,6 +238,7 @@ export async function runWorkspaceStepStreaming(body: RunOutputRequest, emit: (e
   const output = await db.output.create({
     data: {
       projectId,
+      profileId,
       stepName,
       prompt,
       draftContent: content,

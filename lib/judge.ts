@@ -18,6 +18,9 @@ export async function runQualityGates(args: {
   if (!checklist.length) return { content: args.content, report: null as QualityReport | null, extraCost: 0, extraInputTokens: 0, extraOutputTokens: 0 };
   const meta = await pickMetaModel();
   if (!meta) return { content: args.content, report: null as QualityReport | null, extraCost: 0, extraInputTokens: 0, extraOutputTokens: 0 };
+  const project = await db.project.findUnique({ where: { id: args.projectId } });
+  if (!project?.profileId) return { content: args.content, report: null as QualityReport | null, extraCost: 0, extraInputTokens: 0, extraOutputTokens: 0 };
+  const profileId = project.profileId;
 
   let content = args.content;
   let revisions = 0;
@@ -36,7 +39,7 @@ export async function runQualityGates(args: {
     extraCost += judgeCost;
     extraInputTokens += judge.inputTokens;
     extraOutputTokens += judge.outputTokens;
-    await db.modelRun.create({ data: { projectId: args.projectId, provider: meta.provider, model: meta.id, inputTokens: judge.inputTokens, outputTokens: judge.outputTokens, costUsd: judgeCost, purpose: "judge" } });
+    await db.modelRun.create({ data: { profileId, projectId: args.projectId, provider: meta.provider, model: meta.id, inputTokens: judge.inputTokens, outputTokens: judge.outputTokens, costUsd: judgeCost, purpose: "judge" } });
     const parsed = parseModelJson<JudgeResult>(judge.text);
     if (!parsed?.results) break;
     finalResults = parsed.results.map((result) => ({ check: result.check, passed: Boolean(result.passed), reason: result.reason || "" }));
@@ -53,7 +56,7 @@ export async function runQualityGates(args: {
     extraCost += revisionCost;
     extraInputTokens += revision.inputTokens;
     extraOutputTokens += revision.outputTokens;
-    await db.modelRun.create({ data: { projectId: args.projectId, provider, model: revision.usedModel, inputTokens: revision.inputTokens, outputTokens: revision.outputTokens, costUsd: revisionCost, purpose: "user" } });
+    await db.modelRun.create({ data: { profileId, projectId: args.projectId, provider, model: revision.usedModel, inputTokens: revision.inputTokens, outputTokens: revision.outputTokens, costUsd: revisionCost, purpose: "user" } });
     content = revision.text;
     revisions++;
   }

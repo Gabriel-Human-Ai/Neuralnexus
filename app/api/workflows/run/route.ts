@@ -3,17 +3,19 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { runChatWithFallback, pickModelForTask, MODELS } from "@/lib/providers";
 import { estimateCost } from "@/lib/tokens";
+import { resolveRequestProfileId } from "@/lib/scope";
 
 export async function POST(req: Request) {
   try {
     const { agentIds, prompt, projectId } = await req.json();
+    const profileId = await resolveRequestProfileId(req);
     if (!Array.isArray(agentIds) || !prompt?.trim()) return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
 
     // ModelRun needs a real projectId — reuse the active chat if given, else a dedicated Workroom log project.
     let realProjectId = projectId as string | undefined;
     if (!realProjectId) {
-      const existing = await db.project.findFirst({ where: { name: "Workroom-Log" } });
-      realProjectId = existing?.id ?? (await db.project.create({ data: { name: "Workroom-Log", archived: true } })).id;
+      const existing = await db.project.findFirst({ where: { profileId, name: "Workroom-Log" } });
+      realProjectId = existing?.id ?? (await db.project.create({ data: { profileId, name: "Workroom-Log", archived: true } })).id;
     }
 
     const steps: { agentId: string; agentName: string; workroomRole: string | null; model: string; output: string; costUsd: number }[] = [];
@@ -22,9 +24,9 @@ export async function POST(req: Request) {
 
     for (const id of agentIds) {
       const agent = await db.agent.findUnique({ where: { id } });
-      if (!agent) continue;
+      if (!agent || agent.profileId !== profileId) continue;
       const skillIds = agent.skillIds ? agent.skillIds.split(",").filter(Boolean) : [];
-      const skills = skillIds.length ? await db.skill.findMany({ where: { id: { in: skillIds } } }) : [];
+      const skills = skillIds.length ? await db.skill.findMany({ where: { profileId, id: { in: skillIds } } }) : [];
       const skillText = skills.map(k => `## Skill: ${k.name}\n${k.instructions}`).join("\n\n");
       const system = `# Rolle: ${agent.name}\n${agent.systemPrompt}\n\n${skillText}`;
       const model = agent.preferredModel && agent.preferredModel !== "auto" ? agent.preferredModel : pickModelForTask(handoff);
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
       const provider = MODELS.find(m => m.id === result.usedModel)?.provider ?? "unknown";
 
       await db.modelRun.create({ data: {
-        projectId: realProjectId, provider, model: result.usedModel,
+        profileId, projectId: realProjectId, provider, model: result.usedModel,
         inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: cost,
       }});
 

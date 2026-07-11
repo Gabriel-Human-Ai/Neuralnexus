@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { CAPTURE_DECISIONS, indexPreviewForCapture, scrubText } from "@/lib/capture-safety";
+import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
 
 async function assertExtensionAuth(req: Request) {
   const configured = await db.setting.findUnique({ where: { key: "EXTENSION_CAPTURE_TOKEN" } });
@@ -17,10 +18,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (authError) return authError;
 
   const body = await req.json();
+  const profileId = await resolveRequestProfileId(req, body.profileId);
   const decision = CAPTURE_DECISIONS.includes(String(body.decision) as any) ? String(body.decision) : "";
   if (!decision) return NextResponse.json({ error: "Decision must be approve, reject, revise, keep or mark_wrong." }, { status: 400 });
 
   const note = scrubText(body.note ?? "").slice(0, 500);
+  const existing = await db.captureRecord.findUnique({ where: { id: params.id } });
+  assertRecordProfile(existing?.profileId, profileId);
   const capture = await db.captureRecord.update({
     where: { id: params.id },
     data: {
@@ -42,6 +46,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   await db.decisionRecord.create({
     data: {
+      profileId,
       contextTag: capture.action === "review" || capture.action === "preflight" ? "review" : "general",
       chosenDesc: descriptor.slice(0, 1500),
       rejectedDesc: "",

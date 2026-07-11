@@ -6,6 +6,8 @@ import { pickMetaModel } from "@/lib/meta-model";
 import { runChat } from "@/lib/providers";
 import { parseModelJson } from "@/lib/safe-parse";
 import { estimateCost } from "@/lib/tokens";
+import { resolveRequestProfileId } from "@/lib/scope";
+import { setProfileSetting } from "@/lib/settings";
 
 type Extracted = {
   workspaceName: string;
@@ -20,6 +22,7 @@ type Extracted = {
 
 export async function POST(req: Request) {
   const body = await req.json();
+  const profileId = await resolveRequestProfileId(req, body.profileId);
   let text = String(body.text ?? "");
   const mediaType = body.mediaType as string | undefined;
   if (text.length > 30000) return NextResponse.json({ error: "too_large" }, { status: 413 });
@@ -43,17 +46,17 @@ export async function POST(req: Request) {
   ], { maxTokens: 2000, temperature: 0 });
   const parsed = parseModelJson<Extracted>(result.text);
   if (!parsed) return NextResponse.json({ error: "model_returned_invalid_json" }, { status: 502 });
-  const project = await db.project.create({ data: { name: parsed.workspaceName.slice(0, 40), goal: `${parsed.purpose.slice(0, 160)}\nAudience: ${parsed.audience.slice(0, 60)}\nMode: ${parsed.modeId}`, rules: `Workflow steps: ${parsed.steps.slice(0, 6).map((step) => step.name).join(" | ")}` } });
+  const project = await db.project.create({ data: { profileId, name: parsed.workspaceName.slice(0, 40), goal: `${parsed.purpose.slice(0, 160)}\nAudience: ${parsed.audience.slice(0, 60)}\nMode: ${parsed.modeId}`, rules: `Workflow steps: ${parsed.steps.slice(0, 6).map((step) => step.name).join(" | ")}` } });
   for (const skill of parsed.skills.slice(0, 3)) {
     let name = skill.name.slice(0, 30);
-    if (await db.skill.findFirst({ where: { name } })) name = `${name} (${parsed.workspaceName.slice(0, 20)})`;
-    const created = await db.skill.create({ data: { name, description: skill.instructions.slice(0, 100), instructions: skill.instructions.slice(0, 400), version: 1 + (skill.rules ?? []).length } });
+    if (await db.skill.findFirst({ where: { profileId, name } })) name = `${name} (${parsed.workspaceName.slice(0, 20)})`;
+    const created = await db.skill.create({ data: { profileId, name, description: skill.instructions.slice(0, 100), instructions: skill.instructions.slice(0, 400), version: 1 + (skill.rules ?? []).length } });
     for (const rule of (skill.rules ?? []).slice(0, 4)) {
-      await db.skillRule.create({ data: { skillId: created.id, text: rule.slice(0, 140), source: "imported", status: "active" } });
+      await db.skillRule.create({ data: { profileId, skillId: created.id, text: rule.slice(0, 140), source: "imported", status: "active" } });
     }
   }
-  await db.memory.create({ data: { projectId: project.id, kind: "knowledge", content: `${parsed.knowledgeTitle.slice(0, 50)}\n\n${mediaType === "application/pdf" ? `PDF: ${body.filename ?? "uploaded.pdf"}\n${(parsed.sourceSummary ?? "").slice(0, 1500)}` : text.slice(0, 8000)}` } });
-  await db.setting.upsert({ where: { key: `WORKSPACE_STEPS_${project.id}` }, create: { key: `WORKSPACE_STEPS_${project.id}`, value: JSON.stringify(parsed.steps.slice(0, 6)) }, update: { value: JSON.stringify(parsed.steps.slice(0, 6)) } });
-  await db.modelRun.create({ data: { projectId: project.id, provider: meta.provider, model: meta.id, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: estimateCost(meta.id, result.inputTokens, result.outputTokens), purpose: "extractor" } });
+  await db.memory.create({ data: { profileId, projectId: project.id, kind: "knowledge", content: `${parsed.knowledgeTitle.slice(0, 50)}\n\n${mediaType === "application/pdf" ? `PDF: ${body.filename ?? "uploaded.pdf"}\n${(parsed.sourceSummary ?? "").slice(0, 1500)}` : text.slice(0, 8000)}` } });
+  await setProfileSetting(profileId, `WORKSPACE_STEPS_${project.id}`, JSON.stringify(parsed.steps.slice(0, 6)));
+  await db.modelRun.create({ data: { profileId, projectId: project.id, provider: meta.provider, model: meta.id, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: estimateCost(meta.id, result.inputTokens, result.outputTokens), purpose: "extractor" } });
   return NextResponse.json({ projectId: project.id, workspaceName: project.name, stepCount: parsed.steps.length, skillCount: parsed.skills.length });
 }

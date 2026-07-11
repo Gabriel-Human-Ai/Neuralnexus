@@ -2,15 +2,19 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { runChatWithFallback } from "@/lib/providers";
+import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
 
 export async function POST(req: Request) {
   try {
-    const { projectId, singleMessage } = await req.json();
+    const { projectId, singleMessage, profileId: explicitProfileId } = await req.json();
+    const profileId = await resolveRequestProfileId(req, explicitProfileId);
     let sourceText = singleMessage as string | undefined;
 
     if (!sourceText) {
       if (!projectId) return NextResponse.json({ error: "projectId is missing" }, { status: 400 });
-      const msgs = await db.message.findMany({ where: { projectId }, orderBy: { createdAt: "desc" }, take: 20 });
+      const project = await db.project.findUnique({ where: { id: projectId } });
+      assertRecordProfile(project?.profileId, profileId);
+      const msgs = await db.message.findMany({ where: { profileId, projectId }, orderBy: { createdAt: "desc" }, take: 20 });
       sourceText = msgs.reverse().map(m => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
     }
     if (!sourceText?.trim()) return NextResponse.json({ error: "No chat content to extract" }, { status: 400 });
@@ -26,7 +30,7 @@ name: 2-4 Worte. description: 1 Satz. instructions: konkrete Anweisung, wie eine
     try { parsed = JSON.parse(extraction.text.trim().replace(/^```json\n?|```$/g, "")); }
     catch { return NextResponse.json({ error: "Extraction failed. The model did not return valid JSON." }, { status: 500 }); }
 
-    const skill = await db.skill.create({ data: { name: parsed.name ?? "New Skill", description: parsed.description ?? "", instructions: parsed.instructions ?? "" } });
+    const skill = await db.skill.create({ data: { profileId, name: parsed.name ?? "New Skill", description: parsed.description ?? "", instructions: parsed.instructions ?? "" } });
     return NextResponse.json(skill);
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }

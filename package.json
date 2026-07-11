@@ -6,6 +6,8 @@
     "setup": "prisma generate && prisma db push",
     "dev": "prisma generate && prisma db push --skip-generate && next dev",
     "build": "prisma generate && prisma db push --accept-data-loss && next build",
+    "backfill:default-profile": "node scripts/backfill-default-work-profile.js",
+    "verify:profile-isolation": "node scripts/verify-profile-isolation.js",
     "start": "next start"
   },
   "dependencies": {

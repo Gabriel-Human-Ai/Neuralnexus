@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { indexPreviewForCapture, sanitizeCaptureInput } from "@/lib/capture-safety";
+import { resolveRequestProfileId } from "@/lib/scope";
 
 async function assertExtensionAuth(req: Request) {
   const configured = await db.setting.findUnique({ where: { key: "EXTENSION_CAPTURE_TOKEN" } });
@@ -12,8 +13,10 @@ async function assertExtensionAuth(req: Request) {
   return null;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const profileId = await resolveRequestProfileId(req);
   const captures = await db.captureRecord.findMany({
+    where: { profileId },
     orderBy: { createdAt: "desc" },
     take: 30,
     select: {
@@ -37,14 +40,16 @@ export async function POST(req: Request) {
   if (authError) return authError;
 
   const body = await req.json();
+  const profileId = await resolveRequestProfileId(req, body.profileId);
   const safe = sanitizeCaptureInput(body);
   if (!safe.text && !safe.screenshotData) {
     return NextResponse.json({ error: "Capture needs selected text, page text or a visible screenshot." }, { status: 400 });
   }
 
-  const capture = await db.captureRecord.create({ data: safe });
+  const capture = await db.captureRecord.create({ data: { ...safe, profileId } });
   await db.memory.create({
     data: {
+      profileId,
       kind: `capture:${safe.action}`,
       content: safe.summary,
       projectId: null,

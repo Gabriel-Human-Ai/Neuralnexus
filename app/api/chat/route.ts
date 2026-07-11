@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { runChatWithFallback, pickModelForTask, MODELS } from "@/lib/providers";
 import { buildContext } from "@/lib/context";
 import { estimateCost } from "@/lib/tokens";
+import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
+import { getSettingForProfile } from "@/lib/settings";
 
 const SECRET_RE = /(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)/g;
 const PII_RE: { re: RegExp; label: string }[] = [
@@ -14,16 +16,14 @@ const PII_RE: { re: RegExp; label: string }[] = [
 const STRICT_NAME_RE = /\b([A-ZÄÖÜ][a-zäöüß]+\s[A-ZÄÖÜ][a-zäöüß]+)\b/g; // heuristic: "Vorname Nachname"
 
 // level: "off" = only secrets stripped (always, security baseline) · "pii" = + email/phone/iban · "strict" = + name-heuristic + custom codenames
-async function shieldPII(text: string): Promise<string> {
+async function shieldPII(profileId: string, text: string): Promise<string> {
   let out = text.replace(SECRET_RE, "[SECRET ENTFERNT]");
-  const levelSetting = await db.setting.findUnique({ where: { key: "PRIVACY_LEVEL" } });
-  const level = levelSetting?.value || "pii";
+  const level = await getSettingForProfile(profileId, "PRIVACY_LEVEL") || "pii";
   if (level === "off") return out;
   for (const { re, label } of PII_RE) out = out.replace(re, `[${label} MASKIERT]`);
   if (level === "strict") {
     out = out.replace(STRICT_NAME_RE, "[NAME MASKIERT]");
-    const codenamesSetting = await db.setting.findUnique({ where: { key: "COMPANY_CODENAMES" } });
-    const codenames = (codenamesSetting?.value ?? "").split(",").map(s => s.trim()).filter(Boolean);
+    const codenames = (await getSettingForProfile(profileId, "COMPANY_CODENAMES")).split(",").map(s => s.trim()).filter(Boolean);
     for (const c of codenames) out = out.split(c).join("[FIRMENCODE MASKIERT]");
   }
   return out;
@@ -33,7 +33,10 @@ export async function GET(req: Request) {
   try {
   const projectId = new URL(req.url).searchParams.get("projectId");
   if (!projectId) return NextResponse.json([]);
-  const msgs = await db.message.findMany({ where: { projectId }, orderBy: { createdAt: "asc" } });
+  const profileId = await resolveRequestProfileId(req);
+  const project = await db.project.findUnique({ where: { id: projectId } });
+  assertRecordProfile(project?.profileId, profileId);
+  const msgs = await db.message.findMany({ where: { profileId, projectId }, orderBy: { createdAt: "asc" } });
   return NextResponse.json(msgs);
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }
@@ -42,25 +45,29 @@ export async function POST(req: Request) {
   try {
     const { projectId, model, content, agentId, image } = await req.json();
     if (!projectId || !content?.trim()) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    const project = await db.project.findUnique({ where: { id: projectId } });
+    if (!project?.profileId) return NextResponse.json({ error: "project_not_found" }, { status: 404 });
+    const profileId = project.profileId;
 
     let chosen = model;
     if (model === "agent" && agentId) {
       const a = await db.agent.findUnique({ where: { id: agentId } });
+      if (a?.profileId !== profileId) return NextResponse.json({ error: "agent_not_found" }, { status: 404 });
       chosen = a?.preferredModel && a.preferredModel !== "auto" ? a.preferredModel : "auto";
     }
     const wasAuto = chosen === "auto" || model === "auto";
     if (chosen === "auto") chosen = pickModelForTask(content);
 
     // Budget Guard: daily AND monthly limits — whichever is hit first wins.
-    const monthlySetting = await db.setting.findUnique({ where: { key: "MONTHLY_BUDGET_USD" } });
-    const dailySetting = await db.setting.findUnique({ where: { key: "DAILY_BUDGET_USD" } });
-    const monthlyBudget = monthlySetting?.value ? parseFloat(monthlySetting.value) : 0;
-    const dailyBudget = dailySetting?.value ? parseFloat(dailySetting.value) : 0;
+    const monthlyBudgetValue = await getSettingForProfile(profileId, "MONTHLY_BUDGET_USD");
+    const dailyBudgetValue = await getSettingForProfile(profileId, "DAILY_BUDGET_USD");
+    const monthlyBudget = monthlyBudgetValue ? parseFloat(monthlyBudgetValue) : 0;
+    const dailyBudget = dailyBudgetValue ? parseFloat(dailyBudgetValue) : 0;
     let budgetWarning: string | undefined;
     if (monthlyBudget > 0 || dailyBudget > 0) {
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
       const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-      const monthRuns = await db.modelRun.findMany({ where: { createdAt: { gte: monthStart } } });
+      const monthRuns = await db.modelRun.findMany({ where: { profileId, createdAt: { gte: monthStart } } });
       const monthSpent = monthRuns.reduce((s, r) => s + r.costUsd, 0);
       const daySpent = monthRuns.filter(r => r.createdAt >= dayStart).reduce((s, r) => s + r.costUsd, 0);
       const monthRatio = monthlyBudget > 0 ? monthSpent / monthlyBudget : 0;
@@ -75,8 +82,8 @@ export async function POST(req: Request) {
     if (wasAuto) {
       const keyFor = (prov: string) => ({ anthropic: "ANTHROPIC_API_KEY", openrouter: "OPENROUTER_API_KEY", google: "GOOGLE_API_KEY", deepseek: "DEEPSEEK_API_KEY" } as Record<string, string>)[prov] ?? "OPENAI_API_KEY";
       const hasKey = async (prov: string) => !!((await db.setting.findUnique({ where: { key: keyFor(prov) } }))?.value || process.env[keyFor(prov)]);
-      const thresholdSetting = await db.setting.findUnique({ where: { key: "ROUTING_THRESHOLD" } });
-      const threshold = thresholdSetting?.value ? Math.min(100, Math.max(0, parseFloat(thresholdSetting.value))) : 50;
+      const thresholdSetting = await getSettingForProfile(profileId, "ROUTING_THRESHOLD");
+      const threshold = thresholdSetting ? Math.min(100, Math.max(0, parseFloat(thresholdSetting))) : 50;
       const w = threshold / 100; // 0 = pure cost, 1 = pure quality
 
       const QUALITY: Record<string, number> = {
@@ -113,8 +120,8 @@ export async function POST(req: Request) {
 
     if (!MODELS.find(x => x.id === chosen)) return NextResponse.json({ error: "Unbekanntes Modell" }, { status: 400 });
 
-    const clean = await shieldPII(content);
-    await db.message.create({ data: { projectId, role: "user", content: clean } });
+    const clean = await shieldPII(profileId, content);
+    await db.message.create({ data: { profileId, projectId, role: "user", content: clean } });
 
     // Tone detection — mini call to cheapest available model. Never blocks or throws.
     let tone: string | null = null;
@@ -130,14 +137,14 @@ export async function POST(req: Request) {
         // Log tone-detection cost separately — honest bookkeeping
         const toneCost = estimateCost(toneResult.usedModel, toneResult.inputTokens, toneResult.outputTokens);
         const toneProv = MODELS.find(x => x.id === toneResult.usedModel)?.provider ?? "unknown";
-        await db.modelRun.create({ data: { projectId, provider: toneProv, model: toneResult.usedModel, inputTokens: toneResult.inputTokens, outputTokens: toneResult.outputTokens, costUsd: toneCost } }).catch(() => {});
+        await db.modelRun.create({ data: { profileId, projectId, provider: toneProv, model: toneResult.usedModel, inputTokens: toneResult.inputTokens, outputTokens: toneResult.outputTokens, costUsd: toneCost } }).catch(() => {});
       } catch { /* tone is optional — never block the chat */ }
     }
 
-    let system = await buildContext(projectId);
+    let system = await buildContext({ profileId, projectId });
 
     // Check if memory was actually loaded into context (buildContext includes memories when present)
-    const memories = await db.memory.findMany({ where: { projectId } });
+    const memories = await db.memory.findMany({ where: { profileId, projectId } });
     const usedMemory = memories.length > 0;
 
     // Tone-informed system prompt addition
@@ -154,14 +161,14 @@ export async function POST(req: Request) {
 
     if (agentId) {
       const agent = await db.agent.findUnique({ where: { id: agentId } });
-      if (agent) {
+      if (agent && agent.profileId === profileId) {
         const skillIds = agent.skillIds ? agent.skillIds.split(",").filter(Boolean) : [];
-        const skills = skillIds.length ? await db.skill.findMany({ where: { id: { in: skillIds } } }) : [];
+        const skills = skillIds.length ? await db.skill.findMany({ where: { profileId, id: { in: skillIds } } }) : [];
         const skillText = skills.map(k => `## Skill: ${k.name}\n${k.instructions}`).join("\n\n");
         system = `# Rolle: ${agent.name}\n${agent.systemPrompt}\n\n${skillText}\n\n${system}`;
       }
     }
-    const history = await db.message.findMany({ where: { projectId }, orderBy: { createdAt: "asc" }, take: 20 });
+    const history = await db.message.findMany({ where: { profileId, projectId }, orderBy: { createdAt: "asc" }, take: 20 });
     const mapped: any[] = history.map(h => ({ role: h.role as "user" | "assistant", content: h.content }));
     if (image?.data && mapped.length) {
       const last = mapped.length - 1;
@@ -181,8 +188,8 @@ export async function POST(req: Request) {
     const cost = estimateCost(result.usedModel, result.inputTokens, result.outputTokens);
 
     const note = (budgetWarning ?? "") + (result.fellBack ? `⚡ ${chosen} nicht verfügbar → automatisch mit ${result.usedModel} weitergemacht.\n\n` : "");
-    await db.message.create({ data: { projectId, role: "assistant", content: note + result.text, model: result.usedModel } });
-    await db.modelRun.create({ data: { projectId, provider, model: result.usedModel, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: cost } });
+    await db.message.create({ data: { profileId, projectId, role: "assistant", content: note + result.text, model: result.usedModel } });
+    await db.modelRun.create({ data: { profileId, projectId, provider, model: result.usedModel, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: cost } });
 
     return NextResponse.json({
       text: note + result.text, model: result.usedModel, costUsd: cost,

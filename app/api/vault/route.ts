@@ -1,25 +1,28 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { resolveRequestProfileId } from "@/lib/scope";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const profileId = await resolveRequestProfileId(req);
+  const profile = await db.profile.findUnique({ where: { id: profileId } });
   const [decisions, activeSkillRules, activeTasteRules, corrections, personalWarnings, collectiveGuards, skills, tasteByContext, modelPolicies, firstRecords, topSkillRule] = await Promise.all([
-    db.decisionRecord.count(),
-    db.skillRule.count({ where: { status: "active" } }),
-    db.tasteRule.count({ where: { status: "active" } }),
-    db.correctionRecord.count(),
-    db.correctionRecord.findMany({ where: { warning: { not: "" } }, select: { warning: true, model: true, domainTag: true } }),
+    db.decisionRecord.count({ where: { profileId } }),
+    db.skillRule.count({ where: { profileId, status: "active" } }),
+    db.tasteRule.count({ where: { profileId, status: "active" } }),
+    db.correctionRecord.count({ where: { profileId } }),
+    db.correctionRecord.findMany({ where: { profileId, warning: { not: "" } }, select: { warning: true, model: true, domainTag: true } }),
     db.collectiveGuard.findMany({ where: { count: { gte: 25 } }, orderBy: { count: "desc" }, take: 20 }),
-    db.skill.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
-    db.decisionRecord.findMany({ select: { contextTag: true } }),
-    db.modelPolicy.findMany({ orderBy: { createdAt: "desc" } }),
+    db.skill.findMany({ where: { profileId }, orderBy: { createdAt: "desc" }, take: 8 }),
+    db.decisionRecord.findMany({ where: { profileId }, select: { contextTag: true } }),
+    db.modelPolicy.findMany({ where: { profileId }, orderBy: { createdAt: "desc" } }),
     db.$transaction([
-      db.decisionRecord.findFirst({ orderBy: { createdAt: "asc" } }),
-      db.correctionRecord.findFirst({ orderBy: { createdAt: "asc" } }),
-      db.skillRule.findFirst({ orderBy: { createdAt: "asc" } }),
-      db.tasteRule.findFirst({ orderBy: { createdAt: "asc" } }),
+      db.decisionRecord.findFirst({ where: { profileId }, orderBy: { createdAt: "asc" } }),
+      db.correctionRecord.findFirst({ where: { profileId }, orderBy: { createdAt: "asc" } }),
+      db.skillRule.findFirst({ where: { profileId }, orderBy: { createdAt: "asc" } }),
+      db.tasteRule.findFirst({ where: { profileId }, orderBy: { createdAt: "asc" } }),
     ]),
-    db.skillRule.findFirst({ where: { status: "active" }, orderBy: { createdAt: "desc" } }),
+    db.skillRule.findFirst({ where: { profileId, status: "active" }, orderBy: { createdAt: "desc" } }),
   ]);
   const warningCounts = new Map<string, number>();
   personalWarnings.forEach((record) => warningCounts.set(record.warning, (warningCounts.get(record.warning) ?? 0) + 1));
@@ -32,6 +35,7 @@ export async function GET() {
   const oldest = firstRecords.filter(Boolean).map((row: any) => row.createdAt?.getTime?.() ?? Date.now()).sort((a, b) => a - b)[0];
   const days = oldest ? Math.max(1, Math.ceil((Date.now() - oldest) / 86400000)) : 0;
   return NextResponse.json({
+    profile: profile ? { id: profile.id, name: profile.name, type: profile.type } : null,
     asset: {
       decisions,
       rules: activeSkillRules + activeTasteRules,
@@ -58,8 +62,9 @@ export async function GET() {
     },
     index: {
       endpointConfigured: Boolean(process.env.INDEX_ENDPOINT),
-      collectiveGuards: collectiveGuards.length,
+      globalCollectiveGuards: collectiveGuards.length,
     },
+    globalCollectiveData: { guards: collectiveGuards.length },
     modelPolicies,
   });
 }

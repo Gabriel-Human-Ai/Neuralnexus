@@ -2,11 +2,14 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { domainTagFromProject, parseClaims, synthesizeWarning } from "@/lib/truth";
+import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const { claimId, correctionText } = await req.json();
+  const profileId = await resolveRequestProfileId(req);
   const output = await db.output.findUnique({ where: { id: params.id } });
   if (!output) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  assertRecordProfile(output.profileId, profileId);
   const claims = parseClaims(output.claimsJson);
   const claim = claims.find((item) => item.id === claimId);
   if (!claim) return NextResponse.json({ error: "invalid_claim_id" }, { status: 400 });
@@ -15,6 +18,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const project = await db.project.findUnique({ where: { id: output.projectId } });
   await synthesizeWarning({
     projectId: output.projectId,
+    profileId,
     outputId: output.id,
     skillId: output.skillId,
     model: output.model,

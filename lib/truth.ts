@@ -38,8 +38,8 @@ export function domainTagFromProject(project: { goal?: string; name?: string }, 
   return "general";
 }
 
-export async function knownFailurePatternBlock(args: { model: string; domainTag: string }) {
-  const records = await db.correctionRecord.findMany({ where: { model: args.model, domainTag: args.domainTag, warning: { not: "" } }, select: { warning: true } });
+export async function knownFailurePatternBlock(args: { model: string; domainTag: string; profileId?: string }) {
+  const records = await db.correctionRecord.findMany({ where: { profileId: args.profileId, model: args.model, domainTag: args.domainTag, warning: { not: "" } }, select: { warning: true } });
   const counts = new Map<string, number>();
   records.forEach((record) => counts.set(record.warning, (counts.get(record.warning) ?? 0) + 1));
   const warnings = Array.from(counts.entries()).filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([warning]) => warning);
@@ -52,6 +52,7 @@ export async function knownFailurePatternBlock(args: { model: string; domainTag:
 }
 
 export async function extractClaimsForOutput(args: {
+  profileId: string;
   projectId: string;
   text: string;
   knowledge: MemoryLike[];
@@ -69,6 +70,7 @@ export async function extractClaimsForOutput(args: {
   await db.modelRun.create({
     data: {
       projectId: args.projectId,
+      profileId: args.profileId,
       provider: meta.provider,
       model: meta.id,
       inputTokens: result.inputTokens,
@@ -111,7 +113,7 @@ export function postProcessClaims(output: string, rawClaims: RawClaim[], knowled
 }
 
 export async function verifyExternalClaims(args: {
-  output: { id: string; projectId: string; provider: string; model: string; knowledgeIds: string; claimsJson: string };
+  output: { id: string; profileId?: string | null; projectId: string; provider: string; model: string; knowledgeIds: string; claimsJson: string };
   claimIds: string[];
 }) {
   const claims = parseClaims(args.output.claimsJson);
@@ -119,7 +121,8 @@ export async function verifyExternalClaims(args: {
   if (!selected.length || selected.some((claim) => claim.status !== "external")) throw new Error("invalid_claim_ids");
   const verifier = await pickVerifierModel(args.output.provider, args.output.model);
   if (!verifier) throw new Error("no_independent_verifier");
-  const knowledge = await loadKnowledge(args.output.knowledgeIds);
+  if (!args.output.profileId) throw new Error("profile_missing");
+  const knowledge = await loadKnowledge(args.output.knowledgeIds, args.output.profileId);
   const result = await runChat(verifier.provider, verifier.id, [
     { role: "system", content: VERIFY_SYSTEM },
     { role: "user", content: `KNOWLEDGE:\n${knowledge.map((item, index) => `[${index + 1}] ${item.content.slice(0, 1200)}`).join("\n")}\n\nCLAIMS:\n${selected.map((claim) => `${claim.id}: ${claim.text}`).join("\n")}` },
@@ -127,6 +130,7 @@ export async function verifyExternalClaims(args: {
   await db.modelRun.create({
     data: {
       projectId: args.output.projectId,
+      profileId: args.output.profileId,
       provider: verifier.provider,
       model: verifier.id,
       inputTokens: result.inputTokens,
@@ -150,6 +154,7 @@ export async function verifyExternalClaims(args: {
 }
 
 export async function synthesizeWarning(args: {
+  profileId: string;
   projectId: string;
   outputId: string;
   skillId?: string | null;
@@ -171,6 +176,7 @@ export async function synthesizeWarning(args: {
     await db.modelRun.create({
       data: {
         projectId: args.projectId,
+        profileId: args.profileId,
         provider: meta.provider,
         model: meta.id,
         inputTokens: result.inputTokens,
@@ -186,6 +192,7 @@ export async function synthesizeWarning(args: {
   return db.correctionRecord.create({
     data: {
       projectId: args.projectId,
+      profileId: args.profileId,
       outputId: args.outputId,
       skillId: args.skillId || undefined,
       model: args.model,
@@ -201,14 +208,15 @@ export async function synthesizeWarning(args: {
 
 export async function captureEditDiffCorrections(outputId: string) {
   const output = await db.output.findUnique({ where: { id: outputId } });
-  if (!output?.claimsJson || !output.finalContent) return;
+  if (!output?.profileId || !output.claimsJson || !output.finalContent) return;
   const project = await db.project.findUnique({ where: { id: output.projectId } });
   const domainHint = domainTagFromProject(project ?? {}, output.stepName);
   const candidates = parseClaims(output.claimsJson).filter((claim) => (claim.status === "external" || claim.status === "disputed") && !output.finalContent.includes(claim.text)).slice(0, 3);
   for (const claim of candidates) {
-    const exists = await db.correctionRecord.findFirst({ where: { outputId, claimText: claim.text } });
+    const exists = await db.correctionRecord.findFirst({ where: { profileId: output.profileId, outputId, claimText: claim.text } });
     if (exists) continue;
     await synthesizeWarning({
+      profileId: output.profileId,
       projectId: output.projectId,
       outputId,
       skillId: output.skillId,
@@ -222,10 +230,10 @@ export async function captureEditDiffCorrections(outputId: string) {
   }
 }
 
-export async function loadKnowledge(knowledgeIds: string) {
+export async function loadKnowledge(knowledgeIds: string, profileId?: string) {
   const ids = knowledgeIds.split(",").filter(Boolean);
   if (!ids.length) return [];
-  return db.memory.findMany({ where: { id: { in: ids } }, orderBy: { createdAt: "desc" }, take: 8 });
+  return db.memory.findMany({ where: { profileId, id: { in: ids } }, orderBy: { createdAt: "desc" }, take: 8 });
 }
 
 export function parseClaims(claimsJson: string): Claim[] {

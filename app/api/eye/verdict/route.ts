@@ -6,6 +6,7 @@ import { pickMetaModel } from "@/lib/meta-model";
 import { runChat } from "@/lib/providers";
 import { parseModelJson } from "@/lib/safe-parse";
 import { estimateCost } from "@/lib/tokens";
+import { resolveRequestProfileId } from "@/lib/scope";
 
 async function artifactFromBody(body: any) {
   if (typeof body.text === "string" && body.text.trim()) return clampDesc(body.text, 6000);
@@ -26,9 +27,10 @@ async function artifactFromBody(body: any) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const profileId = await resolveRequestProfileId(req, body.profileId);
     const contextTag = normalizeContext(body.contextTag);
     const artifact = await artifactFromBody(body);
-    const { decisions, activeRules } = await assertEyeMature(contextTag);
+    const { decisions, activeRules } = await assertEyeMature(profileId, contextTag);
     const meta = await pickMetaModel();
     if (!meta) return NextResponse.json({ error: "The Eye needs a connected model." }, { status: 409 });
     const result = await runChat(meta.provider, meta.id, [
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
       },
       { role: "user", content: `TASTE RULES (id: text · confidence):\n${activeRules.map((rule) => `${rule.id}: ${rule.text} · ${rule.confidence}`).join("\n")}\n\nDECISION HISTORY: ${decisions} recorded decisions in context "${contextTag}".\n\nARTIFACT:\n${artifact}` },
     ], { maxTokens: 900, temperature: 0 });
-    await db.modelRun.create({ data: { projectId: await eyeProjectId(), provider: meta.provider, model: meta.id, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: estimateCost(meta.id, result.inputTokens, result.outputTokens), purpose: "eye" } });
+    await db.modelRun.create({ data: { profileId, projectId: await eyeProjectId(profileId), provider: meta.provider, model: meta.id, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: estimateCost(meta.id, result.inputTokens, result.outputTokens), purpose: "eye" } });
     const parsed = parseModelJson<any>(result.text);
     if (!parsed) return NextResponse.json({ error: "The Eye could not return a verdict." }, { status: 422 });
     const ruleMap = new Map(activeRules.map((rule) => [rule.id, rule]));

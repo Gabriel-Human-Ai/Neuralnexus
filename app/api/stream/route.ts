@@ -1,15 +1,17 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { resolveRequestProfileId } from "@/lib/scope";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const profileId = await resolveRequestProfileId(req);
   const [skillRules, tasteRules, draftOutputs, projects, benchmarkRuns, policies] = await Promise.all([
-    db.skillRule.findMany({ where: { status: "proposed" }, orderBy: { createdAt: "desc" }, take: 20 }),
-    db.tasteRule.findMany({ where: { status: "proposed" }, orderBy: { createdAt: "desc" }, take: 20 }),
-    db.output.findMany({ where: { status: "draft" }, orderBy: { createdAt: "desc" }, take: 20 }),
-    db.project.findMany({ select: { id: true, name: true } }),
-    db.benchmarkRun.findMany({ orderBy: { createdAt: "desc" }, take: 80 }),
-    db.modelPolicy.findMany(),
+    db.skillRule.findMany({ where: { profileId, status: "proposed" }, orderBy: { createdAt: "desc" }, take: 20 }),
+    db.tasteRule.findMany({ where: { profileId, status: "proposed" }, orderBy: { createdAt: "desc" }, take: 20 }),
+    db.output.findMany({ where: { profileId, status: "draft" }, orderBy: { createdAt: "desc" }, take: 20 }),
+    db.project.findMany({ where: { profileId }, select: { id: true, name: true } }),
+    db.benchmarkRun.findMany({ where: { profileId }, orderBy: { createdAt: "desc" }, take: 80 }),
+    db.modelPolicy.findMany({ where: { profileId } }),
   ]);
 
   const projectName = new Map(projects.map((project) => [project.id, project.name]));

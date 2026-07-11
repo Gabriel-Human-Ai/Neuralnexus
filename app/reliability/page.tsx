@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
+import { resolveProfileId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReliabilityPage() {
+  const profileId = await resolveProfileId();
   const [outputs, corrections] = await Promise.all([
-    db.output.findMany({ select: { model: true, stepName: true, claimsJson: true } }),
-    db.correctionRecord.findMany({ select: { model: true, domainTag: true } }),
+    db.output.findMany({ where: { profileId }, select: { model: true, stepName: true, claimsJson: true } }),
+    db.correctionRecord.findMany({ where: { profileId }, select: { model: true, domainTag: true } }),
   ]);
   const rows = new Map<string, { model: string; domainTag: string; runs: number; disputed: number; corrections: number }>();
   for (const output of outputs) {

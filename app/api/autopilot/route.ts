@@ -2,15 +2,19 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { pickMetaModel } from "@/lib/meta-model";
+import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
 
 export async function GET(req: Request) {
   const projectId = new URL(req.url).searchParams.get("projectId");
   if (!projectId) return NextResponse.json({ recommendations: [], policies: [] });
+  const profileId = await resolveRequestProfileId(req);
+  const project = await db.project.findUnique({ where: { id: projectId } });
+  assertRecordProfile(project?.profileId, profileId);
   if (!(await pickMetaModel())) return NextResponse.json({ disabled: true, message: "Autopilot needs a connected model.", recommendations: [], policies: [] });
   const [runs, policies, userRuns] = await Promise.all([
-    db.benchmarkRun.findMany({ where: { projectId }, orderBy: { createdAt: "desc" } }),
-    db.modelPolicy.findMany({ where: { projectId }, orderBy: { createdAt: "desc" } }),
-    db.modelRun.findMany({ where: { projectId, purpose: "user", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } }),
+    db.benchmarkRun.findMany({ where: { profileId, projectId }, orderBy: { createdAt: "desc" } }),
+    db.modelPolicy.findMany({ where: { profileId, projectId }, orderBy: { createdAt: "desc" } }),
+    db.modelRun.findMany({ where: { profileId, projectId, purpose: "user", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } }),
   ]);
   const groups = new Map<string, typeof runs>();
   for (const run of runs) {
@@ -44,13 +48,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const { projectId, stepName, model, provider } = await req.json();
+  const profileId = await resolveRequestProfileId(req);
   if (!projectId || !stepName || !model) return NextResponse.json({ error: "missing_fields" }, { status: 400 });
-  await db.modelPolicy.upsert({ where: { projectId_stepName: { projectId, stepName } }, create: { projectId, stepName, model, provider: provider ?? "" }, update: { model, provider: provider ?? "" } });
+  const project = await db.project.findUnique({ where: { id: projectId } });
+  assertRecordProfile(project?.profileId, profileId);
+  await db.modelPolicy.upsert({ where: { projectId_stepName: { projectId, stepName } }, create: { profileId, projectId, stepName, model, provider: provider ?? "" }, update: { model, provider: provider ?? "" } });
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: Request) {
   const { projectId, stepName } = await req.json();
-  await db.modelPolicy.deleteMany({ where: { projectId, stepName } });
+  const profileId = await resolveRequestProfileId(req);
+  await db.modelPolicy.deleteMany({ where: { profileId, projectId, stepName } });
   return NextResponse.json({ ok: true });
 }

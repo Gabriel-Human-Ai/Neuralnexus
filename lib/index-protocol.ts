@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { db } from "@/lib/db";
+import { resolveProfileId } from "@/lib/scope";
 
 export type Contribution = {
   instanceId: string;
@@ -20,12 +21,13 @@ export async function ensureIndexInstanceId() {
   return id;
 }
 
-export async function toContribution(): Promise<Contribution> {
+export async function toContribution(profileIdArg?: string): Promise<Contribution> {
+  const profileId = await resolveProfileId(profileIdArg);
   const instanceId = await ensureIndexInstanceId();
   const [corrections, outputs, tasteRules] = await Promise.all([
-    db.correctionRecord.findMany({ where: { warning: { not: "" } } }),
-    db.output.findMany({ select: { model: true, claimsJson: true, qualityReport: true, stepName: true } }),
-    db.tasteRule.findMany({ where: { status: "active" } }),
+    db.correctionRecord.findMany({ where: { profileId, warning: { not: "" } } }),
+    db.output.findMany({ where: { profileId }, select: { model: true, claimsJson: true, qualityReport: true, stepName: true } }),
+    db.tasteRule.findMany({ where: { profileId, status: "active" } }),
   ]);
 
   const verdictMap = new Map<string, { model: string; domainTag: string; passed: number; fixed: number; failed: number }>();
@@ -81,13 +83,13 @@ export async function toContribution(): Promise<Contribution> {
     })),
     reliability: Array.from(reliabilityMap.values()),
   };
-  await assertContributionSafe(contribution);
+  await assertContributionSafe(contribution, profileId);
   return contribution;
 }
 
-export async function assertContributionSafe(contribution: Contribution) {
+export async function assertContributionSafe(contribution: Contribution, profileId: string) {
   const serialized = JSON.stringify(contribution).toLowerCase();
-  const leaked = await sensitiveFragments();
+  const leaked = await sensitiveFragments(profileId);
   for (const fragment of leaked) {
     if (fragment.length >= 40 && serialized.includes(fragment.toLowerCase())) {
       throw new Error(`Index payload redaction guard blocked a content leak: ${fragment.slice(0, 24)}...`);
@@ -99,14 +101,15 @@ export async function assertContributionSafe(contribution: Contribution) {
   }
 }
 
-export async function syncIndexProtocol(reason = "finalize") {
+export async function syncIndexProtocol(reason = "finalize", profileIdArg?: string) {
+  const profileId = await resolveProfileId(profileIdArg);
   const endpoint = process.env.INDEX_ENDPOINT;
-  const consent = await db.setting.findUnique({ where: { key: "INDEX_CONSENT" } });
+  const consent = await db.profileSetting.findUnique({ where: { profileId_key: { profileId, key: "INDEX_CONSENT" } } });
   if (consent?.value !== "on" || !endpoint) return { skipped: true, reason: consent?.value !== "on" ? "consent_off" : "endpoint_unset" };
   const last = await db.setting.findUnique({ where: { key: "INDEX_LAST_SYNC" } });
   const lastMs = Number(last?.value || "0");
   if (Date.now() - lastMs < 6 * 60 * 60 * 1000) return { skipped: true, reason: "rate_limited" };
-  const contribution = await toContribution();
+  const contribution = await toContribution(profileId);
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -147,14 +150,14 @@ export async function collectiveGuardLines(model: string, domainTag: string) {
   return guards.map((guard) => `- Professionals corrected this ${guard.count}×: ${guard.warning}`);
 }
 
-async function sensitiveFragments() {
+async function sensitiveFragments(profileId: string) {
   const [projects, memories, outputs, corrections, skills, tasteRules] = await Promise.all([
-    db.project.findMany({ select: { name: true, goal: true, rules: true, description: true } }),
-    db.memory.findMany({ select: { content: true } }),
-    db.output.findMany({ select: { prompt: true, draftContent: true, finalContent: true } }),
-    db.correctionRecord.findMany({ select: { claimText: true, correctionText: true } }),
-    db.skill.findMany({ select: { name: true, description: true, instructions: true } }),
-    db.tasteRule.findMany({ select: { text: true } }),
+    db.project.findMany({ where: { profileId }, select: { name: true, goal: true, rules: true, description: true } }),
+    db.memory.findMany({ where: { profileId }, select: { content: true } }),
+    db.output.findMany({ where: { profileId }, select: { prompt: true, draftContent: true, finalContent: true } }),
+    db.correctionRecord.findMany({ where: { profileId }, select: { claimText: true, correctionText: true } }),
+    db.skill.findMany({ where: { profileId }, select: { name: true, description: true, instructions: true } }),
+    db.tasteRule.findMany({ where: { profileId }, select: { text: true } }),
   ]);
   return [
     ...projects.flatMap((item) => [item.name, item.goal, item.rules, item.description]),

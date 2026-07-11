@@ -9,7 +9,7 @@ import { estimateCost } from "@/lib/tokens";
 export async function maybeRunAutopilotBenchmark(outputId: string) {
   if (Math.random() >= 0.25) return;
   const output = await db.output.findUnique({ where: { id: outputId } });
-  if (!output) return;
+  if (!output?.profileId) return;
   const challengers = CHALLENGERS[output.model] ?? [];
   if (!challengers.length) return;
   const settings = await getAllSettings();
@@ -30,13 +30,13 @@ export async function maybeRunAutopilotBenchmark(outputId: string) {
   ]);
   const provider = MODELS.find((model) => model.id === challenger.usedModel)?.provider ?? eligible.provider;
   const challengerCost = estimateCost(challenger.usedModel, challenger.inputTokens, challenger.outputTokens);
-  await db.modelRun.create({ data: { projectId: output.projectId, provider, model: challenger.usedModel, inputTokens: challenger.inputTokens, outputTokens: challenger.outputTokens, costUsd: challengerCost, purpose: "benchmark" } });
+  await db.modelRun.create({ data: { profileId: output.profileId, projectId: output.projectId, provider, model: challenger.usedModel, inputTokens: challenger.inputTokens, outputTokens: challenger.outputTokens, costUsd: challengerCost, purpose: "benchmark" } });
 
   const judge = await runChat(meta.provider, meta.id, [
     { role: "system", content: "You compare two answers to the same task. Score how well ANSWER_B matches ANSWER_A in quality, completeness and usefulness for the task. Formatting differences do not matter.\nReturn ONLY valid JSON: {\"score\": <integer 0-10>, \"reason\": \"<max 12 words>\"}.\n10 = equal or better. 7 = minor losses. <=5 = clearly worse." },
     { role: "user", content: `TASK:\n${output.stepName}: ${output.prompt}\n\nANSWER_A (${output.model}):\n${(output.finalContent || output.draftContent).slice(0, 4000)}\n\nANSWER_B (${challenger.usedModel}):\n${challenger.text.slice(0, 4000)}` },
   ], { maxTokens: 800, temperature: 0 });
-  await db.modelRun.create({ data: { projectId: output.projectId, provider: meta.provider, model: meta.id, inputTokens: judge.inputTokens, outputTokens: judge.outputTokens, costUsd: estimateCost(meta.id, judge.inputTokens, judge.outputTokens), purpose: "judge" } });
+  await db.modelRun.create({ data: { profileId: output.profileId, projectId: output.projectId, provider: meta.provider, model: meta.id, inputTokens: judge.inputTokens, outputTokens: judge.outputTokens, costUsd: estimateCost(meta.id, judge.inputTokens, judge.outputTokens), purpose: "judge" } });
   const parsed = parseModelJson<{ score: number }>(judge.text);
-  await db.benchmarkRun.create({ data: { projectId: output.projectId, stepName: output.stepName, primaryModel: output.model, challengerModel: challenger.usedModel, similarityScore: Math.max(0, Math.min(10, Number(parsed?.score ?? 0))), primaryCostUsd: output.costUsd, challengerCostUsd: challengerCost } });
+  await db.benchmarkRun.create({ data: { profileId: output.profileId, projectId: output.projectId, stepName: output.stepName, primaryModel: output.model, challengerModel: challenger.usedModel, similarityScore: Math.max(0, Math.min(10, Number(parsed?.score ?? 0))), primaryCostUsd: output.costUsd, challengerCostUsd: challengerCost } });
 }

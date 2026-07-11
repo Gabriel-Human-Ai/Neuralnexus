@@ -1,47 +1,61 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  archived    Boolean  @default(false)
+  id          String     @id @default(cuid())
+  profileId   String?
+  archived    Boolean    @default(false)
   name        String
-  description String   @default("")
-  goal        String   @default("")
-  techStack   String   @default("")
-  rules       String   @default("")
-  createdAt   DateTime @default(now())
+  description String     @default("")
+  goal        String     @default("")
+  techStack   String     @default("")
+  rules       String     @default("")
+  createdAt   DateTime   @default(now())
   messages    Message[]
   memories    Memory[]
   runs        ModelRun[]
+  profile     Profile?   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model Message {
   id        String   @id @default(cuid())
+  profileId String?
   projectId String
   role      String
   content   String
   model     String   @default("")
   createdAt DateTime @default(now())
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, projectId])
 }
 
 model Memory {
-  id        String   @id @default(cuid())
+  id          String   @id @default(cuid())
+  profileId   String?
   workspaceId String?
-  projectId String?
-  kind      String
-  content   String
-  createdAt DateTime @default(now())
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String?
+  kind        String
+  content     String
+  createdAt   DateTime @default(now())
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  profile     Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, projectId])
 }
 
 model ModelRun {
   id           String   @id @default(cuid())
+  profileId    String?
   projectId    String
   provider     String
   model        String
@@ -51,6 +65,9 @@ model ModelRun {
   purpose      String   @default("user") // user | judge | genome | extractor | benchmark
   createdAt    DateTime @default(now())
   project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  profile      Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, projectId])
 }
 
 model Setting {
@@ -58,57 +75,120 @@ model Setting {
   value String
 }
 
+model ProfileSetting {
+  id        String   @id @default(cuid())
+  profileId String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, key])
+  @@index([profileId])
+}
+
+model Profile {
+  id               String             @id @default(cuid())
+  name             String
+  type             String
+  isDefault        Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  settings         ProfileSetting[]
+  projects         Project[]
+  messages         Message[]
+  memories         Memory[]
+  runs             ModelRun[]
+  agents           Agent[]
+  skills           Skill[]
+  workspaces       Workspace[]
+  workspaceMembers WorkspaceMember[]
+  workflows        Workflow[]
+  outputs          Output[]
+  corrections      CorrectionRecord[]
+  decisions        DecisionRecord[]
+  captures         CaptureRecord[]
+  tasteRules       TasteRule[]
+  skillRules       SkillRule[]
+  benchmarkRuns    BenchmarkRun[]
+  modelPolicies    ModelPolicy[]
+
+  @@index([type])
+}
+
 model Agent {
-  id            String   @id @default(cuid())
-  workspaceId   String?
-  isPublic      Boolean  @default(false)
-  workroomRole  String?  // orchestrator|planner|research|builder|reviewer|monitor|security|costguard
-  name          String   @unique
-  emoji         String   @default("✦")
-  role          String   @default("")
-  systemPrompt  String   @default("")
-  preferredModel String  @default("auto")
-  skillIds      String   @default("")
-  createdAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  profileId      String?
+  workspaceId    String?
+  isPublic       Boolean  @default(false)
+  workroomRole   String? // orchestrator|planner|research|builder|reviewer|monitor|security|costguard
+  name           String   @unique
+  emoji          String   @default("✦")
+  role           String   @default("")
+  systemPrompt   String   @default("")
+  preferredModel String   @default("auto")
+  skillIds       String   @default("")
+  createdAt      DateTime @default(now())
+  profile        Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model Skill {
-  id          String   @id @default(cuid())
-  workspaceId String?
-  name        String
-  description String   @default("")
-  instructions String  @default("")
-  version     Int      @default(1)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  profileId    String?
+  workspaceId  String?
+  name         String
+  description  String   @default("")
+  instructions String   @default("")
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  profile      Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model Workspace {
-  id        String   @id @default(cuid())
-  name      String
-  brandName String   @default("")
-  brandColor String  @default("#8B5CF6")
-  createdAt DateTime @default(now())
-  members   WorkspaceMember[]
+  id         String            @id @default(cuid())
+  profileId  String?
+  name       String
+  brandName  String            @default("")
+  brandColor String            @default("#8B5CF6")
+  createdAt  DateTime          @default(now())
+  members    WorkspaceMember[]
+  profile    Profile?          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model WorkspaceMember {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
+  profileId   String?
   workspaceId String
   name        String
-  role        String   @default("member") // admin | member
-  createdAt   DateTime @default(now())
+  role        String    @default("member") // admin | member
+  createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile     Profile?  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, workspaceId])
 }
 
 model Workflow {
   id        String   @id @default(cuid())
+  profileId String?
   name      String
-  agentIds  String   // comma-separated ordered Agent ids
+  agentIds  String // comma-separated ordered Agent ids
   createdAt DateTime @default(now())
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model Output {
   id                  String   @id @default(cuid())
+  profileId           String?
   projectId           String
   stepName            String   @default("")
   prompt              String   @default("")
@@ -124,14 +204,19 @@ model Output {
   costUsd             Float    @default(0)
   knowledgeIds        String   @default("") // comma-separated Memory ids used
   parentOutputId      String?
-  forkChangedVariable String?  // "model" | "skill" | null
+  forkChangedVariable String? // "model" | "skill" | null
   qualityReport       String   @default("") // JSON string, see §4
   claimsJson          String   @default("") // JSON string: Claim[] (see §2)
   createdAt           DateTime @default(now())
+  profile             Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, projectId])
+  @@index([profileId, status])
 }
 
 model CorrectionRecord {
   id             String   @id @default(cuid())
+  profileId      String?
   projectId      String
   outputId       String
   skillId        String?
@@ -140,48 +225,63 @@ model CorrectionRecord {
   domainTag      String   @default("general") // content|brand|review|coaching|audit|research|general
   claimText      String
   correctionText String   @default("")
-  warning        String   @default("")        // reusable imperative rule, max 140 chars
-  source         String   @default("manual")  // manual | edit-diff
+  warning        String   @default("") // reusable imperative rule, max 140 chars
+  source         String   @default("manual") // manual | edit-diff
   createdAt      DateTime @default(now())
+  profile        Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, projectId])
 }
 
 model DecisionRecord {
-  id            String   @id @default(cuid())
-  contextTag    String   @default("general") // design | copy | product | content | brand | review | coaching | audit | research | general
-  chosenDesc    String                        // descriptor JSON or raw text (≤1500 chars)
-  rejectedDesc  String   @default("")         // same; empty for single-artifact signals
-  medium        String   @default("text")     // text | image | mixed-url
-  source        String                        // duel | curation | verdict-override | fork-final | regen-final | edit-final
-  projectId     String?
-  outputId      String?
-  note          String   @default("")
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  profileId    String?
+  contextTag   String   @default("general") // design | copy | product | content | brand | review | coaching | audit | research | general
+  chosenDesc   String // descriptor JSON or raw text (≤1500 chars)
+  rejectedDesc String   @default("") // same; empty for single-artifact signals
+  medium       String   @default("text") // text | image | mixed-url
+  source       String // duel | curation | verdict-override | fork-final | regen-final | edit-final
+  projectId    String?
+  outputId     String?
+  note         String   @default("")
+  createdAt    DateTime @default(now())
+  profile      Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, projectId])
 }
 
 model CaptureRecord {
-  id              String   @id @default(cuid())
-  title           String   @default("")
-  sourceUrl       String   @default("")
-  sourceHost      String   @default("")
-  captureType     String   @default("selection") // selection | page | screenshot
-  action          String   @default("save_reference") // save_reference | review | compare | verify | preflight
-  text            String   @default("")
-  screenshotData  String   @default("")
-  summary         String   @default("")
-  decision        String   @default("") // approve | reject | revise | keep | mark_wrong
-  decisionNote    String   @default("")
-  indexEligible   Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  decidedAt       DateTime?
+  id             String    @id @default(cuid())
+  profileId      String?
+  title          String    @default("")
+  sourceUrl      String    @default("")
+  sourceHost     String    @default("")
+  captureType    String    @default("selection") // selection | page | screenshot
+  action         String    @default("save_reference") // save_reference | review | compare | verify | preflight
+  text           String    @default("")
+  screenshotData String    @default("")
+  summary        String    @default("")
+  decision       String    @default("") // approve | reject | revise | keep | mark_wrong
+  decisionNote   String    @default("")
+  indexEligible  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  decidedAt      DateTime?
+  profile        Profile?  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model TasteRule {
   id         String   @id @default(cuid())
+  profileId  String?
   contextTag String   @default("general")
-  text       String                            // ≤140 chars, imperative
-  confidence Int      @default(2)              // supporting decision count at synthesis time
-  status     String   @default("proposed")     // proposed | active | rejected
+  text       String // ≤140 chars, imperative
+  confidence Int      @default(2) // supporting decision count at synthesis time
+  status     String   @default("proposed") // proposed | active | rejected
   createdAt  DateTime @default(now())
+  profile    Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, status])
 }
 
 model CollectiveGuard {
@@ -197,16 +297,22 @@ model CollectiveGuard {
 
 model SkillRule {
   id             String   @id @default(cuid())
+  profileId      String?
   skillId        String
   text           String
   source         String   @default("learned") // learned | manual | imported
   sourceOutputId String?
   status         String   @default("proposed") // proposed | active | rejected
   createdAt      DateTime @default(now())
+  profile        Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, skillId])
+  @@index([profileId, status])
 }
 
 model BenchmarkRun {
   id                String   @id @default(cuid())
+  profileId         String?
   projectId         String
   stepName          String   @default("")
   primaryModel      String
@@ -215,16 +321,22 @@ model BenchmarkRun {
   primaryCostUsd    Float    @default(0)
   challengerCostUsd Float    @default(0)
   createdAt         DateTime @default(now())
+  profile           Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, projectId])
 }
 
 model ModelPolicy {
   id        String   @id @default(cuid())
+  profileId String?
   projectId String
   stepName  String   @default("*")
   model     String
   provider  String   @default("")
   reason    String   @default("autopilot")
   createdAt DateTime @default(now())
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, stepName])
+  @@index([profileId, projectId])
 }

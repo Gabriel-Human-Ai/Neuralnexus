@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { pickModelForTask, runChatWithFallback, type ChatBlock, type ChatMsg } from "@/lib/providers";
+import { resolveRequestProfileId } from "@/lib/scope";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -24,6 +25,7 @@ function imageBlockFromDataUrl(dataUrl: string): ChatBlock | null {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    await resolveRequestProfileId(req, body.profileId);
     const input = String(body.input ?? "").trim();
     const history = Array.isArray(body.messages) ? body.messages as ClientMessage[] : [];
     const attachments = Array.isArray(body.attachments) ? body.attachments as ClientAttachment[] : [];
