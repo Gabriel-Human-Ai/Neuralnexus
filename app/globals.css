@@ -7122,7 +7122,7 @@ button.aura-card {
 .altitude-rail {
   position: fixed;
   z-index: 72;
-  left: 14px;
+  left: calc(264px + 18px);
   top: 50%;
   transform: translateY(-50%);
   display: grid;
@@ -7187,7 +7187,7 @@ button.aura-card {
 .shelf-dock {
   position: fixed;
   z-index: 73;
-  left: 14px;
+  left: calc(264px + 18px);
   bottom: 22px;
   display: grid;
   gap: 8px;
@@ -7242,10 +7242,10 @@ button.aura-card {
 
 .shelf-panel {
   position: fixed;
-  left: 72px;
+  left: calc(264px + 24px);
   top: 28px;
   bottom: 28px;
-  width: min(480px, calc(100vw - 96px));
+  width: min(480px, calc(100vw - 312px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   border-radius: 24px;
@@ -7504,10 +7504,23 @@ button.shelf-row:hover {
 }
 
 @media (min-width: 921px) {
+  .altitude-shell .shelf-dock {
+    display: none;
+  }
+
   .altitude-1 .nn-sidebar,
   .altitude-1 .shelf-dock {
     opacity: 0;
     pointer-events: none;
+  }
+
+  .altitude-1 .altitude-rail {
+    left: 18px;
+  }
+
+  .altitude-1 .shelf-panel {
+    left: 24px;
+    width: min(480px, calc(100vw - 48px));
   }
 }
 
