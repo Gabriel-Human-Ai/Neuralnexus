@@ -54,7 +54,7 @@ import { AuraCard } from "@/components/ui/AuraCard";
 import { HeroCTA } from "@/components/ui/HeroCTA";
 import { NexusIsland } from "@/components/ui/NexusIsland";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
-import { MessageActions } from "@/components/chat/MessageActions";
+import { MessageActions, type ChatFeedbackSignal } from "@/components/chat/MessageActions";
 import { useTypingGlow } from "@/lib/useTypingGlow";
 import type { AltitudeLevel } from "@/components/altitude/AltitudeRail";
 import { ShelfDock, type ShelfId } from "@/components/altitude/ShelfDock";
@@ -140,6 +140,7 @@ type GeneralChatMessage = {
   content: string;
   model?: string;
 };
+type ChatFeedbackState = Record<string, ChatFeedbackSignal[]>;
 type OutputListItem = {
   id: string;
   stepName: string;
@@ -501,6 +502,8 @@ export default function Home() {
   const [generalInput, setGeneralInput] = useState("");
   const [generalBusy, setGeneralBusy] = useState(false);
   const [generalAttachments, setGeneralAttachments] = useState<UploadedSource[]>([]);
+  const [chatFeedback, setChatFeedback] = useState<ChatFeedbackState>({});
+  const [profileReadyPrompt, setProfileReadyPrompt] = useState(false);
   const [enteredApp, setEnteredApp] = useState(!FEATURE_FLAGS.publicLanding);
   const [landingPrompt, setLandingPrompt] = useState("");
   const [publicPage, setPublicPage] = useState<PublicPage>("home");
@@ -981,6 +984,50 @@ export default function Home() {
 
   function editChatMessage(message: GeneralChatMessage) {
     setGeneralInput(message.role === "assistant" ? `Please revise this answer:\n\n${message.content}` : message.content);
+  }
+
+  function chatFeedbackKey(index: number, content: string) {
+    return `${index}:${content.slice(0, 80)}`;
+  }
+
+  function previousUserPromptFor(index: number) {
+    for (let i = index - 1; i >= 0; i -= 1) {
+      if (generalMessages[i]?.role === "user") return generalMessages[i].content;
+    }
+    return "";
+  }
+
+  async function recordChatFeedback(index: number, message: GeneralChatMessage, signal: ChatFeedbackSignal) {
+    if (generalBusy || message.role !== "assistant") return;
+    const key = chatFeedbackKey(index, message.content);
+    const response = await fetch("/api/chat/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messageContent: message.content,
+        userPrompt: previousUserPromptFor(index),
+        signal,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Feedback could not be saved.");
+
+    setChatFeedback((current) => {
+      const previous = current[key] ?? [];
+      const withoutPair = signal === "good" || signal === "bad"
+        ? previous.filter((item) => item !== "good" && item !== "bad")
+        : signal === "shorter" || signal === "longer"
+          ? previous.filter((item) => item !== "shorter" && item !== "longer")
+          : signal === "formal" || signal === "casual"
+            ? previous.filter((item) => item !== "formal" && item !== "casual")
+            : previous;
+      return { ...current, [key]: [...withoutPair, signal] };
+    });
+
+    if ((payload.totalSignals ?? 0) >= 4 && window.localStorage.getItem("PROFILE_READY_SEEN") !== "1") {
+      window.localStorage.setItem("PROFILE_READY_SEEN", "1");
+      setProfileReadyPrompt(true);
+    }
   }
 
   function startWorkspaceSession() {
@@ -2123,11 +2170,21 @@ export default function Home() {
                     <MessageActions
                       text={message.content}
                       onRegenerate={() => void regenerateChatMessage(index)}
+                      onFeedback={(signal) => void recordChatFeedback(index, message, signal)}
+                      selectedSignals={chatFeedback[chatFeedbackKey(index, message.content)] ?? []}
                       disabled={generalBusy}
                     />
                   )}
                 </article>
               ))}
+              {profileReadyPrompt && (
+                <div className="profile-ready-line" role="status">
+                  <span>Your profile is ready to export.</span>
+                  <button type="button" onClick={() => { setView("usage"); setProfileReadyPrompt(false); }}>
+                    Open Your Profile
+                  </button>
+                </div>
+              )}
               {generalBusy && (
                 <div className="thinking-indicator" role="status" aria-live="polite">
                   <AuroraDisc size={20} />

@@ -82,7 +82,8 @@ export async function buildProfileSignals(profileId: string): Promise<ProfileSig
     const chosen = clean(decision.chosenDesc);
     const rejected = clean(decision.rejectedDesc);
     const signal = rejected ? `Preferred: ${chosen} | Rejected: ${rejected}` : `Preferred: ${chosen}`;
-    if (decision.medium !== "text" || isVisualContext(decision.contextTag)) add(dimensions.visual_taste, signal);
+    if (PROFILE_DIMENSIONS.includes(decision.contextTag as ProfileDimension)) add(dimensions[decision.contextTag as ProfileDimension], signal);
+    else if (decision.medium !== "text" || isVisualContext(decision.contextTag)) add(dimensions.visual_taste, signal);
     else add(dimensions.answer_style, signal);
   }
 
@@ -97,4 +98,3 @@ export async function buildProfileSignals(profileId: string): Promise<ProfileSig
 
   return { profile, dimensions, counts, totalSignals: PROFILE_DIMENSIONS.reduce((sum, dimension) => sum + counts[dimension], 0) };
 }
-

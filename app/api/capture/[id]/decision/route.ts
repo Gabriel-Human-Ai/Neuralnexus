@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { CAPTURE_DECISIONS, indexPreviewForCapture, scrubText } from "@/lib/capture-safety";
+import { createProfileDecisionRecord } from "@/lib/decision-record";
 import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
 
 async function assertExtensionAuth(req: Request) {
@@ -44,16 +45,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     summary: capture.summary.slice(0, 500),
   });
 
-  await db.decisionRecord.create({
-    data: {
-      profileId,
-      contextTag: capture.action === "review" || capture.action === "preflight" ? "review" : "general",
-      chosenDesc: descriptor.slice(0, 1500),
-      rejectedDesc: "",
-      medium: capture.screenshotData ? "mixed-url" : "text",
-      source: "browser-capture",
-      note,
-    },
+  await createProfileDecisionRecord({
+    profileId,
+    contextTag: capture.action === "review" || capture.action === "preflight" ? "review" : "general",
+    chosenDesc: descriptor,
+    rejectedDesc: "",
+    medium: capture.screenshotData ? "mixed-url" : "text",
+    source: "browser-capture",
+    note,
   });
 
   return NextResponse.json({

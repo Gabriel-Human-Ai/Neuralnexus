@@ -43,6 +43,11 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function resolveCssColor(name: string, fallback: string) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
 export function NexusOrb({
   size = 360,
   state = "idle",
@@ -115,6 +120,7 @@ export function NexusOrb({
     scene.add(coolLight);
 
     const uniforms = createOrbUniforms({
+      uCore: { value: new THREE.Color(resolveCssColor("--surface", "#101014")) },
       uAmplitude: { value: STATE_TARGETS[stateRef.current].amplitude },
       uSpeed: { value: STATE_TARGETS[stateRef.current].speed },
       uEnergy: { value: STATE_TARGETS[stateRef.current].energy },
@@ -137,6 +143,11 @@ export function NexusOrb({
     const material = createOrbMaterial(uniforms);
     const core = new THREE.Mesh(new THREE.SphereGeometry(1, detail, detail), material);
     scene.add(core);
+
+    const themeObserver = new MutationObserver(() => {
+      uniforms.uCore.value.set(resolveCssColor("--surface", "#101014"));
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
     const halo = !lowQuality
       ? new THREE.Mesh(
@@ -221,6 +232,7 @@ export function NexusOrb({
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      themeObserver.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("nexus:orb", onOrbEvent);
       window.removeEventListener("focusin", onFocus);

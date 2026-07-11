@@ -1,19 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, GitFork, MoreHorizontal, RefreshCcw } from "lucide-react";
+import { AlignJustify, AlignLeft, BriefcaseBusiness, Check, Copy, GitFork, RefreshCcw, Smile, ThumbsDown, ThumbsUp } from "lucide-react";
+
+export type ChatFeedbackSignal = "good" | "bad" | "shorter" | "longer" | "formal" | "casual";
 
 type MessageActionsProps = {
   text: string;
   onRegenerate?: () => void;
   onFork?: () => void;
+  onFeedback?: (signal: ChatFeedbackSignal) => void | Promise<void>;
+  selectedSignals?: ChatFeedbackSignal[];
   forkEnabled?: boolean;
   disabled?: boolean;
 };
 
-type ActionState = "copy" | "regenerate" | "fork" | "more" | null;
+type ActionState = "copy" | "regenerate" | "fork" | ChatFeedbackSignal | null;
 
-export function MessageActions({ text, onRegenerate, onFork, forkEnabled = false, disabled = false }: MessageActionsProps) {
+const FEEDBACK_ACTIONS: { signal: ChatFeedbackSignal; label: string; icon: typeof ThumbsUp }[] = [
+  { signal: "good", label: "Good", icon: ThumbsUp },
+  { signal: "bad", label: "Not for me", icon: ThumbsDown },
+  { signal: "shorter", label: "Shorter", icon: AlignLeft },
+  { signal: "longer", label: "Longer", icon: AlignJustify },
+  { signal: "formal", label: "More formal", icon: BriefcaseBusiness },
+  { signal: "casual", label: "More casual", icon: Smile },
+];
+
+export function MessageActions({ text, onRegenerate, onFork, onFeedback, selectedSignals = [], forkEnabled = false, disabled = false }: MessageActionsProps) {
   const [active, setActive] = useState<ActionState>(null);
   const [copied, setCopied] = useState(false);
 
@@ -27,6 +40,11 @@ export function MessageActions({ text, onRegenerate, onFork, forkEnabled = false
     setCopied(true);
     flash("copy");
     window.setTimeout(() => setCopied(false), 900);
+  }
+
+  async function feedback(signal: ChatFeedbackSignal) {
+    flash(signal);
+    await onFeedback?.(signal);
   }
 
   return (
@@ -61,9 +79,28 @@ export function MessageActions({ text, onRegenerate, onFork, forkEnabled = false
           <GitFork size={15} />
         </button>
       )}
-      <button type="button" className={active === "more" ? "is-active" : ""} onClick={() => flash("more")} aria-label="More" data-tip="More">
-        <MoreHorizontal size={15} />
-      </button>
+      {onFeedback && (
+        <div className="message-feedback-actions" aria-label="Teach profile from this answer">
+          {FEEDBACK_ACTIONS.map(({ signal, label, icon: Icon }) => {
+            const isSelected = selectedSignals.includes(signal);
+            return (
+              <button
+                key={signal}
+                type="button"
+                className={`feedback-action ${active === signal || isSelected ? "is-active" : ""}`}
+                onClick={() => void feedback(signal)}
+                disabled={disabled}
+                aria-pressed={isSelected}
+                aria-label={label}
+                data-tip={label}
+              >
+                <Icon size={14} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

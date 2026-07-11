@@ -173,7 +173,7 @@ export function createOrbUniforms(overrides?: Partial<OrbUniforms>): OrbUniforms
     uSpeed: overrides?.uSpeed ?? { value: 0.15 },
     uFresnel: overrides?.uFresnel ?? { value: 0.6 },
     uEnergy: overrides?.uEnergy ?? { value: 0.35 },
-    uCore: overrides?.uCore ?? { value: new THREE.Color("var(--surface)") },
+    uCore: overrides?.uCore ?? { value: new THREE.Color("#101014") },
     uRim: overrides?.uRim ?? { value: new THREE.Color("#00B3FF") },
     uSecondary: overrides?.uSecondary ?? { value: new THREE.Color("#FF2ED2") },
     uAtmosphereGlow: overrides?.uAtmosphereGlow ?? { value: 0.15 },

@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "npm run db:ensure && npx prisma db push --skip-generate && npm start",
     "healthcheckPath": "/",
     "restartPolicyType": "ON_FAILURE"
   }
