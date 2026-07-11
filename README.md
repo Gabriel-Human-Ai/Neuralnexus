@@ -1,8 +1,8 @@
 # NeuralNexus
 
-Turn your expertise into reusable AI workspaces.
-Encode your method once. It runs, learns from your edits, meets your quality bar, and gets cheaper over time.
-ChatGPT gives you answers. NeuralNexus gives you a system.
+Your AI personality, in one profile.
+Build it just by using NeuralNexus. Then every AI — ChatGPT, Claude, image generators — instantly knows how to talk, write and create for you.
+NeuralNexus keeps the preferences that make your work yours, ready to inspect and carry with you.
 
 ## Product Direction
 

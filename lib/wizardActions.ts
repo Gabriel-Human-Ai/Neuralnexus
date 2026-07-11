@@ -29,7 +29,7 @@ const ROUTES: Array<{ intent: WizardIntent; label: string; keywords: string[]; m
     intent: "create_workspace",
     label: "Create workspace",
     keywords: ["create workspace", "new workspace", "build workspace", "brand workspace", "workspace"],
-    message: "I can take you to the workspace builder.",
+    message: "I can take you to the workspace setup.",
   },
   {
     intent: "create_skill",
@@ -100,7 +100,7 @@ export function routeWizardRequest(input: string): WizardRoute {
 
 export const WIZARD_QUICK_ACTIONS: WizardRoute[] = [
   { intent: "open_chat", label: "Ask anything", message: "Open the free general chat." },
-  { intent: "create_workspace", label: "Create workspace", message: "Open the workspace builder." },
+  { intent: "create_workspace", label: "Create workspace", message: "Open workspace setup." },
   { intent: "create_skill", label: "Create a skill", message: "Open Skills." },
   { intent: "open_knowledge", label: "Go to Knowledge", message: "Open Knowledge." },
   { intent: "open_usage", label: "Go to Usage", message: "Open Usage." },

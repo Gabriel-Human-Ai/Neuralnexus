@@ -33,6 +33,7 @@ import {
   Settings,
   Sparkles,
   Upload,
+  UserRound,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -60,6 +61,7 @@ import { ShelfDock, type ShelfId } from "@/components/altitude/ShelfDock";
 import { ShelfPanel } from "@/components/altitude/ShelfPanel";
 import { PresenceLine } from "@/components/altitude/PresenceLine";
 import { DecisionStream, type StreamItem } from "@/components/altitude/DecisionStream";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -461,7 +463,7 @@ export default function Home() {
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [selectedStartPath, setSelectedStartPath] = useState<StartPath>("build");
+  const [selectedStartPath, setSelectedStartPath] = useState<StartPath>("ask");
   const [selectedModeId, setSelectedModeId] = useState("brand");
   const [workspaceName, setWorkspaceName] = useState("Brand Strategy System");
   const [workspaceAudience, setWorkspaceAudience] = useState("Founders, designers and consultants");
@@ -499,7 +501,7 @@ export default function Home() {
   const [generalInput, setGeneralInput] = useState("");
   const [generalBusy, setGeneralBusy] = useState(false);
   const [generalAttachments, setGeneralAttachments] = useState<UploadedSource[]>([]);
-  const [enteredApp, setEnteredApp] = useState(false);
+  const [enteredApp, setEnteredApp] = useState(!FEATURE_FLAGS.publicLanding);
   const [landingPrompt, setLandingPrompt] = useState("");
   const [publicPage, setPublicPage] = useState<PublicPage>("home");
   const [publicMenu, setPublicMenu] = useState<PublicMenu>(null);
@@ -656,7 +658,7 @@ export default function Home() {
     const url = new URL(window.location.href);
     const workspaceId = url.searchParams.get("workspace") || undefined;
     const focusId = url.searchParams.get("focus") || undefined;
-    const level = url.searchParams.get("altitude") === "craft" ? 1 : url.searchParams.get("altitude") === "system" ? 2 : 3;
+    const level = FEATURE_FLAGS.altitude && url.searchParams.get("altitude") === "craft" ? 1 : FEATURE_FLAGS.altitude && url.searchParams.get("altitude") === "system" ? 2 : 3;
     if (workspaceId) setSelectedWorkspaceId(workspaceId);
     setAltitude({ level, workspaceId, focusId });
     if (level < 3) setView("workspaces");
@@ -808,7 +810,7 @@ export default function Home() {
     lockTransition();
     setSelectedWorkspaceId(id);
     setView("workspaces");
-    setAltitude({ level: 2, workspaceId: id });
+    setAltitude(FEATURE_FLAGS.altitude ? { level: 2, workspaceId: id } : { level: 3, workspaceId: id });
   }
 
   function descendToCraft(focusId?: string) {
@@ -817,7 +819,8 @@ export default function Home() {
     if (!workspaceId) return;
     lockTransition();
     setView("workspaces");
-    setAltitude({ level: 1, workspaceId, focusId: focusId ?? currentOutput?.id ?? "next-step" });
+    setAltitude(FEATURE_FLAGS.altitude ? { level: 1, workspaceId, focusId: focusId ?? currentOutput?.id ?? "next-step" } : { level: 3, workspaceId });
+    if (!FEATURE_FLAGS.altitude) setWorkspacePanel("workflow");
   }
 
   function ascendOne() {
@@ -1131,25 +1134,20 @@ export default function Home() {
 
   const navigation = [
     { id: "home", label: "Home", icon: Compass },
-    { id: "chat", label: "Ask", icon: MessageCircle },
-    { id: "workspaces", label: "Workspaces", icon: Layers3 },
-    { id: "skills", label: "Skills", icon: Sparkles },
-    { id: "eye", label: "Eye", icon: Sparkles },
-    { id: "templates", label: "Templates", icon: Boxes },
-    { id: "knowledge", label: "Knowledge", icon: Database },
-    { id: "usage", label: "Vault", icon: Layers3 },
+    { id: "chat", label: "Chat", icon: MessageCircle },
+    { id: "usage", label: "Your Profile", icon: UserRound },
   ] as const;
   const mobilePrimaryNav = [
     { id: "home", label: "Home", icon: Compass },
-    { id: "workspaces", label: "Workspaces", icon: Layers3 },
-    { id: "skills", label: "Skills", icon: Sparkles },
+    { id: "chat", label: "Chat", icon: MessageCircle },
+    { id: "usage", label: "Profile", icon: UserRound },
   ] as const;
   const mobileMoreNav = [
-    { id: "chat", label: "Ask", icon: MessageCircle },
+    { id: "workspaces", label: "Workspaces", icon: Layers3 },
+    { id: "skills", label: "Skills", icon: Sparkles },
     { id: "eye", label: "Eye", icon: Sparkles },
     { id: "templates", label: "Templates", icon: Boxes },
     { id: "knowledge", label: "Knowledge", icon: Database },
-    { id: "usage", label: "Vault", icon: Layers3 },
   ] as const;
 
   const startPaths: {
@@ -1249,11 +1247,18 @@ export default function Home() {
         descendToSystem();
         return;
       }
-      if (target === "chat") return setActiveShelf("chat");
+      if (target === "chat") {
+        setActiveShelf(null);
+        return setView("chat");
+      }
       if (target === "skills") return setActiveShelf("skills");
       if (target === "templates") return setActiveShelf("templates");
       if (target === "knowledge") return setActiveShelf("knowledge");
-      if (target === "usage" || target === "eye") return setActiveShelf("vault");
+      if (target === "usage") {
+        setActiveShelf(null);
+        return setView("usage");
+      }
+      if (target === "eye") return setActiveShelf("vault");
       setView(target);
     };
     return [
@@ -1282,7 +1287,7 @@ export default function Home() {
         id: "create-workspace",
         label: "Create workspace",
         group: "Actions",
-        hint: "Open the workspace builder",
+        hint: "Open workspace setup",
         action: () => setWizardOpen(true),
       },
       {
@@ -1355,7 +1360,7 @@ export default function Home() {
       : "idle";
 
   const altitudeLayerMotion = {
-    initial: { opacity: 0, scale: altitude.level === 3 ? 0.98 : 0.96, filter: "blur(2px)" },
+    initial: FEATURE_FLAGS.altitude ? { opacity: 0, scale: altitude.level === 3 ? 0.98 : 0.96, filter: "blur(2px)" } : false,
     animate: { opacity: 1, scale: 1, filter: "blur(0px)" },
     exit: { opacity: 0, scale: 0.96, filter: "blur(2px)" },
     transition: { duration: altitude.level === 3 ? MOTION.ascend : MOTION.descend, ease: MOTION.easeOut },
@@ -1659,7 +1664,7 @@ export default function Home() {
           <AuroraDisc size={24} label="NeuralNexus" />
           <span>
             <strong>{keys.BRAND_NAME?.trim() || "NeuralNexus"}</strong>
-            <small>Workspace Builder</small>
+            <small>AI personality profile</small>
           </span>
         </button>
 
@@ -1675,16 +1680,15 @@ export default function Home() {
                     ascendTo(3);
                     return;
                   }
-                  if (item.id === "workspaces") {
-                    descendToSystem();
+                  if (item.id === "chat") {
+                    setActiveShelf(null);
+                    setView("chat");
                     return;
                   }
-                  if (item.id === "chat") setActiveShelf("chat");
-                  if (item.id === "skills") setActiveShelf("skills");
-                  if (item.id === "templates") setActiveShelf("templates");
-                  if (item.id === "knowledge") setActiveShelf("knowledge");
-                  if (item.id === "usage") setActiveShelf("vault");
-                  if (item.id === "eye") setActiveShelf("vault");
+                  if (item.id === "usage") {
+                    setActiveShelf(null);
+                    setView("usage");
+                  }
                 }}
               >
                 <Icon size={18} />
@@ -1727,19 +1731,19 @@ export default function Home() {
                   />
                 </div>
               )}
-              <p className="orbit-sentence">{hasWorkspaces ? guidance.description : "Create your first workspace. The resources can wait."}</p>
+              <p className="orbit-sentence">{hasWorkspaces ? guidance.description : "Your profile learns from the choices you make here."}</p>
             </section>
 
             <section className="guided-start-panel" aria-label="Start here">
               <div>
                 <span className="object-label">START HERE</span>
-                <h2>{hasWorkspaces ? guidance.label : "Tell NeuralNexus what you want to build."}</h2>
-                <p>{hasWorkspaces ? guidance.description : "One guided flow creates the workspace, steps and first useful output. Chat, templates and the Eye can wait until you need them."}</p>
+                <h2>{hasWorkspaces ? guidance.label : "Start by using NeuralNexus."}</h2>
+                <p>{hasWorkspaces ? guidance.description : "Ask a question, choose what feels right or edit an answer. Your profile grows from real preferences."}</p>
               </div>
               <div className="guided-start-steps" aria-label="How it works">
-                <span><strong>1</strong> Describe the method or result</span>
-                <span><strong>2</strong> Answer one question at a time</span>
-                <span><strong>3</strong> Run the first focused step</span>
+                <span><strong>1</strong> Ask a normal question</span>
+                <span><strong>2</strong> Choose what feels right</span>
+                <span><strong>3</strong> Export when it becomes useful</span>
               </div>
             </section>
 
@@ -1778,9 +1782,12 @@ export default function Home() {
                   onComplete={startWorkspaceSession}
                 />
               ) : (
-                <HeroCTA onClick={() => setWizardOpen(true)}>
-                  <Plus size={18} /> Create workspace
-                </HeroCTA>
+                <>
+                  <HeroCTA onClick={() => setView("chat")}>
+                    <MessageCircle size={18} /> Open chat
+                  </HeroCTA>
+                  <button className="profile-secondary-action" type="button" onClick={() => setWizardOpen(true)}>Create a workspace</button>
+                </>
               )}
             </section>
 
@@ -2098,7 +2105,7 @@ export default function Home() {
             {generalMessages.length === 0 && (
               <section className="chat-zero-copy">
                 <p>Hello, {userName || "there"}</p>
-                <h1>What are we building today?</h1>
+                <h1>What should your AI learn about you today?</h1>
               </section>
             )}
 
@@ -2265,8 +2272,8 @@ export default function Home() {
 
         {view === "usage" && (
           <div className="screen-stack">
-            <VaultIntro onOpenEye={() => setView("eye")} onOpenSkills={() => setView("skills")} consent={keys.INDEX_CONSENT} />
-            <header className="screen-header">
+            <VaultIntro onOpenEye={() => setView("eye")} onOpenSkills={() => setView("skills")} />
+            {FEATURE_FLAGS.autopilot && <header className="screen-header">
               <div>
               <span className="eyebrow">COSTS & AUTOPILOT</span>
                 <h1>Cost clarity for serious work</h1>
@@ -2275,13 +2282,13 @@ export default function Home() {
               <button className="secondary-pill" onClick={exportUsageCsv} disabled={usage.models.length === 0}>
                 <Download size={16} /> Export CSV
               </button>
-            </header>
-            <div className="usage-grid">
+            </header>}
+            {FEATURE_FLAGS.autopilot && <div className="usage-grid">
               <Stat label="Today" value={<RollingNumber value={formatUsd(usage.today)} />} />
               <Stat label="This month" value={<RollingNumber value={formatUsd(usage.month)} />} />
               <Stat label="Estimated Auto-Routing Savings" value={<RollingNumber value={formatUsd(usage.estimatedSavings)} />} />
-            </div>
-            <section className="liquid-panel usage-panel">
+            </div>}
+            {FEATURE_FLAGS.autopilot && <section className="liquid-panel usage-panel">
               <div className="section-head">
                 <span>AUTOPILOT</span>
                   <small>{POSITIONING_UI.microcopy.autopilot}</small>
@@ -2307,7 +2314,7 @@ export default function Home() {
                   ))}
                 </div>
               )}
-            </section>
+            </section>}
             <section className="liquid-panel usage-panel ground-truth-panel">
               <div className="section-head">
                 <span>GROUND TRUTH</span>
@@ -2328,7 +2335,7 @@ export default function Home() {
                 <div className="empty-inline"><p>No corrections yet. Mark a wrong claim in any output — the layer learns from you.</p></div>
               )}
             </section>
-            <div className="usage-layout">
+            {FEATURE_FLAGS.autopilot && <div className="usage-layout">
               <div className="liquid-panel usage-panel">
                 <div className="section-head">
                   <span>7-DAY COSTS</span>
@@ -2371,7 +2378,7 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            </div>
+            </div>}
           </div>
         )}
         </motion.div>
@@ -2380,7 +2387,7 @@ export default function Home() {
 
       <ShelfPanel
         shelf={activeShelf}
-        title={activeShelf === "skills" ? "Skills" : activeShelf === "templates" ? "Templates" : activeShelf === "knowledge" ? "Knowledge" : activeShelf === "vault" ? "Vault" : activeShelf === "chat" ? "Quick Chat" : activeShelf === "stream" ? "Stream" : "Settings"}
+        title={activeShelf === "skills" ? "Skills" : activeShelf === "templates" ? "Templates" : activeShelf === "knowledge" ? "Knowledge" : activeShelf === "vault" ? "Your Profile" : activeShelf === "chat" ? "Quick Chat" : activeShelf === "stream" ? "Stream" : "Settings"}
         onClose={() => setActiveShelf(null)}
       >
         {activeShelf === "skills" && (
@@ -2434,14 +2441,14 @@ export default function Home() {
         {activeShelf === "vault" && (
           <div className="shelf-list">
             <div className="shelf-row">
-              <strong>{projects.length} workspaces</strong>
+              <strong>Your profile</strong>
               <span>{workspaceSummary}</span>
             </div>
             <div className="shelf-row">
               <strong>{formatUsd(usage.month)} this month</strong>
-              <span>Usage, model policies, truth and learned taste live here.</span>
+              <span>Real choices, learned rules, truth and taste live here.</span>
             </div>
-            <button className="secondary-pill" onClick={() => { setActiveShelf(null); setView("usage"); }}>Open full Vault</button>
+            <button className="secondary-pill" onClick={() => { setActiveShelf(null); setView("usage"); }}>Open full profile</button>
           </div>
         )}
         {activeShelf === "chat" && (

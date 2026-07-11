@@ -1,18 +1,18 @@
 export const POSITIONING = {
   productName: "NeuralNexus",
-  category: "AI workspace builder",
+  category: "AI personality profile",
 
   // The frame: renting vs owning
-  oneLiner: "ChatGPT gives you answers. NeuralNexus gives you a system.",
-  claim: "Turn your expertise into reusable AI workspaces.",
-  subClaim: "Encode your method once. It runs, learns from your edits, meets your quality bar, and gets cheaper over time.",
+  oneLiner: "Your AI personality, in one profile.",
+  claim: "Build your AI personality through use.",
+  subClaim: "Build it just by using NeuralNexus. Then every AI — ChatGPT, Claude, image generators — instantly knows how to talk, write and create for you.",
 
   frame: {
-    rent: "Every chat session starts from zero. Your skill lives in today's prompt and dies in the scroll.",
-    own:  "A workspace is an asset. Encode your method once — every run after that compounds.",
+    rent: "Every AI starts with a blank profile. Your preferences disappear between tools and prompts.",
+    own:  "Your profile keeps the choices that make the work yours — portable, inspectable and ready when you are.",
   },
 
-  audience: "For anyone whose value is a repeatable method: designers, consultants, coaches, developers, founders, teams.",
+  audience: "For people who want AI to understand how they think, work, communicate and create.",
 
   pillars: [
     {
@@ -90,8 +90,8 @@ export const POSITIONING = {
 
 export const POSITIONING_UI = {
   home: {
-    firstTimeSentence: "Let's turn your method into a workspace.",
-    firstTimeSubLine: "Encode it once. It runs, learns, and meets your bar.",
+    firstTimeSentence: "Your AI personality, in one profile.",
+    firstTimeSubLine: "Build it just by using NeuralNexus, then carry it to the AI tools you already use.",
     whyLabel: "Why NeuralNexus",
   },
   onboarding: {

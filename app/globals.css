@@ -4513,6 +4513,7 @@ button.aura-card {
   }
 }
 
+
 @media (prefers-reduced-motion: reduce) {
   .aura-card,
   .hero-cta,
@@ -8889,4 +8890,59 @@ button.shelf-row:hover {
 @media (prefers-reduced-motion: reduce) {
   .public-nav, .public-story-nav, .public-section, .public-final-cta, .public-world-grid article, .public-price-card, .public-prompt, .public-hero-cta, .public-scroll-cue, .public-submit { transition: none !important; transform: none !important; }
   .public-section, .public-final-cta { opacity: 1 !important; }
+}
+/* ===== Profile pivot ===== */
+.profile-export {
+  position: relative;
+  display: grid;
+  gap: 22px;
+  padding: 28px;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.profile-export-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.profile-export-head h2 { margin: 8px 0 8px; font-size: clamp(24px, 3vw, 34px); line-height: 1.05; letter-spacing: -0.03em; }
+.profile-export-head p { max-width: 620px; margin: 0; color: var(--secondary); line-height: 1.55; }
+.profile-export-action { flex: 0 0 auto; min-height: 42px; white-space: nowrap; }
+.profile-signal-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.profile-signal-grid > div { display: grid; gap: 5px; padding: 13px 14px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface-2); }
+.profile-signal-grid span { color: var(--muted); font: 500 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.profile-signal-grid strong { font: 600 21px var(--font-mono); color: var(--ink); }
+.profile-export-hint, .profile-export-notice { margin: 0; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+.profile-export-notice { color: var(--ink); }
+.profile-export-result { display: grid; gap: 10px; }
+.profile-export-result textarea { min-height: 170px; width: 100%; resize: vertical; padding: 16px; border: 1px solid var(--hairline-strong); border-radius: 14px; background: var(--surface-2); color: var(--ink); font: 14px/1.6 var(--font-ui); outline: none; }
+.profile-export-result textarea:focus { border-color: var(--aurora-a); box-shadow: 0 0 0 3px rgba(124,108,246,.12); }
+.profile-export-result-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.profile-export-result-actions small { color: var(--muted); }
+.profile-export-check { position: absolute; right: 24px; bottom: 24px; color: var(--aurora-a); }
+.profile-export-spinner { width: 14px; height: 14px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; }
+.profile-secondary-action { display: block; margin: 14px auto 0; color: var(--secondary); font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+.profile-secondary-action:hover { color: var(--ink); }
+@media (max-width: 767px) {
+  .profile-export { padding: 20px; border-radius: 18px; }
+  .profile-export-head { display: grid; gap: 16px; }
+  .profile-export-action { width: 100%; justify-content: center; }
+  .profile-signal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-export-result-actions { align-items: flex-start; flex-direction: column; }
+}
+
+/* Final responsive guard for the profile-first home. */
+@media (min-width: 768px) {
+  .altitude-orbit { min-height: calc(100svh - 64px); padding-block: 24px 28px; gap: 18px; }
+  .altitude-orbit .orbit-orb { width: min(29vw, 300px); min-width: 210px; }
+}
+@media (max-width: 700px) {
+  .altitude-orbit { padding: 58px 0 104px; gap: 16px; }
+  .altitude-orbit .orbit-orb { width: min(54vw, 210px); min-width: 0; }
+  .altitude-orbit .guided-start-panel { gap: 10px; padding: 14px; }
+  .altitude-orbit .guided-start-steps { gap: 6px; }
+  .altitude-orbit .guided-start-steps span { min-height: 36px; padding-block: 6px; }
 }

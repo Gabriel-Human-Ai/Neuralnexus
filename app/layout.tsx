@@ -7,18 +7,18 @@ const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variabl
 
 export const metadata: Metadata = {
   title: "NeuralNexus",
-  description: "Turn your expertise into reusable AI workspaces. Encode your method once — it runs, learns from your edits, and meets your quality bar.",
+  description: "Your AI personality, in one profile. Build it just by using NeuralNexus. Then every AI — ChatGPT, Claude, image generators — instantly knows how to talk, write and create for you.",
   manifest: "/manifest.json",
   openGraph: {
     title: "NeuralNexus",
-    description: "Turn your expertise into reusable AI workspaces. Encode your method once — it runs, learns from your edits, and meets your quality bar.",
+    description: "Your AI personality, in one profile. Build it just by using NeuralNexus. Then every AI — ChatGPT, Claude, image generators — instantly knows how to talk, write and create for you.",
     siteName: "NeuralNexus",
     type: "website",
   },
   twitter: {
     card: "summary",
     title: "NeuralNexus",
-    description: "Turn your expertise into reusable AI workspaces. Encode your method once — it runs, learns from your edits, and meets your quality bar.",
+    description: "Your AI personality, in one profile. Build it just by using NeuralNexus. Then every AI — ChatGPT, Claude, image generators — instantly knows how to talk, write and create for you.",
   },
   icons: {
     icon: "/icon.svg",
