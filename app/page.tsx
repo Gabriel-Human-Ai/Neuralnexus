@@ -53,7 +53,7 @@ import { NexusIsland } from "@/components/ui/NexusIsland";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { useTypingGlow } from "@/lib/useTypingGlow";
-import { AltitudeRail, type AltitudeLevel } from "@/components/altitude/AltitudeRail";
+import type { AltitudeLevel } from "@/components/altitude/AltitudeRail";
 import { ShelfDock, type ShelfId } from "@/components/altitude/ShelfDock";
 import { ShelfPanel } from "@/components/altitude/ShelfPanel";
 import { PresenceLine } from "@/components/altitude/PresenceLine";
@@ -567,7 +567,7 @@ export default function Home() {
     window.dispatchEvent(new Event("nn:client-mounted"));
     window.setTimeout(() => document.getElementById("nn-boot")?.remove(), 700);
     try {
-      setEnteredApp(window.localStorage.getItem("NN_ENTERED_APP") === "1");
+      window.localStorage.removeItem("NN_ENTERED_APP");
       const stored = window.localStorage.getItem("CMDK_RECENT");
       if (stored) setRecentCommands(JSON.parse(stored).slice(0, 3));
     } catch {
@@ -1343,7 +1343,7 @@ export default function Home() {
     setEnteredApp(true);
     setPublicMenu(null);
     try {
-      window.localStorage.setItem("NN_ENTERED_APP", "1");
+      window.localStorage.removeItem("NN_ENTERED_APP");
     } catch {}
     if (prompt) {
       setWorkspaceIntent(prompt);
@@ -1558,7 +1558,6 @@ export default function Home() {
       <div className="altitude-live" aria-live="polite">
         {altitude.level === 3 ? "Overview" : altitude.level === 2 ? `Workspace ${selectedWorkspace?.name ?? ""}` : `Focus ${currentOutput?.stepName ?? "focused step"}`}
       </div>
-      <AltitudeRail level={altitude.level} onAscendTo={ascendTo} />
       <ShelfDock activeShelf={activeShelf} streamCount={streamItems.length} onOpen={openShelf} onCreate={() => setWizardOpen(true)} />
       <aside className="nn-sidebar">
         <button className="brand-lockup" onClick={() => ascendTo(3)}>
