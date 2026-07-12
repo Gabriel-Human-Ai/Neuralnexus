@@ -7,6 +7,6 @@ export const FEATURE_FLAGS = {
   altitude: false,
   indexNetwork: false,
   immersion: false,
-  publicLanding: false,
+  publicLanding: true,
   browserExtension: false,
 } as const;
