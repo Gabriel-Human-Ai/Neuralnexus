@@ -81,7 +81,7 @@ export async function buildProfileSignals(profileId: string): Promise<ProfileSig
   for (const decision of decisions) {
     const chosen = clean(decision.chosenDesc);
     const rejected = clean(decision.rejectedDesc);
-    if (decision.source === "signal-reader") {
+    if (decision.source === "signal-reader" || decision.source === "ambient-action") {
       if (PROFILE_DIMENSIONS.includes(decision.contextTag as ProfileDimension)) add(dimensions[decision.contextTag as ProfileDimension], chosen);
       continue;
     }

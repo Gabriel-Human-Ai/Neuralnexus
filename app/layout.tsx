@@ -28,6 +28,36 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = { themeColor: "#FAFAFC" };
 
+const clerkAppearance = {
+  variables: {
+    colorPrimary: "#7C6CF6",
+    colorBackground: "#FFFFFF",
+    colorText: "#0D0D12",
+    colorInputBackground: "#F1F1F4",
+    colorInputText: "#0D0D12",
+    borderRadius: "12px",
+    fontFamily: "var(--font-ui)",
+  },
+  elements: {
+    card: {
+      boxShadow: "0 24px 64px rgba(13,13,18,0.12), 0 4px 16px rgba(13,13,18,0.06)",
+      border: "1px solid rgba(13,13,18,0.08)",
+      background: "#FFFFFF",
+    },
+    formButtonPrimary: {
+      background: "#0D0D12",
+      color: "#FFFFFF",
+      borderRadius: "999px",
+      fontWeight: 500,
+      "&:hover": { filter: "brightness(1.05)" },
+    },
+    headerTitle: { fontFamily: "var(--font-ui)", fontWeight: 600, color: "#0D0D12" },
+    socialButtonsBlockButton: { border: "1px solid rgba(13,13,18,0.08)", background: "#F1F1F4" },
+    footerActionLink: { color: "#7C6CF6" },
+    formFieldInput: { border: "1px solid rgba(13,13,18,0.08)", borderRadius: "10px" },
+  },
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const content = (
     <>
@@ -51,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen antialiased">
-        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? <ClerkProvider>{content}</ClerkProvider> : content}
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? <ClerkProvider appearance={clerkAppearance}>{content}</ClerkProvider> : content}
       </body>
     </html>
   );

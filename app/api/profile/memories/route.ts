@@ -1,12 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { clearLivingProfile, listLivingProfileMemories, removeLivingProfileMemory } from "@/lib/living-profile";
+import { AMBIENT_CONSENT_KEY, LEARNING_PAUSED_KEY, clearLivingProfile, listLivingProfileMemories, removeLivingProfileMemory } from "@/lib/living-profile";
 import { PROFILE_DIMENSIONS, type ProfileDimension } from "@/lib/profile-signals";
 import { getProfileSetting, setProfileSetting } from "@/lib/settings";
 import { profileScopeErrorResponse, resolveRequestProfileId } from "@/lib/scope";
-
-const LEARNING_PAUSED = "PROFILE_LEARNING_PAUSED";
 
 function labelForConfidence(confidence: number) {
   if (confidence >= 4) return "strong";
@@ -21,9 +19,10 @@ function isDimension(value: string): value is ProfileDimension {
 export async function GET(req: Request) {
   try {
     const profileId = await resolveRequestProfileId(req);
-    const [rows, paused] = await Promise.all([
+    const [rows, paused, consent] = await Promise.all([
       listLivingProfileMemories(profileId),
-      getProfileSetting(profileId, LEARNING_PAUSED),
+      getProfileSetting(profileId, LEARNING_PAUSED_KEY),
+      getProfileSetting(profileId, AMBIENT_CONSENT_KEY),
     ]);
     const dimensions = PROFILE_DIMENSIONS.reduce((result, dimension) => {
       result[dimension] = [];
@@ -41,7 +40,7 @@ export async function GET(req: Request) {
       });
     }
 
-    return NextResponse.json({ paused: paused === "true", dimensions, total: rows.length });
+    return NextResponse.json({ paused: paused === "true", consented: consent === "true", dimensions, total: rows.length });
   } catch (error) {
     return profileScopeErrorResponse(error) ?? NextResponse.json({ error: error instanceof Error ? error.message : "Profile memories unavailable." }, { status: 500 });
   }
@@ -53,8 +52,13 @@ export async function PATCH(req: Request) {
     const profileId = await resolveRequestProfileId(req, body.profileId);
 
     if (body.action === "pause") {
-      await setProfileSetting(profileId, LEARNING_PAUSED, body.paused ? "true" : "");
+      await setProfileSetting(profileId, LEARNING_PAUSED_KEY, body.paused ? "true" : "");
       return NextResponse.json({ ok: true, paused: Boolean(body.paused) });
+    }
+
+    if (body.action === "consent") {
+      await setProfileSetting(profileId, AMBIENT_CONSENT_KEY, body.consented ? "true" : "");
+      return NextResponse.json({ ok: true, consented: Boolean(body.consented) });
     }
 
     if (body.action === "remove" && body.id) {

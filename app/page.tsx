@@ -56,6 +56,7 @@ import { NexusIsland } from "@/components/ui/NexusIsland";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { AuthButtons, AuthStartButton } from "@/components/auth/AuthButtons";
+import { BILLING, PLANS, YEARLY_DISCOUNT, monthlyPrice, type BillingCycle } from "@/lib/pricing";
 import { useTypingGlow } from "@/lib/useTypingGlow";
 import type { AltitudeLevel } from "@/components/altitude/AltitudeRail";
 import { ShelfDock, type ShelfId } from "@/components/altitude/ShelfDock";
@@ -522,7 +523,7 @@ export default function Home() {
   const [publicHeaderScrolled, setPublicHeaderScrolled] = useState(false);
   const [publicStoryNavVisible, setPublicStoryNavVisible] = useState(true);
   const [stageToolsVisible, setStageToolsVisible] = useState(true);
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(BILLING.monthly);
   const publicLastScroll = useRef(0);
   const stageLastScroll = useRef(0);
 
@@ -590,6 +591,8 @@ export default function Home() {
     window.dispatchEvent(new Event("nn:client-mounted"));
     window.setTimeout(() => document.getElementById("nn-boot")?.remove(), 700);
     try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("page") === "pricing") setPublicPage("pricing");
       window.localStorage.removeItem("NN_ENTERED_APP");
       const stored = window.localStorage.getItem("CMDK_RECENT");
       if (stored) setRecentCommands(JSON.parse(stored).slice(0, 3));
@@ -981,6 +984,25 @@ export default function Home() {
     setProfileNoticeOpen(null);
   }
 
+  async function recordAmbientAction(action: "copy" | "regenerate" | "edit" | "choose" | "dismiss", subject = "") {
+    void fetch("/api/profile/ambient", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, subject }),
+    })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const memoryNotice = shouldSurfaceProfileMemory(data?.memories ?? []);
+        if (!memoryNotice) return;
+        setGeneralMessages((messages) => [...messages, {
+          role: "assistant",
+          content: "I noticed a preference and saved it to your profile.",
+          memoryNotice,
+        }]);
+      })
+      .catch(() => {});
+  }
+
   async function askWizard(input: string, attachments: UploadedSource[] = [], history = generalMessages.slice(-8)) {
     const response = await fetch("/api/wizard-chat", {
       method: "POST",
@@ -1024,6 +1046,7 @@ export default function Home() {
     const previousUserIndex = generalMessages.slice(0, index).map((message) => message.role).lastIndexOf("user");
     if (previousUserIndex < 0) return;
     const prompt = generalMessages[previousUserIndex].content;
+    void recordAmbientAction("regenerate", generalMessages[index]?.content ?? "");
     const history = generalMessages.slice(0, previousUserIndex + 1).slice(-8);
     setGeneralMessages(generalMessages.slice(0, index));
     setGeneralBusy(true);
@@ -1038,6 +1061,7 @@ export default function Home() {
   }
 
   function editChatMessage(message: GeneralChatMessage) {
+    if (message.role === "assistant") void recordAmbientAction("edit", message.content);
     setGeneralInput(message.role === "assistant" ? `Please revise this answer:\n\n${message.content}` : message.content);
   }
 
@@ -1667,32 +1691,41 @@ export default function Home() {
             <h1><AuroraDisc size={32} label="Pricing" /> Pricing</h1>
             <p>Start free. Upgrade when your workspace becomes a system your team relies on.</p>
             <div className="public-billing-toggle" role="group" aria-label="Billing cycle">
-              <button type="button" className={billingCycle === "monthly" ? "is-active" : ""} onClick={() => setBillingCycle("monthly")}>Monthly</button>
-              <button type="button" className={billingCycle === "yearly" ? "is-active" : ""} onClick={() => setBillingCycle("yearly")}>Yearly <span>2 months free</span></button>
+              <motion.span className="public-billing-thumb" layoutId="public-billing-thumb" aria-hidden="true" style={{ left: billingCycle === BILLING.monthly ? 4 : "calc(50% + 1px)" }} />
+              <button type="button" className={billingCycle === BILLING.monthly ? "is-active" : ""} onClick={() => setBillingCycle(BILLING.monthly)}>Monthly</button>
+              <button type="button" className={billingCycle === BILLING.yearly ? "is-active" : ""} onClick={() => setBillingCycle(BILLING.yearly)}>Yearly</button>
             </div>
+            <AnimatePresence mode="wait">
+              {billingCycle === BILLING.yearly && (
+                <motion.p className="public-save-badge" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: MOTION.base, ease: MOTION.easeOut }}>
+                  Save {Math.round(YEARLY_DISCOUNT * 100)}%
+                </motion.p>
+              )}
+            </AnimatePresence>
             <div className="public-price-grid">
-              {[
-                ["Free", "$0", "Discover what NeuralNexus can do for you", "No credit card needed", ["1 workspace", "Normal Ask chat", "Templates preview"]],
-                ["Pro", billingCycle === "yearly" ? "$20" : "$25", "For builders turning methods into reusable work", "100 monthly workspace credits", ["Reusable workspaces", "Skill Genome rules", "File and image reading"]],
-                ["Business", billingCycle === "yearly" ? "$40" : "$50", "Advanced controls for growing teams", "Shared workspaces and trust checks", ["Team workspaces", "Quality gates", "Cost routing controls"]],
-                ["Enterprise", "Custom", "For organizations needing governance and scale", "Volume-based pricing", ["Bring your own keys", "Workspace governance", "Priority rollout support"]],
-              ].map(([name, price, desc, meta, features], index) => (
-                <article className="public-price-card" key={String(name)}>
-                  <h2>{String(name)}</h2>
-                  <p>{String(desc)}</p>
-                  <strong>{String(price)}</strong>
-                  <small>{String(price).startsWith("$") ? "/ month" : "Platform fee"}</small>
-                  {index === 3 ? (
-                    <button type="button" onClick={() => showPublicPage("enterprise")}>Book a demo</button>
-                  ) : (
-                    <AuthStartButton className={index === 1 ? "is-primary" : ""} onEnter={() => enterWorkspaceApp(true)}>Get started</AuthStartButton>
-                  )}
-                  <em>{String(meta)}</em>
+              {PLANS.map((plan) => {
+                const price = monthlyPrice(plan, billingCycle);
+                const yearly = billingCycle === BILLING.yearly && plan.monthly > 0;
+                return (
+                <article className={`public-price-card ${plan.highlighted ? "is-highlighted" : ""}`} key={plan.id}>
+                  {plan.highlighted && <span className="popular-badge">Most popular</span>}
+                  <h2>{plan.name}</h2>
+                  <p>{plan.tagline}</p>
+                  <strong>
+                    <AnimatePresence mode="wait">
+                      <motion.span key={`${plan.id}-${billingCycle}`} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -7 }} transition={{ duration: MOTION.base, ease: MOTION.easeOut }}>
+                        ${price}
+                      </motion.span>
+                    </AnimatePresence>
+                  </strong>
+                  <small>{yearly ? "/mo billed yearly" : plan.perSeat ? "/ user per month" : "/ month"}</small>
+                  <AuthStartButton className={plan.highlighted ? "is-primary" : ""} onEnter={() => enterWorkspaceApp(true, `Start ${plan.name} on ${billingCycle} billing.`)}>{plan.cta}</AuthStartButton>
+                  <em>{plan.monthly === 0 ? "No credit card needed" : yearly ? "Annual billing applies" : "Monthly billing"}</em>
                   <ul>
-                    {(features as string[]).map((feature) => <li key={feature}>{feature}</li>)}
+                    {plan.features.map((feature) => <li key={feature}>{feature}</li>)}
                   </ul>
                 </article>
-              ))}
+              );})}
             </div>
           </section>
         )}
@@ -2192,7 +2225,9 @@ export default function Home() {
                   {message.role === "assistant" && (
                     <MessageActions
                       text={message.content}
+                      onCopy={() => void recordAmbientAction("copy", message.content)}
                       onRegenerate={() => void regenerateChatMessage(index)}
+                      onEdit={() => editChatMessage(message)}
                       disabled={generalBusy}
                     />
                   )}

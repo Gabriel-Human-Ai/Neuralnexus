@@ -55,6 +55,12 @@ export type SurfacedProfileMemory = {
 
 const ACTIVE_SOURCE = "signal-reader";
 const EVIDENCE_SOURCE = "signal-reader-evidence";
+const AMBIENT_SOURCE = "ambient-action";
+const AMBIENT_EVIDENCE_SOURCE = "ambient-action-evidence";
+const ACTIVE_PROFILE_SOURCES = [ACTIVE_SOURCE, AMBIENT_SOURCE];
+const PROFILE_EVIDENCE_SOURCES = [EVIDENCE_SOURCE, AMBIENT_EVIDENCE_SOURCE];
+export const AMBIENT_CONSENT_KEY = "AMBIENT_CONSENT";
+export const LEARNING_PAUSED_KEY = "PROFILE_LEARNING_PAUSED";
 
 function clean(value: string, max: number) {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -99,12 +105,16 @@ function shouldRunReader(userTurns: string[], latestInput: string) {
 }
 
 async function isLearningPaused(profileId: string) {
-  return (await getProfileSetting(profileId, "PROFILE_LEARNING_PAUSED")) === "true";
+  return (await getProfileSetting(profileId, LEARNING_PAUSED_KEY)) === "true";
+}
+
+export async function hasAmbientConsent(profileId: string) {
+  return (await getProfileSetting(profileId, AMBIENT_CONSENT_KEY)) === "true";
 }
 
 async function similarRecord(profileId: string, dimension: ProfileDimension, insight: string, statuses: string[]) {
   const records = await db.decisionRecord.findMany({
-    where: { profileId, source: { in: [ACTIVE_SOURCE, EVIDENCE_SOURCE] }, contextTag: dimension, status: { in: statuses } },
+    where: { profileId, source: { in: [...ACTIVE_PROFILE_SOURCES, ...PROFILE_EVIDENCE_SOURCES] }, contextTag: dimension, status: { in: statuses } },
     orderBy: { updatedAt: "desc" },
     take: 120,
   });
@@ -174,6 +184,7 @@ export async function runSignalReader(args: {
   history: { role: "user" | "assistant"; content: string }[];
 }) {
   if (await isLearningPaused(args.profileId)) return { memories: [] as SurfacedProfileMemory[], skipped: "paused" as const };
+  if (!(await hasAmbientConsent(args.profileId))) return { memories: [] as SurfacedProfileMemory[], skipped: "consent" as const };
 
   const userTurns = [
     ...args.history.filter((message) => message.role === "user").map((message) => message.content),
@@ -234,7 +245,7 @@ export async function runSignalReaderForNotice(args: {
 
 export async function buildProfileDirective(profileId: string) {
   const rows = await db.decisionRecord.findMany({
-    where: { profileId, source: ACTIVE_SOURCE, status: "active" },
+    where: { profileId, source: { in: ACTIVE_PROFILE_SOURCES }, status: "active" },
     orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
     take: 12,
     select: { contextTag: true, chosenDesc: true },
@@ -250,7 +261,7 @@ export async function buildProfileDirective(profileId: string) {
 
 export async function listLivingProfileMemories(profileId: string) {
   return db.decisionRecord.findMany({
-    where: { profileId, source: ACTIVE_SOURCE, status: "active" },
+    where: { profileId, source: { in: ACTIVE_PROFILE_SOURCES }, status: "active" },
     orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
     select: { id: true, contextTag: true, chosenDesc: true, evidence: true, confidence: true, updatedAt: true },
   });
@@ -258,14 +269,94 @@ export async function listLivingProfileMemories(profileId: string) {
 
 export async function removeLivingProfileMemory(profileId: string, id: string) {
   return db.decisionRecord.updateMany({
-    where: { id, profileId, source: ACTIVE_SOURCE },
+    where: { id, profileId, source: { in: ACTIVE_PROFILE_SOURCES } },
     data: { status: "removed" },
   });
 }
 
 export async function clearLivingProfile(profileId: string) {
   return db.decisionRecord.updateMany({
-    where: { profileId, source: { in: [ACTIVE_SOURCE, EVIDENCE_SOURCE] } },
+    where: { profileId, source: { in: [...ACTIVE_PROFILE_SOURCES, ...PROFILE_EVIDENCE_SOURCES] } },
     data: { status: "removed" },
   });
+}
+
+export async function recordAmbientActionSignal(args: {
+  profileId: string;
+  action: "copy" | "regenerate" | "edit" | "choose" | "dismiss";
+  subject?: string;
+}) {
+  if (await isLearningPaused(args.profileId)) return { memories: [] as SurfacedProfileMemory[], skipped: "paused" as const };
+  if (!(await hasAmbientConsent(args.profileId))) return { memories: [] as SurfacedProfileMemory[], skipped: "consent" as const };
+
+  type AmbientAction = "copy" | "regenerate" | "edit" | "choose" | "dismiss";
+  const templates: Record<AmbientAction, { dimension: ProfileDimension; insight: string; evidence: string; strength: "weak" | "moderate" }> = {
+    copy: {
+      dimension: "answer_style",
+      insight: "You value answers clear enough to reuse directly.",
+      evidence: "You copied an assistant answer.",
+      strength: "weak",
+    },
+    regenerate: {
+      dimension: "answer_style",
+      insight: "You want first drafts to be sharper before you use them.",
+      evidence: "You regenerated an answer instead of accepting it.",
+      strength: "weak",
+    },
+    edit: {
+      dimension: "working_style",
+      insight: "You refine outputs directly when the direction is close.",
+      evidence: "You chose to revise an assistant answer.",
+      strength: "moderate",
+    },
+    choose: {
+      dimension: "working_style",
+      insight: "You prefer choosing from clear options over open-ended noise.",
+      evidence: "You selected one option from a product choice.",
+      strength: "moderate",
+    },
+    dismiss: {
+      dimension: "working_style",
+      insight: "You avoid suggestions that are not immediately useful.",
+      evidence: "You dismissed a suggested action.",
+      strength: "weak",
+    },
+  };
+  const signal = templates[args.action];
+  const similar = await similarRecord(args.profileId, signal.dimension, signal.insight, ["active", "evidence"]);
+  if (similar?.status === "active") {
+    await db.decisionRecord.update({
+      where: { id: similar.id },
+      data: { confidence: Math.min(5, similar.confidence + 1), evidence: signal.evidence, note: args.action },
+    });
+    return { memories: [] as SurfacedProfileMemory[] };
+  }
+
+  if (signal.strength === "weak" && !similar) {
+    await createProfileDecisionRecord({
+      profileId: args.profileId,
+      contextTag: signal.dimension,
+      chosenDesc: signal.insight,
+      evidence: signal.evidence,
+      confidence: 1,
+      status: "evidence",
+      medium: "text",
+      source: AMBIENT_EVIDENCE_SOURCE,
+      note: args.action,
+    });
+    return { memories: [] as SurfacedProfileMemory[] };
+  }
+
+  const record = await createProfileDecisionRecord({
+    profileId: args.profileId,
+    contextTag: signal.dimension,
+    chosenDesc: signal.insight,
+    evidence: signal.evidence,
+    confidence: signal.strength === "moderate" ? 2 : 1,
+    status: "active",
+    medium: "text",
+    source: AMBIENT_SOURCE,
+    note: args.action,
+  });
+  return { memories: [{ id: record.id, dimension: signal.dimension, insight: signal.insight, evidence: signal.evidence }] };
 }

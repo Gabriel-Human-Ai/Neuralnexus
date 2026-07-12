@@ -12,6 +12,7 @@ type Memory = {
 };
 type ProfileMemoryResponse = {
   paused: boolean;
+  consented: boolean;
   dimensions: Record<Dimension, Memory[]>;
   total: number;
 };
@@ -74,6 +75,15 @@ export function ProfileMemoryPanel() {
       </div>
 
       {data?.paused && <p className="profile-learning-paused">Learning paused. I am not noticing anything new.</p>}
+      {data && !data.consented && (
+        <div className="profile-consent-card">
+          <div>
+            <strong>NeuralNexus learns how you like to work.</strong>
+            <p>Quietly, from how you use it. You can see everything it learns and turn it off anytime.</p>
+          </div>
+          <button type="button" onClick={() => void patch({ action: "consent", consented: true })}>Got it</button>
+        </div>
+      )}
       {ack && <p className="profile-memory-ack" role="status"><Check size={14} /> {ack}</p>}
 
       <div className="profile-memory-sections">

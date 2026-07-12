@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, GitFork, RefreshCcw } from "lucide-react";
+import { Check, Copy, GitFork, Pencil, RefreshCcw } from "lucide-react";
 
 type MessageActionsProps = {
   text: string;
   onRegenerate?: () => void;
   onFork?: () => void;
+  onCopy?: () => void;
+  onEdit?: () => void;
   forkEnabled?: boolean;
   disabled?: boolean;
 };
 
-type ActionState = "copy" | "regenerate" | "fork" | null;
+type ActionState = "copy" | "regenerate" | "edit" | "fork" | null;
 
-export function MessageActions({ text, onRegenerate, onFork, forkEnabled = false, disabled = false }: MessageActionsProps) {
+export function MessageActions({ text, onRegenerate, onFork, onCopy, onEdit, forkEnabled = false, disabled = false }: MessageActionsProps) {
   const [active, setActive] = useState<ActionState>(null);
   const [copied, setCopied] = useState(false);
 
@@ -24,6 +26,7 @@ export function MessageActions({ text, onRegenerate, onFork, forkEnabled = false
 
   async function copy() {
     await navigator.clipboard.writeText(text);
+    onCopy?.();
     setCopied(true);
     flash("copy");
     window.setTimeout(() => setCopied(false), 900);
@@ -46,6 +49,19 @@ export function MessageActions({ text, onRegenerate, onFork, forkEnabled = false
         data-tip="Regenerate"
       >
         <RefreshCcw size={15} />
+      </button>
+      <button
+        type="button"
+        className={active === "edit" ? "is-active" : ""}
+        onClick={() => {
+          flash("edit");
+          onEdit?.();
+        }}
+        disabled={disabled || !onEdit}
+        aria-label="Edit"
+        data-tip="Edit"
+      >
+        <Pencil size={15} />
       </button>
       {forkEnabled && (
         <button
