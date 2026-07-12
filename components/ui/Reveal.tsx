@@ -9,9 +9,10 @@ type RevealProps = {
   children: ReactNode;
   className?: string;
   delay?: number;
+  amount?: number;
 };
 
-export function Reveal({ children, className, delay = 0 }: RevealProps) {
+export function Reveal({ children, className, delay = 0, amount = 0.15 }: RevealProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const reducedMotion = useReducedMotion();
   const [visible, setVisible] = useState(false);
@@ -34,12 +35,12 @@ export function Reveal({ children, className, delay = 0 }: RevealProps) {
         setVisible(true);
         observer.disconnect();
       },
-      { threshold: 0.15, rootMargin: "0px 0px -8%" },
+      { threshold: amount, rootMargin: "0px 0px -8%" },
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [reducedMotion]);
+  }, [amount, reducedMotion]);
 
   return (
     <motion.div

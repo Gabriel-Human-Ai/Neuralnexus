@@ -1683,7 +1683,18 @@ export default function Home() {
               </nav>
             </div>
 
-            <Reveal>
+            <div className={`public-progress-rail ${publicHeaderScrolled ? "is-visible" : ""}`} aria-label="Page progress">
+              <a href="#profile" aria-label="Profile section" />
+              <a href="#engine" aria-label="Engine section" />
+              <a href="#trust" aria-label="Trust section" />
+            </div>
+
+            <div className={`public-scroll-dock ${publicHeaderScrolled ? "is-visible" : ""}`}>
+              <span>Build your profile as you use it.</span>
+              <AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start profile <ChevronRight size={15} /></AuthStartButton>
+            </div>
+
+            <Reveal className="public-reveal">
               <section className="public-section public-twin-section" id="profile">
                 <div className="public-section-heading"><span className="public-eyebrow">ONE PROFILE</span><h2>Your style becomes portable.</h2><p>NeuralNexus notices how you ask, choose, edit and approve. Those signals become a profile you can inspect, correct and reuse.</p></div>
                 <div className="public-world-grid">
@@ -1691,43 +1702,49 @@ export default function Home() {
                     ["Ask naturally", "Use NeuralNexus like a normal AI. Your words reveal tone, standards and preferences."],
                     ["Choose what fits", "Every selection and correction teaches the profile what good feels like to you."],
                   ].map(([title, body], index) => (
-                    <Reveal key={title} delay={index * 0.08}>
+                    <Reveal key={title} className="public-reveal-item" delay={index * 0.08}>
                       <article><span className="public-section-label">STEP {index + 1}</span><h3>{title}</h3><p>{body}</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start your profile <ChevronRight size={16} /></AuthStartButton></article>
                     </Reveal>
                   ))}
                 </div>
+                <Reveal className="public-section-action" delay={0.2}>
+                  <AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Try one question <ChevronRight size={16} /></AuthStartButton>
+                </Reveal>
               </section>
             </Reveal>
 
-            <Reveal>
+            <Reveal className="public-reveal">
               <section className="public-section public-preview-section" id="engine">
                 <div className="public-section-heading"><span className="public-eyebrow">THE ENGINE</span><h2>Learning you can inspect.</h2><p>NeuralNexus keeps the useful parts visible: what it remembers, what good looks like, and how your preferences become reusable.</p></div>
                 <div className="public-preview-panel">
-                  <Reveal delay={0.08}>
+                  <Reveal className="public-reveal-item" delay={0.08}>
                     <div className="public-preview-window"><div className="public-window-bar"><span /><span /><span /><small>Profile / Review</small></div><div className="public-preview-content"><div className="public-preview-orb"><span className="public-orb-dot" /></div><div><span className="public-section-label">PROFILE REVIEW</span><h3>A personality profile you can correct.</h3><p>Review what NeuralNexus inferred about your voice, taste and standards before you reuse it anywhere.</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Open profile <ChevronRight size={16} /></AuthStartButton></div></div></div>
                   </Reveal>
-                  <Reveal delay={0.16}>
+                  <Reveal className="public-reveal-item" delay={0.16}>
                     <div className="public-preview-ledger"><span>01</span><strong>Evidence first</strong><p>Every useful suggestion shows where it came from.</p><span>02</span><strong>Your decision</strong><p>Nothing becomes a durable preference without your approval.</p><span>03</span><strong>Portable context</strong><p>What fits becomes usable in the AI tools you already use.</p></div>
                   </Reveal>
                 </div>
+                <Reveal className="public-section-action" delay={0.24}>
+                  <AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Inspect your first signal <ChevronRight size={16} /></AuthStartButton>
+                </Reveal>
               </section>
             </Reveal>
 
-            <Reveal>
+            <Reveal className="public-reveal">
               <section className="public-section public-engine-bands">
-                {[["Vault", "What NeuralNexus remembers", "Sources, choices and edits stay attached to the profile signals they shaped."], ["Eye", "What good looks like", "Approved and rejected examples make your taste legible."], ["Genome", "How your patterns compound", "Corrections become readable preferences you can edit and reuse."]].map(([label, title, body], index) => <Reveal key={label} delay={index * 0.08}><article><span className="public-section-label">{label}</span><h3>{title}</h3><p>{body}</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Explore {label} <ChevronRight size={16} /></AuthStartButton></article></Reveal>)}
+                {[["Vault", "What NeuralNexus remembers", "Sources, choices and edits stay attached to the profile signals they shaped."], ["Eye", "What good looks like", "Approved and rejected examples make your taste legible."], ["Genome", "How your patterns compound", "Corrections become readable preferences you can edit and reuse."]].map(([label, title, body], index) => <Reveal key={label} className="public-reveal-item" delay={index * 0.08}><article><span className="public-section-label">{label}</span><h3>{title}</h3><p>{body}</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Explore {label} <ChevronRight size={16} /></AuthStartButton></article></Reveal>)}
               </section>
             </Reveal>
 
-            <Reveal>
+            <Reveal className="public-reveal">
               <section className="public-section public-trust-section" id="trust"><div className="public-trust-copy"><span className="public-eyebrow">TRUST BY DESIGN</span><h2>Your profile stays yours.</h2><p>Bring your own provider keys, inspect what NeuralNexus learned, and decide what can be exported.</p><button type="button" onClick={() => showPublicPage("security")}>See security and privacy <ChevronRight size={16} /></button></div><div className="public-trust-list"><span><Lock size={17} /> Explicit keys</span><span><Check size={17} /> Source-aware signals</span><span><Settings size={17} /> Permission before export</span></div></section>
             </Reveal>
 
-            <Reveal>
+            <Reveal className="public-reveal">
               <section className="public-section public-pricing-preview"><div className="public-section-heading"><span className="public-eyebrow">SIMPLE START</span><h2>Start by using it.</h2><p>Ask a question, upload material, edit an answer. The profile grows from real preferences, not a setup quiz.</p><button type="button" onClick={() => showPublicPage("pricing")}>View plans <ChevronRight size={16} /></button></div></section>
             </Reveal>
 
-            <Reveal>
+            <Reveal className="public-reveal">
               <section className="public-final-cta"><AuroraDisc size={32} label="NeuralNexus profile" /><span className="public-eyebrow">YOUR AI PERSONALITY PROFILE</span><h2>Build it by using it.</h2><div><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start with NeuralNexus</AuthStartButton><button type="button" onClick={() => showPublicPage("security")}>See privacy</button></div></section>
             </Reveal>
           </>
