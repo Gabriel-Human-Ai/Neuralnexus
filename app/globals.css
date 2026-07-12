@@ -10194,3 +10194,131 @@ button.shelf-row:hover {
     transform: none !important;
   }
 }
+
+/* ===== Public landing bugfix layer: anchored menus, readable switches, Clerk footer ===== */
+.public-brand:focus:not(:focus-visible),
+.public-menu button:focus:not(:focus-visible),
+.public-actions button:focus:not(:focus-visible) {
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.public-mega {
+  left: 50% !important;
+  width: min(900px, calc(100vw - 48px)) !important;
+  margin-left: calc(-1 * min(450px, calc((100vw - 48px) / 2))) !important;
+  border-radius: 10px !important;
+}
+
+.public-mega-main,
+.public-mega-side {
+  padding: 28px !important;
+}
+
+.public-billing-toggle {
+  overflow: hidden !important;
+  border: 1px solid var(--public-border) !important;
+  background: #fff !important;
+}
+
+.public-billing-toggle button {
+  color: var(--public-muted) !important;
+  background: transparent !important;
+}
+
+.public-billing-toggle button.is-active {
+  color: #121417 !important;
+  background: transparent !important;
+}
+
+.public-billing-thumb {
+  background: #ffffff !important;
+  border: 1px solid rgba(18,20,23,.10) !important;
+  box-shadow: 0 1px 2px rgba(18,20,23,.08), 0 6px 18px rgba(18,20,23,.08) !important;
+}
+
+.public-mobile-menu-button {
+  position: relative !important;
+  z-index: 132 !important;
+}
+
+.public-mobile-menu {
+  z-index: 130 !important;
+}
+
+body .cl-card [class*="cl-footer"],
+body .cl-card [class*="cl-footerPages"],
+body .cl-card [class*="cl-footerAction"] {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #4D5661 !important;
+  border-color: rgba(18,20,23,.10) !important;
+}
+
+body .cl-card [class*="cl-footer"] *,
+body .cl-card [class*="cl-footerPages"] *,
+body .cl-card [class*="cl-footerAction"] * {
+  color: #4D5661 !important;
+  opacity: 1 !important;
+}
+
+body .cl-card [class*="cl-footer"] a,
+body .cl-card [class*="cl-footer"] button,
+body .cl-card [class*="cl-footerActionLink"] {
+  color: #3157D5 !important;
+}
+
+@media (max-width: 980px) {
+  .public-nav {
+    position: sticky !important;
+    overflow: visible !important;
+  }
+
+  .public-mobile-menu {
+    position: absolute !important;
+    top: calc(100% + 8px) !important;
+    left: 16px !important;
+    right: 16px !important;
+    display: grid !important;
+    gap: 6px !important;
+    padding: 10px !important;
+    border: 1px solid var(--public-border) !important;
+    border-radius: 12px !important;
+    background: rgba(255,255,255,.98) !important;
+    box-shadow: 0 20px 44px rgba(18,20,23,.16) !important;
+  }
+
+  .public-mobile-menu button {
+    width: 100% !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 14px !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    color: var(--public-ink) !important;
+    background: transparent !important;
+    font: 600 15px/1 var(--font-ui) !important;
+    text-align: left !important;
+  }
+
+  .public-mobile-menu button:hover,
+  .public-mobile-menu button:focus-visible {
+    background: var(--public-muted-surface) !important;
+  }
+
+  .public-nav:has(.public-mega) .public-mobile-menu {
+    display: grid !important;
+  }
+
+  .public-mega {
+    top: calc(100% + 8px) !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-height: calc(100dvh - 88px) !important;
+    margin-left: 0 !important;
+    overflow-y: auto !important;
+  }
+}
