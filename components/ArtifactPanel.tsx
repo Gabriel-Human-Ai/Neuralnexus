@@ -73,7 +73,7 @@ export function ArtifactPanel({
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    body { margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0C0908; color: #e8d5c4; }
+    body { margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0A0A0C; color: #F5F5F7; }
     * { box-sizing: border-box; }
   </style>
 </head>
