@@ -241,13 +241,18 @@ model DecisionRecord {
   rejectedDesc String   @default("") // same; empty for single-artifact signals
   medium       String   @default("text") // text | image | mixed-url
   source       String // duel | curation | verdict-override | fork-final | regen-final | edit-final
+  evidence     String   @default("")
+  confidence   Int      @default(1)
+  status       String   @default("active")
   projectId    String?
   outputId     String?
   note         String   @default("")
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   profile      Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, projectId])
+  @@index([profileId, source, status])
 }
 
 model CaptureRecord {

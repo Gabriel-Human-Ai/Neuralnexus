@@ -197,10 +197,14 @@ CREATE TABLE "DecisionRecord" (
     "rejectedDesc" TEXT NOT NULL DEFAULT '',
     "medium" TEXT NOT NULL DEFAULT 'text',
     "source" TEXT NOT NULL,
+    "evidence" TEXT NOT NULL DEFAULT '',
+    "confidence" INTEGER NOT NULL DEFAULT 1,
+    "status" TEXT NOT NULL DEFAULT 'active',
     "projectId" TEXT,
     "outputId" TEXT,
     "note" TEXT NOT NULL DEFAULT '',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "DecisionRecord_profileId_fkey" FOREIGN KEY ("profileId") REFERENCES "Profile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -339,6 +343,9 @@ CREATE INDEX "CorrectionRecord_profileId_projectId_idx" ON "CorrectionRecord"("p
 CREATE INDEX "DecisionRecord_profileId_projectId_idx" ON "DecisionRecord"("profileId", "projectId");
 
 -- CreateIndex
+CREATE INDEX "DecisionRecord_profileId_source_status_idx" ON "DecisionRecord"("profileId", "source", "status");
+
+-- CreateIndex
 CREATE INDEX "CaptureRecord_profileId_idx" ON "CaptureRecord"("profileId");
 
 -- CreateIndex
@@ -361,4 +368,3 @@ CREATE INDEX "ModelPolicy_profileId_projectId_idx" ON "ModelPolicy"("profileId",
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ModelPolicy_projectId_stepName_key" ON "ModelPolicy"("projectId", "stepName");
-

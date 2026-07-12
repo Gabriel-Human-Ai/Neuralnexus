@@ -6,6 +6,7 @@ import { buildContext } from "@/lib/context";
 import { estimateCost } from "@/lib/tokens";
 import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
 import { getSettingForProfile } from "@/lib/settings";
+import { buildProfileDirective, runSignalReaderForNotice } from "@/lib/living-profile";
 
 const SECRET_RE = /(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)/g;
 const PII_RE: { re: RegExp; label: string }[] = [
@@ -142,6 +143,8 @@ export async function POST(req: Request) {
     }
 
     let system = await buildContext({ profileId, projectId });
+    const profileDirective = await buildProfileDirective(profileId);
+    if (profileDirective) system += `\n\n${profileDirective}`;
 
     // Check if memory was actually loaded into context (buildContext includes memories when present)
     const memories = await db.memory.findMany({ where: { profileId, projectId } });
@@ -184,6 +187,11 @@ export async function POST(req: Request) {
     const messages = [{ role: "system" as const, content: system }, ...mapped];
 
     const result = await runChatWithFallback(chosen, messages);
+    const profileLearning = await runSignalReaderForNotice({
+      profileId,
+      latestInput: content,
+      history: history.map((message) => ({ role: message.role as "user" | "assistant", content: message.content })),
+    });
     const provider = MODELS.find(x => x.id === result.usedModel)!.provider;
     const cost = estimateCost(result.usedModel, result.inputTokens, result.outputTokens);
 
@@ -195,6 +203,7 @@ export async function POST(req: Request) {
       text: note + result.text, model: result.usedModel, costUsd: cost,
       tone,
       usedMemory,
+      profileMemories: profileLearning.memories,
       warp: result.fellBack ? { fromModel: chosen, toModel: result.usedModel, cause: "rate_limit" } : null,
     });
   } catch (e: any) {

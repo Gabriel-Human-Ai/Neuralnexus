@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { pickModelForTask, runChatWithFallback, type ChatBlock, type ChatMsg } from "@/lib/providers";
 import { resolveRequestProfileId } from "@/lib/scope";
+import { buildProfileDirective, runSignalReaderForNotice } from "@/lib/living-profile";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -25,7 +26,7 @@ function imageBlockFromDataUrl(dataUrl: string): ChatBlock | null {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    await resolveRequestProfileId(req, body.profileId);
+    const profileId = await resolveRequestProfileId(req, body.profileId);
     const input = String(body.input ?? "").trim();
     const history = Array.isArray(body.messages) ? body.messages as ClientMessage[] : [];
     const attachments = Array.isArray(body.attachments) ? body.attachments as ClientAttachment[] : [];
@@ -53,10 +54,14 @@ export async function POST(req: Request) {
       ? [...imageBlocks, { type: "text", text: userText || "Please analyze the attached image." }]
       : userText;
 
+    const profileDirective = await buildProfileDirective(profileId);
     const messages: ChatMsg[] = [
       {
         role: "system",
-        content: "You are the NeuralNexus Wizard. Answer directly and helpfully. You can answer general questions without forcing workspace creation. If the user asks for a product action, suggest the closest real NeuralNexus action. Do not claim to read PDFs unless text was provided.",
+        content: [
+          "You are the NeuralNexus Wizard. Answer directly and helpfully. You can answer general questions without forcing workspace creation. If the user asks for a product action, suggest the closest real NeuralNexus action. Do not claim to read PDFs unless text was provided.",
+          profileDirective,
+        ].filter(Boolean).join("\n\n"),
       },
       ...history.slice(-12).map((message) => ({ role: message.role, content: message.content }) as ChatMsg),
       { role: "user", content: userContent },
@@ -64,10 +69,12 @@ export async function POST(req: Request) {
 
     const chosen = pickModelForTask(input || attachmentNotes || "general assistant question");
     const result = await runChatWithFallback(chosen, messages);
+    const profileLearning = await runSignalReaderForNotice({ profileId, latestInput: input, history });
     return NextResponse.json({
       text: result.text,
       model: result.usedModel,
       fellBack: result.fellBack,
+      profileMemories: profileLearning.memories,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message ?? "Wizard chat failed." }, { status: 500 });

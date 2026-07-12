@@ -43,7 +43,7 @@ export async function buildProfileSignals(profileId: string): Promise<ProfileSig
     db.tasteRule.findMany({ where: { profileId, status: "active" }, orderBy: { createdAt: "desc" }, take: 80, select: { contextTag: true, text: true } }),
     db.skillRule.findMany({ where: { profileId, status: "active" }, orderBy: { createdAt: "desc" }, take: 80, select: { text: true } }),
     db.correctionRecord.findMany({ where: { profileId }, orderBy: { createdAt: "desc" }, take: 80, select: { warning: true, correctionText: true, domainTag: true } }),
-    db.decisionRecord.findMany({ where: { profileId }, orderBy: { createdAt: "desc" }, take: 80, select: { contextTag: true, chosenDesc: true, rejectedDesc: true, medium: true } }),
+    db.decisionRecord.findMany({ where: { profileId, status: "active" }, orderBy: { createdAt: "desc" }, take: 80, select: { contextTag: true, chosenDesc: true, rejectedDesc: true, medium: true, source: true, evidence: true } }),
     db.captureRecord.findMany({ where: { profileId, decision: { not: "" } }, orderBy: { createdAt: "desc" }, take: 40, select: { decision: true, decisionNote: true, captureType: true } }),
   ]);
 
@@ -81,6 +81,10 @@ export async function buildProfileSignals(profileId: string): Promise<ProfileSig
   for (const decision of decisions) {
     const chosen = clean(decision.chosenDesc);
     const rejected = clean(decision.rejectedDesc);
+    if (decision.source === "signal-reader") {
+      if (PROFILE_DIMENSIONS.includes(decision.contextTag as ProfileDimension)) add(dimensions[decision.contextTag as ProfileDimension], chosen);
+      continue;
+    }
     const signal = rejected ? `Preferred: ${chosen} | Rejected: ${rejected}` : `Preferred: ${chosen}`;
     if (PROFILE_DIMENSIONS.includes(decision.contextTag as ProfileDimension)) add(dimensions[decision.contextTag as ProfileDimension], signal);
     else if (decision.medium !== "text" || isVisualContext(decision.contextTag)) add(dimensions.visual_taste, signal);

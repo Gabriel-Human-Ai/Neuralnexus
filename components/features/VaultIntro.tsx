@@ -6,6 +6,7 @@ import { Eye, Layers3, ShieldCheck } from "lucide-react";
 import { AuraCard } from "@/components/ui/AuraCard";
 import { RollingNumber } from "@/components/ui/RollingNumber";
 import { ProfileExport } from "@/components/features/ProfileExport";
+import { ProfileMemoryPanel } from "@/components/features/ProfileMemoryPanel";
 
 type VaultData = {
   asset: { decisions: number; rules: number; corrections: number; guardsActive: number; days: number };
@@ -35,8 +36,8 @@ export function VaultIntro({ onOpenEye, onOpenSkills }: { onOpenEye: () => void;
         <div className="vault-asset-head">
           <div>
             <span className="eyebrow">YOUR PROFILE</span>
-            <h1>Your AI personality, in one profile.</h1>
-            <p>NeuralNexus learns how you want to be addressed, answered, supported and visually understood.</p>
+            <h1>Your profile</h1>
+            <p>What NeuralNexus has learned about how you like to work and be spoken to. Yours to keep, edit, or clear — it never leaves without you.</p>
           </div>
         </div>
         <div className="vault-stat-grid">
@@ -46,6 +47,8 @@ export function VaultIntro({ onOpenEye, onOpenSkills }: { onOpenEye: () => void;
           <Stat label="Days in use" value={asset.days} />
         </div>
       </AuraCard>
+
+      <ProfileMemoryPanel />
 
       <ProfileExport />
 

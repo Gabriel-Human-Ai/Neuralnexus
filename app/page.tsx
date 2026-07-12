@@ -54,7 +54,7 @@ import { AuraCard } from "@/components/ui/AuraCard";
 import { HeroCTA } from "@/components/ui/HeroCTA";
 import { NexusIsland } from "@/components/ui/NexusIsland";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
-import { MessageActions, type ChatFeedbackSignal } from "@/components/chat/MessageActions";
+import { MessageActions } from "@/components/chat/MessageActions";
 import { useTypingGlow } from "@/lib/useTypingGlow";
 import type { AltitudeLevel } from "@/components/altitude/AltitudeRail";
 import { ShelfDock, type ShelfId } from "@/components/altitude/ShelfDock";
@@ -139,8 +139,14 @@ type GeneralChatMessage = {
   role: "user" | "assistant";
   content: string;
   model?: string;
+  memoryNotice?: ProfileMemoryNotice | null;
 };
-type ChatFeedbackState = Record<string, ChatFeedbackSignal[]>;
+type ProfileMemoryNotice = {
+  id: string;
+  dimension: string;
+  insight: string;
+  evidence: string;
+};
 type OutputListItem = {
   id: string;
   stepName: string;
@@ -502,8 +508,8 @@ export default function Home() {
   const [generalInput, setGeneralInput] = useState("");
   const [generalBusy, setGeneralBusy] = useState(false);
   const [generalAttachments, setGeneralAttachments] = useState<UploadedSource[]>([]);
-  const [chatFeedback, setChatFeedback] = useState<ChatFeedbackState>({});
-  const [profileReadyPrompt, setProfileReadyPrompt] = useState(false);
+  const [profileNoticeOpen, setProfileNoticeOpen] = useState<string | null>(null);
+  const [profileSurfaceCount, setProfileSurfaceCount] = useState(0);
   const [enteredApp, setEnteredApp] = useState(!FEATURE_FLAGS.publicLanding);
   const [landingPrompt, setLandingPrompt] = useState("");
   const [publicPage, setPublicPage] = useState<PublicPage>("home");
@@ -930,6 +936,27 @@ export default function Home() {
     setGeneralAttachments((current) => [...current, ...parsed.filter((source) => !current.some((item) => item.id === source.id))]);
   }
 
+  function shouldSurfaceProfileMemory(memories: ProfileMemoryNotice[] = []) {
+    if (!memories.length || profileSurfaceCount >= 3) return null;
+    const last = Number(window.localStorage.getItem("PROFILE_MEMORY_SURFACE_LAST") || "0");
+    if (Date.now() - last < 5 * 60 * 1000) return null;
+    const memory = memories[0];
+    window.localStorage.setItem("PROFILE_MEMORY_SURFACE_LAST", String(Date.now()));
+    setProfileSurfaceCount((count) => count + 1);
+    return memory;
+  }
+
+  async function removeProfileMemory(id: string) {
+    const response = await fetch("/api/profile/memories", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "remove", id }),
+    });
+    if (!response.ok) return;
+    setGeneralMessages((messages) => messages.map((message) => message.memoryNotice?.id === id ? { ...message, memoryNotice: null } : message));
+    setProfileNoticeOpen(null);
+  }
+
   async function askWizard(input: string, attachments: UploadedSource[] = [], history = generalMessages.slice(-8)) {
     const response = await fetch("/api/wizard-chat", {
       method: "POST",
@@ -942,7 +969,11 @@ export default function Home() {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "No model could answer. Check Settings.");
-    return `${data.text}${data.model ? `\n\n— ${data.model}` : ""}`;
+    const memoryNotice = shouldSurfaceProfileMemory(data.profileMemories ?? []);
+    return {
+      content: `${data.text}${data.model ? `\n\n— ${data.model}` : ""}`,
+      memoryNotice,
+    };
   }
 
   async function sendGeneralChat() {
@@ -956,7 +987,7 @@ export default function Home() {
     setGeneralBusy(true);
     try {
       const answer = await askWizard(userContent, attachments);
-      setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer }]);
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer.content, memoryNotice: answer.memoryNotice }]);
     } catch (error: any) {
       setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not answer. Check your API keys in Settings." }]);
     } finally {
@@ -974,7 +1005,7 @@ export default function Home() {
     setGeneralBusy(true);
     try {
       const answer = await askWizard(prompt, [], history);
-      setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer }]);
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer.content, memoryNotice: answer.memoryNotice }]);
     } catch (error: any) {
       setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not regenerate that answer." }]);
     } finally {
@@ -986,49 +1017,6 @@ export default function Home() {
     setGeneralInput(message.role === "assistant" ? `Please revise this answer:\n\n${message.content}` : message.content);
   }
 
-  function chatFeedbackKey(index: number, content: string) {
-    return `${index}:${content.slice(0, 80)}`;
-  }
-
-  function previousUserPromptFor(index: number) {
-    for (let i = index - 1; i >= 0; i -= 1) {
-      if (generalMessages[i]?.role === "user") return generalMessages[i].content;
-    }
-    return "";
-  }
-
-  async function recordChatFeedback(index: number, message: GeneralChatMessage, signal: ChatFeedbackSignal) {
-    if (generalBusy || message.role !== "assistant") return;
-    const key = chatFeedbackKey(index, message.content);
-    const response = await fetch("/api/chat/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messageContent: message.content,
-        userPrompt: previousUserPromptFor(index),
-        signal,
-      }),
-    });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "Feedback could not be saved.");
-
-    setChatFeedback((current) => {
-      const previous = current[key] ?? [];
-      const withoutPair = signal === "good" || signal === "bad"
-        ? previous.filter((item) => item !== "good" && item !== "bad")
-        : signal === "shorter" || signal === "longer"
-          ? previous.filter((item) => item !== "shorter" && item !== "longer")
-          : signal === "formal" || signal === "casual"
-            ? previous.filter((item) => item !== "formal" && item !== "casual")
-            : previous;
-      return { ...current, [key]: [...withoutPair, signal] };
-    });
-
-    if ((payload.totalSignals ?? 0) >= 4 && window.localStorage.getItem("PROFILE_READY_SEEN") !== "1") {
-      window.localStorage.setItem("PROFILE_READY_SEEN", "1");
-      setProfileReadyPrompt(true);
-    }
-  }
 
   function startWorkspaceSession() {
     setSessionState("loading");
@@ -2170,21 +2158,35 @@ export default function Home() {
                     <MessageActions
                       text={message.content}
                       onRegenerate={() => void regenerateChatMessage(index)}
-                      onFeedback={(signal) => void recordChatFeedback(index, message, signal)}
-                      selectedSignals={chatFeedback[chatFeedbackKey(index, message.content)] ?? []}
                       disabled={generalBusy}
                     />
                   )}
+                  {message.memoryNotice && (
+                    <div className="profile-memory-line">
+                      <button
+                        type="button"
+                        className="profile-memory-summary"
+                        onClick={() => setProfileNoticeOpen(profileNoticeOpen === message.memoryNotice?.id ? null : message.memoryNotice?.id ?? null)}
+                        aria-expanded={profileNoticeOpen === message.memoryNotice.id}
+                      >
+                        <span className="profile-memory-dot" aria-hidden="true" />
+                        <strong>Saved to your profile</strong>
+                        <span>{message.memoryNotice.insight}</span>
+                      </button>
+                      {profileNoticeOpen === message.memoryNotice.id && (
+                        <div className="profile-memory-popover">
+                          <strong>{message.memoryNotice.insight}</strong>
+                          <p>Because this pattern appeared in your recent chat: {message.memoryNotice.evidence}</p>
+                          <div>
+                            <button type="button" onClick={() => setProfileNoticeOpen(null)}>Keep</button>
+                            <button type="button" onClick={() => void removeProfileMemory(message.memoryNotice!.id)}>Remove</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </article>
               ))}
-              {profileReadyPrompt && (
-                <div className="profile-ready-line" role="status">
-                  <span>Your profile is ready to export.</span>
-                  <button type="button" onClick={() => { setView("usage"); setProfileReadyPrompt(false); }}>
-                    Open Your Profile
-                  </button>
-                </div>
-              )}
               {generalBusy && (
                 <div className="thinking-indicator" role="status" aria-live="polite">
                   <AuroraDisc size={20} />

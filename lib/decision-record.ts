@@ -7,6 +7,9 @@ type CreateProfileDecisionRecordArgs = {
   rejectedDesc?: string;
   medium?: string;
   source: string;
+  evidence?: string;
+  confidence?: number;
+  status?: string;
   note?: string;
   projectId?: string;
   outputId?: string;
@@ -25,6 +28,9 @@ export async function createProfileDecisionRecord(args: CreateProfileDecisionRec
       rejectedDesc: clean(args.rejectedDesc ?? "", 1500),
       medium: clean(args.medium ?? "text", 40) || "text",
       source: clean(args.source, 80) || "manual",
+      evidence: clean(args.evidence ?? "", 500),
+      confidence: Math.min(5, Math.max(1, Math.round(args.confidence ?? 1))),
+      status: clean(args.status ?? "active", 40) || "active",
       note: clean(args.note ?? "", 500),
       projectId: args.projectId,
       outputId: args.outputId,
