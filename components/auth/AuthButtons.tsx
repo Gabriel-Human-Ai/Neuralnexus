@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
+import { SignInButton, SignOutButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -35,6 +35,9 @@ export function AuthButtons({ onEnter, compact = false }: AuthButtonsProps) {
     return (
       <>
         <button type="button" className="public-login" onClick={onEnter}>Open app</button>
+        <SignOutButton>
+          <button type="button" className="public-login auth-logout">Log out</button>
+        </SignOutButton>
         <UserButton />
       </>
     );

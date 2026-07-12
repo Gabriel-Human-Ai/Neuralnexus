@@ -1815,6 +1815,9 @@ export default function Home() {
             <span>Command</span>
             <kbd>⌘K</kbd>
           </button>
+          <div className="app-auth-actions">
+            <AuthButtons compact onEnter={() => enterWorkspaceApp(false)} />
+          </div>
         </div>
         <AnimatePresence mode="wait">
         <motion.div key={`${altitude.level}-${view}`} className="altitude-layer" {...altitudeLayerMotion}>
@@ -2666,6 +2669,9 @@ export default function Home() {
               <Compass size={17} />
               <span>{POSITIONING_UI.home.whyLabel}</span>
             </button>
+            <div className="mobile-auth-row">
+              <AuthButtons compact onEnter={() => { setMoreOpen(false); enterWorkspaceApp(false); }} />
+            </div>
             <div className="mobile-appearance-row">
               <span>Appearance</span>
               <ThemeSegmentedControl />
