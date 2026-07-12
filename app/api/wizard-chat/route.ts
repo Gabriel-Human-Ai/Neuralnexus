@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { pickModelForTask, runChatWithFallback, type ChatBlock, type ChatMsg } from "@/lib/providers";
 import { resolveRequestProfileId } from "@/lib/scope";
 import { buildProfileDirective, runSignalReaderForNotice } from "@/lib/living-profile";
+import { withProviderProfile } from "@/lib/provider-scope";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     ];
 
     const chosen = pickModelForTask(input || attachmentNotes || "general assistant question");
-    const result = await runChatWithFallback(chosen, messages);
+    const result = await withProviderProfile(profileId, () => runChatWithFallback(chosen, messages));
     const profileLearning = await runSignalReaderForNotice({ profileId, latestInput: input, history });
     return NextResponse.json({
       text: result.text,

@@ -88,13 +88,27 @@ model ProfileSetting {
   @@index([profileId])
 }
 
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @default("")
+  name      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profiles  Profile[]
+
+  @@index([clerkId])
+}
+
 model Profile {
   id               String             @id @default(cuid())
+  userId           String?
   name             String
   type             String
   isDefault        Boolean            @default(false)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+  user             User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
   settings         ProfileSetting[]
   projects         Project[]
   messages         Message[]
@@ -115,6 +129,7 @@ model Profile {
   modelPolicies    ModelPolicy[]
 
   @@index([type])
+  @@index([userId, type])
 }
 
 model Agent {

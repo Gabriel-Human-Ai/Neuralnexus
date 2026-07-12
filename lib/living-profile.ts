@@ -5,6 +5,7 @@ import { runChat, type ChatMsg } from "@/lib/providers";
 import { estimateCost } from "@/lib/tokens";
 import { getProfileSetting } from "@/lib/settings";
 import { PROFILE_DIMENSIONS, type ProfileDimension } from "@/lib/profile-signals";
+import { withProviderProfile } from "@/lib/provider-scope";
 
 const SIGNAL_READER_PROMPT = `You are the Signal Reader inside a system that builds a person's portable AI-personality profile. You do not talk to the person. You read how they write and extract durable, useful truths about how they want AIs to treat them.
 
@@ -180,7 +181,7 @@ export async function runSignalReader(args: {
   ].filter(Boolean);
   if (!shouldRunReader(userTurns, args.latestInput)) return { memories: [] as SurfacedProfileMemory[], skipped: "batch" as const };
 
-  const meta = await pickMetaModel();
+  const meta = await withProviderProfile(args.profileId, () => pickMetaModel());
   if (!meta) return { memories: [] as SurfacedProfileMemory[], skipped: "no_model" as const };
 
   const recentUserText = userTurns.slice(-3).map((turn, index, arr) => `User turn ${index + 1} of ${arr.length}: ${clean(turn, 600)}`).join("\n\n");
@@ -189,7 +190,7 @@ export async function runSignalReader(args: {
     { role: "user", content: recentUserText },
   ];
 
-  const result = await runChat(meta.provider, meta.id, messages, { temperature: 0, maxTokens: 500 });
+  const result = await withProviderProfile(args.profileId, () => runChat(meta.provider, meta.id, messages, { temperature: 0, maxTokens: 500 }));
   const project = await db.project.findFirst({ where: { profileId: args.profileId }, orderBy: { createdAt: "asc" }, select: { id: true } });
   if (project) {
     await db.modelRun.create({

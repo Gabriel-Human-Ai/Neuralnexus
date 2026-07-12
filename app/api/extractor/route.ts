@@ -8,6 +8,7 @@ import { parseModelJson } from "@/lib/safe-parse";
 import { estimateCost } from "@/lib/tokens";
 import { resolveRequestProfileId } from "@/lib/scope";
 import { setProfileSetting } from "@/lib/settings";
+import { withProviderProfile } from "@/lib/provider-scope";
 
 type Extracted = {
   workspaceName: string;
@@ -37,13 +38,13 @@ export async function POST(req: Request) {
     text = `PDF: ${body.filename ?? "uploaded.pdf"}`;
   }
   if (!text.trim()) return NextResponse.json({ error: "missing_input" }, { status: 400 });
-  const meta = await pickMetaModel();
+  const meta = await withProviderProfile(profileId, () => pickMetaModel());
   if (!meta) return NextResponse.json({ error: "no_api_key" }, { status: 402 });
   const system = "You convert an expert's raw material (method, framework, course notes, prompt pack) into a runnable AI workspace definition.\nReturn ONLY valid JSON matching exactly:\n{\n \"workspaceName\": \"<max 40 chars, title case, no quotes>\",\n \"purpose\": \"<one sentence, max 160 chars>\",\n \"audience\": \"<max 60 chars>\",\n \"modeId\": \"content\" | \"brand\" | \"review\" | \"coaching\" | \"audit\" | \"research\",\n \"steps\": [ { \"name\": \"<max 40 chars, imperative>\", \"description\": \"<max 120 chars>\" } ],\n \"skills\": [ { \"name\": \"<max 30 chars>\", \"instructions\": \"<80-400 chars, imperative method summary>\", \"rules\": [\"<max 140 chars>\"] } ],\n \"knowledgeTitle\": \"<max 50 chars>\",\n \"sourceSummary\": \"<max 1500 chars>\"\n}\nBase everything strictly on the material. Do not invent domain content that is not present. Pick the closest modeId.";
-  const result = await runChat(meta.provider, meta.id, [
+  const result = await withProviderProfile(profileId, () => runChat(meta.provider, meta.id, [
     { role: "system", content: system },
     { role: "user", content: `MATERIAL:\n${mediaType === "application/pdf" ? "Read the attached document as MATERIAL." : text}` },
-  ], { maxTokens: 2000, temperature: 0 });
+  ], { maxTokens: 2000, temperature: 0 }));
   const parsed = parseModelJson<Extracted>(result.text);
   if (!parsed) return NextResponse.json({ error: "model_returned_invalid_json" }, { status: 502 });
   const project = await db.project.create({ data: { profileId, name: parsed.workspaceName.slice(0, 40), goal: `${parsed.purpose.slice(0, 160)}\nAudience: ${parsed.audience.slice(0, 60)}\nMode: ${parsed.modeId}`, rules: `Workflow steps: ${parsed.steps.slice(0, 6).map((step) => step.name).join(" | ")}` } });

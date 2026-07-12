@@ -1,11 +1,6 @@
 import { db } from "./db";
 
 export const GLOBAL_SETTING_KEYS = new Set([
-  "OPENAI_API_KEY",
-  "ANTHROPIC_API_KEY",
-  "OPENROUTER_API_KEY",
-  "GOOGLE_API_KEY",
-  "DEEPSEEK_API_KEY",
   "EXTENSION_CAPTURE_TOKEN",
   "INDEX_ENDPOINT",
   "INDEX_INSTANCE_ID",
@@ -13,7 +8,7 @@ export const GLOBAL_SETTING_KEYS = new Set([
 ]);
 
 export function isGlobalSettingKey(key: string) {
-  return GLOBAL_SETTING_KEYS.has(key) || key.endsWith("_API_KEY");
+  return GLOBAL_SETTING_KEYS.has(key);
 }
 
 export async function getGlobalSetting(key: string) {

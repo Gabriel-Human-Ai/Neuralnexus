@@ -1,5 +1,11 @@
 import { db } from "@/lib/db";
+import { getProviderProfileId } from "@/lib/provider-scope";
 async function getKey(name: string): Promise<string | undefined> {
+  const profileId = getProviderProfileId();
+  if (profileId) {
+    const scoped = await db.profileSetting.findUnique({ where: { profileId_key: { profileId, key: name } } }).catch(() => null);
+    if (scoped?.value) return scoped.value;
+  }
   const row = await db.setting.findUnique({ where: { key: name } }).catch(() => null);
   return row?.value || process.env[name];
 }

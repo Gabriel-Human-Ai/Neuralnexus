@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 
 const ui = Instrument_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-ui", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono", display: "swap" });
@@ -28,6 +29,18 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#FAFAFC" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const content = (
+    <>
+      <div id="nn-boot" aria-hidden="true">
+        <div className="nn-boot-inner">
+          <span className="aurora-disc aurora-disc-32" />
+          <span className="nn-boot-counter">0%</span>
+        </div>
+      </div>
+      {children}
+    </>
+  );
+
   return (
     <html lang="en" className={`${ui.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
@@ -38,13 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen antialiased">
-        <div id="nn-boot" aria-hidden="true">
-          <div className="nn-boot-inner">
-            <span className="aurora-disc aurora-disc-32" />
-            <span className="nn-boot-counter">0%</span>
-          </div>
-        </div>
-        {children}
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? <ClerkProvider>{content}</ClerkProvider> : content}
       </body>
     </html>
   );

@@ -7,6 +7,7 @@ import { estimateCost } from "@/lib/tokens";
 import { assertRecordProfile, resolveRequestProfileId } from "@/lib/scope";
 import { getSettingForProfile } from "@/lib/settings";
 import { buildProfileDirective, runSignalReaderForNotice } from "@/lib/living-profile";
+import { withProviderProfile } from "@/lib/provider-scope";
 
 const SECRET_RE = /(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)/g;
 const PII_RE: { re: RegExp; label: string }[] = [
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
     // Auto: score available models by cost-vs-quality, weighted by the user's routing threshold (0=billig, 100=Qualität).
     if (wasAuto) {
       const keyFor = (prov: string) => ({ anthropic: "ANTHROPIC_API_KEY", openrouter: "OPENROUTER_API_KEY", google: "GOOGLE_API_KEY", deepseek: "DEEPSEEK_API_KEY" } as Record<string, string>)[prov] ?? "OPENAI_API_KEY";
-      const hasKey = async (prov: string) => !!((await db.setting.findUnique({ where: { key: keyFor(prov) } }))?.value || process.env[keyFor(prov)]);
+      const hasKey = async (prov: string) => !!((await getSettingForProfile(profileId, keyFor(prov))) || process.env[keyFor(prov)]);
       const thresholdSetting = await getSettingForProfile(profileId, "ROUTING_THRESHOLD");
       const threshold = thresholdSetting ? Math.min(100, Math.max(0, parseFloat(thresholdSetting))) : 50;
       const w = threshold / 100; // 0 = pure cost, 1 = pure quality
@@ -128,10 +129,10 @@ export async function POST(req: Request) {
     let tone: string | null = null;
     if (content.trim().length > 80) {
       try {
-        const toneResult = await runChatWithFallback("claude-haiku-4-5", [
+        const toneResult = await withProviderProfile(profileId, () => runChatWithFallback("claude-haiku-4-5", [
           { role: "system", content: "Klassifiziere den emotionalen Ton in genau einem Wort. Antworte nur mit dem Wort, nichts sonst: frustriert|neugierig|ruhig|eilig|begeistert" },
           { role: "user", content: content.slice(0, 400) },
-        ]);
+        ]));
         const raw = toneResult.text.trim().toLowerCase();
         const allowed = ["frustriert","neugierig","ruhig","eilig","begeistert"];
         if (allowed.includes(raw)) tone = raw;
@@ -186,7 +187,7 @@ export async function POST(req: Request) {
     }
     const messages = [{ role: "system" as const, content: system }, ...mapped];
 
-    const result = await runChatWithFallback(chosen, messages);
+    const result = await withProviderProfile(profileId, () => runChatWithFallback(chosen, messages));
     const profileLearning = await runSignalReaderForNotice({
       profileId,
       latestInput: content,

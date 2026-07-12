@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { optionalCurrentUser, requireCurrentUser } from "./auth";
 
 export const DEFAULT_WORK_PROFILE_ID = "default-work-profile";
 export const DEFAULT_WORK_PROFILE_NAME = "Work";
@@ -27,6 +28,23 @@ export async function ensureDefaultWorkProfile() {
   });
 }
 
+export async function ensureDefaultWorkProfileForUser(userId: string) {
+  const existing = await db.profile.findFirst({
+    where: { userId, type: DEFAULT_WORK_PROFILE_TYPE, isDefault: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (existing) return existing;
+
+  return db.profile.create({
+    data: {
+      userId,
+      name: DEFAULT_WORK_PROFILE_NAME,
+      type: DEFAULT_WORK_PROFILE_TYPE,
+      isDefault: true,
+    },
+  });
+}
+
 export async function getDefaultProfile() {
   return ensureDefaultWorkProfile();
 }
@@ -46,6 +64,18 @@ export async function requireProfile(profileId: string) {
 }
 
 export async function listProfiles() {
-  await ensureDefaultWorkProfile();
-  return db.profile.findMany({ orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] });
+  const user = await optionalCurrentUser();
+  if (!user) {
+    await ensureDefaultWorkProfile();
+    return db.profile.findMany({ where: { userId: null }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] });
+  }
+  await ensureDefaultWorkProfileForUser(user.id);
+  return db.profile.findMany({ where: { userId: user.id }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] });
+}
+
+export async function createProfileForCurrentUser(args: { name: string; type: ProfileType }) {
+  const user = await requireCurrentUser();
+  return db.profile.create({
+    data: { userId: user.id, name: args.name, type: args.type, isDefault: false },
+  });
 }
