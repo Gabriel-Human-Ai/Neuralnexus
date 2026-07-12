@@ -5,17 +5,27 @@ const isProtectedRoute = createRouteMatcher([
   "/api/(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || !process.env.CLERK_SECRET_KEY) {
-    return NextResponse.next();
-  }
+const hasClerkKeys = Boolean(
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY
+);
 
-  if (isProtectedRoute(req)) {
-    await auth.protect();
-  }
+// clerkMiddleware() validates the publishable key at invocation time, before
+// any callback runs. If we constructed it unconditionally, requests (including
+// the healthcheck) would throw "Missing publishableKey" whenever the Clerk
+// environment variables are not configured. To allow the app to boot without
+// Clerk configured, only construct clerkMiddleware when both keys are present;
+// otherwise fall back to a plain pass-through middleware.
+export default hasClerkKeys
+  ? clerkMiddleware(async (auth, req) => {
+      if (isProtectedRoute(req)) {
+        await auth.protect();
+      }
 
-  return NextResponse.next();
-});
+      return NextResponse.next();
+    })
+  : function middleware() {
+      return NextResponse.next();
+    };
 
 export const config = {
   matcher: [
