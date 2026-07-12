@@ -1,13 +1,15 @@
 import { db } from "@/lib/db";
+import { prepareJudgmentContributionReport } from "@/lib/judgment-layer";
 import { resolveProfileId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReliabilityPage() {
   const profileId = await resolveProfileId();
-  const [outputs, corrections] = await Promise.all([
+  const [outputs, corrections, judgment] = await Promise.all([
     db.output.findMany({ where: { profileId }, select: { model: true, stepName: true, claimsJson: true } }),
     db.correctionRecord.findMany({ where: { profileId }, select: { model: true, domainTag: true } }),
+    prepareJudgmentContributionReport(profileId),
   ]);
   const rows = new Map<string, { model: string; domainTag: string; runs: number; disputed: number; corrections: number }>();
   for (const output of outputs) {
@@ -31,8 +33,13 @@ export default async function ReliabilityPage() {
       <header>
         <span className="eyebrow">RELIABILITY</span>
         <h1>Model Reliability — measured from real work</h1>
-        <p>Local data from this workspace. Network-wide index activates with the Nexus Index.</p>
+        <p>Local reliability from your own runs. The collective layer activates as the network grows.</p>
       </header>
+      <section className="reliability-empty">
+        {judgment.contributions.length
+          ? `${judgment.contributions.length} anonymized judgment patterns are ready locally. ${judgment.endpointConfigured ? "Network endpoint configured." : "No network endpoint is configured, so nothing leaves this app."}`
+          : `No shareable judgment pattern yet. ${judgment.withheld} local patterns are withheld until they meet the k-anonymity threshold.`}
+      </section>
       <section className="reliability-table" aria-label="Model reliability table">
         <div className="reliability-row reliability-head">
           <span>Model</span>
@@ -53,7 +60,7 @@ export default async function ReliabilityPage() {
           <div className="reliability-empty">No reliability data yet. Outputs, disputes and corrections appear here after real workspace runs.</div>
         )}
       </section>
-      <footer>Local data from this workspace. Network-wide index activates with the Nexus Index.</footer>
+      <footer>Only hashed, generalized patterns can contribute to the collective layer. Raw text, names, prompts and corrections are never part of the payload.</footer>
     </main>
   );
 }

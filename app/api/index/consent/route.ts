@@ -1,14 +1,30 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { ensureIndexInstanceId } from "@/lib/index-protocol";
+import { getJudgmentConsent, judgmentAssetStats, JUDGMENT_CONSENT_COPY, updateJudgmentConsent } from "@/lib/judgment-layer";
 import { resolveRequestProfileId } from "@/lib/scope";
+
+export async function GET(req: Request) {
+  const profileId = await resolveRequestProfileId(req);
+  return NextResponse.json({
+    consent: await getJudgmentConsent(profileId),
+    copy: JUDGMENT_CONSENT_COPY,
+    asset: await judgmentAssetStats(profileId),
+  });
+}
 
 export async function POST(req: Request) {
   const body = await req.json();
   const profileId = await resolveRequestProfileId(req, body.profileId);
-  const value = body.consent === "on" ? "on" : "off";
-  if (value === "on") await ensureIndexInstanceId();
-  await db.profileSetting.upsert({ where: { profileId_key: { profileId, key: "INDEX_CONSENT" } }, update: { value }, create: { profileId, key: "INDEX_CONSENT", value } });
-  return NextResponse.json({ ok: true, consent: value, endpointConfigured: Boolean(process.env.INDEX_ENDPOINT) });
+  const patch = {
+    personal: typeof body.personal === "boolean" ? body.personal : body.consent === "on" ? true : body.consent === "off" ? false : undefined,
+    network: typeof body.network === "boolean" ? body.network : undefined,
+    research: typeof body.research === "boolean" ? body.research : undefined,
+  };
+  const consent = await updateJudgmentConsent(profileId, patch);
+  return NextResponse.json({
+    ok: true,
+    consent,
+    copy: JUDGMENT_CONSENT_COPY,
+    asset: await judgmentAssetStats(profileId),
+  });
 }

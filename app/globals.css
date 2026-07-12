@@ -24,6 +24,146 @@
   color-scheme: light;
 }
 
+/* ===== Judgment Layer: ownership, consent, and honest no-network states ===== */
+.judgment-asset-panel {
+  margin: 22px 0;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid var(--hairline);
+  border-radius: 24px;
+  background:
+    radial-gradient(90% 70% at 50% 100%, rgba(124,108,246,.16), transparent 64%),
+    var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.judgment-asset-panel h2 {
+  margin: 8px 0 10px;
+  max-width: 780px;
+  color: var(--ink);
+  font: 650 clamp(28px, 4vw, 52px)/.98 var(--font-ui);
+  letter-spacing: 0;
+}
+
+.judgment-asset-panel p {
+  max-width: 820px;
+  color: var(--secondary);
+  font: 450 16px/1.55 var(--font-ui);
+}
+
+.judgment-consent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.judgment-consent-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+
+.judgment-consent-card strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink);
+  font: 650 16px/1.2 var(--font-ui);
+}
+
+.judgment-consent-card p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.judgment-consent-card button {
+  min-width: 58px;
+  min-height: 34px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  color: var(--secondary);
+  background: var(--surface);
+  font: 650 13px/1 var(--font-ui);
+  transition: transform 160ms cubic-bezier(.22,1,.36,1), background 160ms ease, color 160ms ease;
+}
+
+.judgment-consent-card button:hover {
+  transform: translateY(-1px);
+}
+
+.judgment-consent-card button.is-on {
+  color: #fff;
+  border-color: transparent;
+  background: #111217;
+}
+
+[data-theme="dark"] .judgment-consent-card button.is-on {
+  color: #111217;
+  background: #f5f5f7;
+}
+
+.judgment-asset-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.judgment-asset-stats > div {
+  min-height: 110px;
+  padding: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.judgment-asset-stats span,
+.judgment-asset-stats small {
+  display: block;
+  color: var(--muted);
+  font: 600 11px/1.35 var(--font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.judgment-asset-stats strong {
+  display: block;
+  margin-top: 14px;
+  color: var(--ink);
+  font: 650 34px/1 var(--font-ui);
+}
+
+.judgment-asset-stats small {
+  margin-top: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.judgment-asset-note {
+  margin: 16px 0 0 !important;
+  font-size: 13px !important;
+}
+
+@media (max-width: 820px) {
+  .judgment-consent-grid,
+  .judgment-asset-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .judgment-consent-card {
+    grid-template-columns: 1fr;
+  }
+
+  .judgment-consent-card button {
+    justify-self: start;
+  }
+}
+
 :root[data-theme="dark"] {
   --canvas: #0A0A0C;
   --surface: #141417;

@@ -1,12 +1,13 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { judgmentAssetStats, JUDGMENT_CONSENT_COPY } from "@/lib/judgment-layer";
 import { resolveRequestProfileId } from "@/lib/scope";
 
 export async function GET(req: Request) {
   const profileId = await resolveRequestProfileId(req);
   const profile = await db.profile.findUnique({ where: { id: profileId } });
-  const [decisions, activeSkillRules, activeTasteRules, corrections, personalWarnings, collectiveGuards, skills, tasteByContext, modelPolicies, firstRecords, topSkillRule] = await Promise.all([
+  const [decisions, activeSkillRules, activeTasteRules, corrections, personalWarnings, collectiveGuards, skills, tasteByContext, modelPolicies, firstRecords, topSkillRule, judgmentAsset] = await Promise.all([
     db.decisionRecord.count({ where: { profileId } }),
     db.skillRule.count({ where: { profileId, status: "active" } }),
     db.tasteRule.count({ where: { profileId, status: "active" } }),
@@ -23,6 +24,7 @@ export async function GET(req: Request) {
       db.tasteRule.findFirst({ where: { profileId }, orderBy: { createdAt: "asc" } }),
     ]),
     db.skillRule.findFirst({ where: { profileId, status: "active" }, orderBy: { createdAt: "desc" } }),
+    judgmentAssetStats(profileId),
   ]);
   const warningCounts = new Map<string, number>();
   personalWarnings.forEach((record) => warningCounts.set(record.warning, (warningCounts.get(record.warning) ?? 0) + 1));
@@ -63,6 +65,9 @@ export async function GET(req: Request) {
     index: {
       endpointConfigured: Boolean(process.env.INDEX_ENDPOINT),
       globalCollectiveGuards: collectiveGuards.length,
+      judgmentAsset,
+      consentCopy: JUDGMENT_CONSENT_COPY,
+      message: collectiveGuards.length ? "" : "The collective layer activates as the network grows.",
     },
     globalCollectiveData: { guards: collectiveGuards.length },
     modelPolicies,
