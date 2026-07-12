@@ -3326,10 +3326,12 @@ body { font-family: var(--font-ui), system-ui, sans-serif !important; color: var
 body::before, body::after, .nn-shell::before, .nn-shell::after { display: none !important; content: none !important; }
 .nn-shell { background: var(--canvas) !important; color: var(--ink); }
 .nn-stage { background: var(--canvas) !important; padding: 48px; min-height: 100dvh; }
-.stage-tools { position: fixed; top: 24px; right: 24px; z-index: 80; display: flex; align-items: center; gap: 12px; }
+.stage-tools { position: fixed; top: 18px; right: 22px; z-index: 80; display: flex; align-items: center; gap: 8px; transition: opacity 180ms ease-out, transform 180ms ease-out, visibility 180ms ease-out; }
+.stage-tools.is-hidden { opacity: 0; transform: translateY(-10px); visibility: hidden; pointer-events: none; }
+.stage-tools.is-visible { opacity: 1; transform: translateY(0); visibility: visible; pointer-events: auto; }
 .theme-toggle, .command-launcher { height: 36px; border: 1px solid var(--hairline); background: var(--surface) !important; color: var(--ink) !important; box-shadow: var(--shadow-sm); }
 .theme-toggle { width: 36px; border-radius: 50%; display: grid; place-items: center; }
-.command-launcher { position: static !important; border-radius: 999px; display: inline-flex; align-items: center; gap: 10px; padding: 0 12px; }
+.command-launcher { position: static !important; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 14px; }
 kbd { border: 1px solid var(--hairline); background: var(--surface-2); color: var(--secondary); }
 
 .nn-sidebar { width: 264px; background: var(--sidebar) !important; border-right: 1px solid var(--hairline) !important; box-shadow: none !important; }
@@ -4445,6 +4447,18 @@ button.aura-card {
   position: static;
 }
 
+.chat-composer-shell .free-chat-composer:focus-within {
+  border-color: transparent !important;
+}
+
+.chat-composer-shell textarea,
+.chat-composer-shell textarea:focus,
+.chat-composer-shell textarea:focus-visible {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .chat-send-button {
   transition: background 200ms ease-out, color 200ms ease-out, transform 120ms ease-out, box-shadow 200ms ease-out;
 }
@@ -4950,8 +4964,10 @@ button.aura-card {
 }
 
 [data-theme="light"] .scenic-theme-toggle {
-  border-color: rgba(13,13,18,0.08) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 6px 14px rgba(13,13,18,0.08) !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-color: rgba(13,13,18,0.18) !important;
+  box-shadow: 0 8px 18px rgba(13,13,18,0.08) !important;
 }
 
 .scenic-theme-toggle__sun,
@@ -4964,6 +4980,49 @@ button.aura-card {
 
 .scenic-theme-toggle__moon {
   left: 43px;
+}
+
+.stage-tools {
+  top: 18px !important;
+  right: 20px !important;
+  gap: 8px !important;
+}
+
+.stage-tools .theme-toggle,
+.stage-tools .scenic-theme-toggle {
+  width: 58px !important;
+  height: 30px !important;
+  min-width: 58px !important;
+  min-height: 30px !important;
+  flex: 0 0 58px !important;
+}
+
+.stage-tools .scenic-theme-toggle__sun,
+.stage-tools .scenic-theme-toggle__moon {
+  top: 6px !important;
+  width: 13px !important;
+  height: 13px !important;
+}
+
+.stage-tools .scenic-theme-toggle__sun {
+  left: 8px !important;
+}
+
+.stage-tools .scenic-theme-toggle__moon {
+  left: 37px !important;
+}
+
+.stage-tools .command-launcher {
+  height: 34px !important;
+  min-height: 34px !important;
+  max-width: 126px !important;
+  padding-inline: 12px 7px !important;
+  font-size: 14px !important;
+}
+
+.stage-tools .command-launcher kbd {
+  font-size: 11px;
+  padding-inline: 6px;
 }
 
 @media (max-width: 760px) {
@@ -7111,6 +7170,33 @@ button.aura-card {
 .altitude-shell .hero-cta::before,
 .altitude-shell .hero-cta__fill {
   animation: none !important;
+}
+
+.start-primary-zone .hero-cta {
+  width: fit-content !important;
+  min-width: 0 !important;
+  max-width: min(360px, calc(100vw - 48px)) !important;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.92),
+    0 0 26px rgba(143,82,255,0.34),
+    0 18px 42px rgba(0,0,0,0.38) !important;
+}
+
+.start-primary-zone .hero-cta::before {
+  inset: -26px -44px !important;
+  filter: blur(20px) !important;
+  opacity: 0.46 !important;
+}
+
+.start-primary-zone .hero-cta::after {
+  opacity: 0.42 !important;
+  filter: blur(10px) !important;
+}
+
+.start-primary-zone .hero-cta__fill {
+  min-height: 48px !important;
+  padding-inline: 30px !important;
+  font-size: 16px !important;
 }
 
 .presence-line {

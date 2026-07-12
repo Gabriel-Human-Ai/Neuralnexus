@@ -518,8 +518,10 @@ export default function Home() {
   const [landingWorld, setLandingWorld] = useState<"life" | "work">("work");
   const [publicHeaderScrolled, setPublicHeaderScrolled] = useState(false);
   const [publicStoryNavVisible, setPublicStoryNavVisible] = useState(true);
+  const [stageToolsVisible, setStageToolsVisible] = useState(true);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const publicLastScroll = useRef(0);
+  const stageLastScroll = useRef(0);
 
   const selectedMode = useMemo(
     () => workspaceModes.find((mode) => mode.id === selectedModeId) ?? workspaceModes[1],
@@ -700,6 +702,24 @@ export default function Home() {
   }, [enteredApp]);
 
   useEffect(() => {
+    if (!enteredApp) return;
+    const onScroll = () => {
+      const current = window.scrollY;
+      const delta = current - stageLastScroll.current;
+      if (current < 32) {
+        setStageToolsVisible(true);
+      } else if (Math.abs(delta) > 8) {
+        setStageToolsVisible(delta < 0);
+      }
+      stageLastScroll.current = current;
+    };
+    stageLastScroll.current = window.scrollY;
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [enteredApp]);
+
+  useEffect(() => {
     if (enteredApp || typeof window === "undefined" || !("IntersectionObserver" in window)) return;
     const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -844,13 +864,14 @@ export default function Home() {
   }
 
   function ascendTo(level: AltitudeLevel) {
-    if (level <= altitude.level) return;
+    if (level <= altitude.level && level !== 3) return;
     if (level === 2) {
       setAltitude({ level: 2, workspaceId: altitude.workspaceId ?? selectedWorkspace?.id });
       setView("workspaces");
       return;
     }
     if (level === 3) {
+      setActiveShelf(null);
       setAltitude({ level: 3 });
       setView("home");
     }
@@ -1712,7 +1733,11 @@ export default function Home() {
                 className={view === item.id ? "is-active" : ""}
                 onClick={() => {
                   if (item.id === "home") {
-                    ascendTo(3);
+                    setActiveShelf(null);
+                    setMoreOpen(false);
+                    setSettingsOpen(false);
+                    setAltitude({ level: 3 });
+                    setView("home");
                     return;
                   }
                   if (item.id === "chat") {
@@ -1741,7 +1766,7 @@ export default function Home() {
 
       <section className="nn-stage">
         <NexusIsland activity={islandActivity} />
-        <div className="stage-tools">
+        <div className={`stage-tools ${stageToolsVisible ? "is-visible" : "is-hidden"}`}>
           <ThemeToggle />
           <button className="command-launcher" onClick={() => setCommandOpen(true)} aria-label="Open command center">
             <span>Command</span>
