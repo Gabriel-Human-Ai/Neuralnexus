@@ -9466,3 +9466,306 @@ button.shelf-row:hover {
     margin: 0 12px calc(154px + env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* ===== Apple source-of-truth consolidation =====
+   This final layer intentionally overrides older visual experiments. The app
+   follows one mobile rule: one tiny top-right utility, one bottom nav, one clear
+   primary action, and no Safari toolbar overlap. */
+.public-get-started {
+  color: #fff !important;
+  background: #121417 !important;
+  border-color: #121417 !important;
+  box-shadow: 0 4px 12px rgba(18,20,23,.12) !important;
+}
+
+.public-get-started:hover {
+  color: #fff !important;
+  background: #2A3037 !important;
+}
+
+.public-get-started:disabled,
+.public-login:disabled {
+  opacity: .55 !important;
+  cursor: not-allowed !important;
+}
+
+.public-login {
+  color: var(--ink) !important;
+  background: transparent !important;
+  border-color: var(--hairline-strong) !important;
+}
+
+[data-theme="light"] .orbit-primary .hero-cta,
+[data-theme="light"] .start-primary-zone .hero-cta {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: 0 10px 28px rgba(49,87,213,.14) !important;
+}
+
+[data-theme="light"] .orbit-primary .hero-cta::before,
+[data-theme="light"] .orbit-primary .hero-cta::after,
+[data-theme="light"] .start-primary-zone .hero-cta::before,
+[data-theme="light"] .start-primary-zone .hero-cta::after {
+  display: none !important;
+}
+
+[data-theme="light"] .orbit-primary .hero-cta__fill,
+[data-theme="light"] .start-primary-zone .hero-cta__fill {
+  color: #fff !important;
+  background: #3157D5 !important;
+  border: 1px solid rgba(49,87,213,.24) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.26) !important;
+}
+
+[data-theme="light"] .orbit-primary .hero-cta:hover .hero-cta__fill,
+[data-theme="light"] .start-primary-zone .hero-cta:hover .hero-cta__fill {
+  background: #284AB8 !important;
+}
+
+.aurora-focus > .af-field:focus-within,
+.aurora-focus > .af-field:focus,
+.free-chat-composer.af-field:focus-within,
+.free-chat-composer.af-field:focus {
+  outline: 0 !important;
+}
+
+.free-chat-composer textarea,
+.free-chat-composer textarea:focus,
+.free-chat-composer textarea:focus-visible {
+  border-color: transparent !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 700px) {
+  body {
+    overflow-x: hidden !important;
+  }
+
+  .nn-shell {
+    padding-bottom: calc(248px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .nn-stage {
+    min-height: 100svh !important;
+    padding:
+      calc(env(safe-area-inset-top) + 44px)
+      18px
+      calc(292px + env(safe-area-inset-bottom)) !important;
+    overflow-x: hidden !important;
+  }
+
+  .stage-tools,
+  .stage-tools.is-hidden {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top) + 8px) !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    left: auto !important;
+    z-index: 180 !important;
+    display: flex !important;
+    width: auto !important;
+    height: 30px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  .stage-tools .command-launcher,
+  .stage-tools .app-auth-actions,
+  .nexus-island {
+    display: none !important;
+  }
+
+  .stage-tools .theme-toggle,
+  .stage-tools .scenic-theme-toggle {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    padding: 1px !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 6px 14px rgba(0,0,0,.18) !important;
+  }
+
+  [data-theme="light"] .stage-tools .theme-toggle,
+  [data-theme="light"] .stage-tools .scenic-theme-toggle {
+    border-color: rgba(18,20,23,.10) !important;
+    box-shadow: 0 4px 12px rgba(18,20,23,.08) !important;
+  }
+
+  .stage-tools .scenic-theme-toggle__sky {
+    border-radius: 999px !important;
+  }
+
+  .stage-tools .scenic-theme-toggle__sun,
+  .stage-tools .scenic-theme-toggle__moon {
+    top: 5px !important;
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  .stage-tools .scenic-theme-toggle__sun {
+    left: 7px !important;
+  }
+
+  .stage-tools .scenic-theme-toggle__moon {
+    left: 28px !important;
+  }
+
+  .stage-tools .scenic-theme-toggle__dune {
+    bottom: -16px !important;
+    height: 21px !important;
+  }
+
+  .stage-tools .scenic-theme-toggle__dune.dune-b {
+    bottom: -19px !important;
+  }
+
+  .altitude-orbit {
+    width: 100% !important;
+    min-height: auto !important;
+    align-content: start !important;
+    justify-items: center !important;
+    gap: 18px !important;
+    padding: 22px 0 0 !important;
+  }
+
+  .altitude-orbit .orbit-core {
+    width: 100% !important;
+    justify-items: center !important;
+    gap: 14px !important;
+  }
+
+  .altitude-orbit .orbit-orb {
+    width: clamp(118px, 36vw, 150px) !important;
+    min-width: 0 !important;
+    max-width: 150px !important;
+    justify-self: center !important;
+    margin: 0 auto !important;
+    transform: none !important;
+  }
+
+  .altitude-orbit .orbit-orb .wizard-orb-frame {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 150px !important;
+    max-height: 150px !important;
+    margin: 0 auto !important;
+  }
+
+  .orbit-sentence {
+    max-width: min(29ch, calc(100vw - 44px)) !important;
+    margin: 0 auto !important;
+    font-size: clamp(20px, 6vw, 26px) !important;
+    line-height: 1.14 !important;
+    text-wrap: balance !important;
+  }
+
+  .guided-start-panel {
+    width: 100% !important;
+    max-width: calc(100vw - 36px) !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    padding: 18px !important;
+    border-radius: 12px !important;
+  }
+
+  .guided-start-panel h2 {
+    font-size: clamp(22px, 6.4vw, 28px) !important;
+    line-height: 1.08 !important;
+    text-wrap: balance !important;
+  }
+
+  .guided-start-panel p {
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+  }
+
+  .guided-start-steps span {
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+  }
+
+  .orbit-primary {
+    width: 100% !important;
+    display: grid !important;
+    justify-items: center !important;
+    padding-bottom: 0 !important;
+  }
+
+  .orbit-primary .hero-cta {
+    width: min(280px, 78vw) !important;
+    min-width: 0 !important;
+    margin-inline: auto !important;
+    padding: 2px !important;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,.84),
+      0 0 22px rgba(143,82,255,.26),
+      0 12px 28px rgba(0,0,0,.36) !important;
+  }
+
+  .orbit-primary .hero-cta__fill {
+    min-height: 46px !important;
+    padding: 0 20px !important;
+    font-size: 15px !important;
+  }
+
+  [data-theme="light"] .orbit-primary .hero-cta {
+    padding: 0 !important;
+    box-shadow: 0 8px 18px rgba(49,87,213,.12) !important;
+  }
+
+  .orbit-secondary-action {
+    margin-top: 8px !important;
+    font-size: 14px !important;
+  }
+
+  .mobile-tabbar {
+    left: 14px !important;
+    right: 14px !important;
+    bottom: calc(104px + env(safe-area-inset-bottom)) !important;
+    min-height: 66px !important;
+    height: 66px !important;
+    padding: 5px 8px !important;
+    border-radius: 18px !important;
+    z-index: 140 !important;
+  }
+
+  .mobile-tabbar button {
+    min-height: 54px !important;
+    border-radius: 12px !important;
+  }
+
+  .mobile-tabbar button span,
+  .mobile-tabbar button.is-active span {
+    display: block !important;
+    font-size: 10px !important;
+  }
+
+  .mobile-more-sheet {
+    margin: 0 12px calc(190px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100svh - 220px) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .nn-stage {
+    padding-inline: 14px !important;
+    padding-bottom: calc(304px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .guided-start-panel {
+    max-width: calc(100vw - 28px) !important;
+    padding: 16px !important;
+  }
+
+  .mobile-tabbar {
+    left: 10px !important;
+    right: 10px !important;
+  }
+}
