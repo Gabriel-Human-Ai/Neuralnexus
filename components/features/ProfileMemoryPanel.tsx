@@ -29,6 +29,8 @@ const DIMENSIONS: Dimension[] = ["address_and_tone", "answer_style", "working_st
 export function ProfileMemoryPanel() {
   const [data, setData] = useState<ProfileMemoryResponse | null>(null);
   const [openWhy, setOpenWhy] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
   const [ack, setAck] = useState("");
 
@@ -100,13 +102,36 @@ export function ProfileMemoryPanel() {
                   {memories.map((memory) => (
                     <div key={memory.id} className={`profile-memory-row is-${memory.confidence}`}>
                       <div>
-                        <strong>{memory.insight}</strong>
-                        <button type="button" onClick={() => setOpenWhy(openWhy === memory.id ? null : memory.id)}>
-                          Why
-                        </button>
+                        {editingId === memory.id ? (
+                          <input
+                            className="profile-memory-edit"
+                            value={editingValue}
+                            onChange={(event) => setEditingValue(event.target.value)}
+                            aria-label="Edit profile signal"
+                          />
+                        ) : (
+                          <strong>{memory.insight}</strong>
+                        )}
+                        <div className="profile-memory-actions">
+                          <button type="button" onClick={() => setOpenWhy(openWhy === memory.id ? null : memory.id)}>
+                            Why this?
+                          </button>
+                          {editingId === memory.id ? (
+                            <>
+                              <button type="button" onClick={() => { setEditingId(null); setEditingValue(""); }}>Cancel</button>
+                              <button type="button" onClick={() => { void patch({ action: "update", id: memory.id, insight: editingValue }); setEditingId(null); setEditingValue(""); }}>
+                                Save
+                              </button>
+                            </>
+                          ) : (
+                            <button type="button" onClick={() => { setEditingId(memory.id); setEditingValue(memory.insight); }}>
+                              Edit
+                            </button>
+                          )}
+                          <button type="button" onClick={() => void patch({ action: "remove", id: memory.id })}>Forget</button>
+                        </div>
                       </div>
                       {openWhy === memory.id && <p>Because this pattern appeared in your recent chats: {memory.evidence}</p>}
-                      <button type="button" onClick={() => void patch({ action: "remove", id: memory.id })}>Remove</button>
                     </div>
                   ))}
                 </div>

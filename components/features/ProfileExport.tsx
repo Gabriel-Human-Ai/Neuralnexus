@@ -17,11 +17,19 @@ const labels: Record<Dimension, string> = {
   visual_taste: "Visual taste",
 };
 
+const exportTargets = [
+  { id: "chatgpt", label: "ChatGPT", helper: "Paste into Custom Instructions or a project brief." },
+  { id: "claude", label: "Claude", helper: "Use as Project Instructions before important work." },
+  { id: "image", label: "Image AI", helper: "Use for visual taste, composition and style prompts." },
+] as const;
+
 export function ProfileExport() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [target, setTarget] = useState<(typeof exportTargets)[number]["id"]>("chatgpt");
+  const activeTarget = exportTargets.find((item) => item.id === target) ?? exportTargets[0];
 
   useEffect(() => {
     void fetch("/api/profile").then((response) => response.ok ? response.json() : null).then((value) => value && setProfile(value));
@@ -62,6 +70,14 @@ export function ProfileExport() {
         </button>
       </div>
 
+      <div className="profile-export-targets" role="group" aria-label="Export target">
+        {exportTargets.map((item) => (
+          <button key={item.id} type="button" className={target === item.id ? "is-active" : ""} onClick={() => setTarget(item.id)}>
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       <div className="profile-signal-grid" aria-label="Profile signal counts">
         {(Object.keys(labels) as Dimension[]).map((dimension) => (
           <div key={dimension}>
@@ -75,16 +91,15 @@ export function ProfileExport() {
         <div className="profile-export-result">
           <textarea value={text} onChange={(event) => setText(event.target.value)} aria-label="Generated profile instruction" />
           <div className="profile-export-result-actions">
-            <small>Paste it into an AI assistant&apos;s custom instructions or system prompt.</small>
+            <small>{activeTarget.helper}</small>
             <CopyButton text={text} label="Copy profile" />
           </div>
         </div>
       ) : (
-        <p className="profile-export-hint">Your profile is yours to inspect, edit and carry to another AI. Nothing is sent anywhere until you choose to generate this block.</p>
+        <p className="profile-export-hint">{activeTarget.helper} Nothing is sent anywhere until you choose to generate this block.</p>
       )}
       {notice && <p className="profile-export-notice" role="status">{notice}</p>}
       {text && <Check className="profile-export-check" size={16} aria-hidden="true" />}
     </section>
   );
 }
-

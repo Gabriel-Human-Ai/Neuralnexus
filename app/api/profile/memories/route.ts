@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { AMBIENT_CONSENT_KEY, LEARNING_PAUSED_KEY, clearLivingProfile, listLivingProfileMemories, removeLivingProfileMemory } from "@/lib/living-profile";
+import { AMBIENT_CONSENT_KEY, LEARNING_PAUSED_KEY, clearLivingProfile, listLivingProfileMemories, removeLivingProfileMemory, updateLivingProfileMemory } from "@/lib/living-profile";
 import { PROFILE_DIMENSIONS, type ProfileDimension } from "@/lib/profile-signals";
 import { getProfileSetting, setProfileSetting } from "@/lib/settings";
 import { profileScopeErrorResponse, resolveRequestProfileId } from "@/lib/scope";
@@ -63,6 +63,13 @@ export async function PATCH(req: Request) {
 
     if (body.action === "remove" && body.id) {
       await removeLivingProfileMemory(profileId, String(body.id));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "update" && body.id && body.insight) {
+      const insight = String(body.insight).replace(/\s+/g, " ").trim();
+      if (insight.length < 6) return NextResponse.json({ error: "Profile memory is too short." }, { status: 400 });
+      await updateLivingProfileMemory(profileId, String(body.id), insight);
       return NextResponse.json({ ok: true });
     }
 

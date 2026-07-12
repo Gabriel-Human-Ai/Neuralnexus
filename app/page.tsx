@@ -121,6 +121,7 @@ type WorkspaceMode = {
 type View = "home" | "chat" | "workspaces" | "skills" | "eye" | "templates" | "knowledge" | "usage" | "settings";
 type WorkspacePanel = "overview" | "workflow" | "outputs" | "client";
 type StartPath = "ask" | "build" | "teach";
+type PublicProfileMode = "personal" | "work" | "creator";
 type AltitudeState = { level: AltitudeLevel; workspaceId?: string; focusId?: string };
 type PublicPage = "home" | "enterprise" | "pricing" | "security";
 type PublicMenu = "solutions" | "resources" | null;
@@ -525,6 +526,8 @@ export default function Home() {
   const [publicStoryNavVisible, setPublicStoryNavVisible] = useState(true);
   const [stageToolsVisible, setStageToolsVisible] = useState(true);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(BILLING.monthly);
+  const [publicProfileMode, setPublicProfileMode] = useState<PublicProfileMode>("work");
+  const [learningFeedback, setLearningFeedback] = useState("");
   const publicLastScroll = useRef(0);
   const stageLastScroll = useRef(0);
 
@@ -585,6 +588,35 @@ export default function Home() {
     ? `Next recommended step: ${inferMode(recentWorkspace).steps[0]}.`
     : "Create a workspace first, then connect models when you need generation.";
   const workspaceSummary = `${projects.length} workspace${projects.length === 1 ? "" : "s"} · ${skills.length} skill${skills.length === 1 ? "" : "s"} · ${runs.length} model run${runs.length === 1 ? "" : "s"}`;
+  const publicModeCopy: Record<PublicProfileMode, { label: string; prompt: string; line: string }> = {
+    personal: {
+      label: "Personal",
+      prompt: "Ask about a decision, routine or personal goal...",
+      line: "For tone, habits and how you like to be supported.",
+    },
+    work: {
+      label: "Work",
+      prompt: "Describe the method you want to turn into a workspace...",
+      line: "For repeatable work, standards, clients and decisions.",
+    },
+    creator: {
+      label: "Creator",
+      prompt: "Describe the voice, taste or output style you want to preserve...",
+      line: "For writing, design direction and creative consistency.",
+    },
+  };
+  const publicSignalCards = [
+    { id: "tone", label: "Tone detected", body: "NeuralNexus notices how direct, warm or structured the answer should feel." },
+    { id: "taste", label: "Taste learned", body: "Choices and edits become editable standards, not hidden memory." },
+    { id: "export", label: "Export ready", body: "When the profile has enough signal, carry it into the AI tools you use." },
+  ];
+  const chatSendState = generalBusy
+    ? "sending"
+    : generalInput.trim() || generalAttachments.length
+      ? "charged"
+      : generalMessages.some((message) => message.memoryNotice)
+        ? "learned"
+        : "empty";
 
   useEffect(() => {
     void loadData();
@@ -983,10 +1015,12 @@ export default function Home() {
       .then(async (response) => response.ok ? response.json() : null)
       .then((data) => {
         const memoryNotice = shouldSurfaceProfileMemory(data?.memories ?? []);
+        setLearningFeedback(memoryNotice ? "Saved as editable signal." : "Preference noticed.");
+        window.setTimeout(() => setLearningFeedback(""), 1800);
         if (!memoryNotice) return;
         setGeneralMessages((messages) => [...messages, {
           role: "assistant",
-          content: "I noticed a preference and saved it to your profile.",
+          content: "Preference noticed. Saved as editable signal.",
           memoryNotice,
         }]);
       })
@@ -1648,9 +1682,22 @@ export default function Home() {
                 <h1>NeuralNexus</h1>
                 <p>Your AI personality, in one profile.</p>
                 <p className="public-hero-explainer">Build it just by using NeuralNexus. Then every AI — ChatGPT, Claude, image generators — instantly knows how to talk, write and create for you.</p>
+                <div className="public-profile-mode" role="group" aria-label="Profile mode">
+                  {(Object.keys(publicModeCopy) as PublicProfileMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={publicProfileMode === mode ? "is-active" : ""}
+                      onClick={() => setPublicProfileMode(mode)}
+                    >
+                      {publicModeCopy[mode].label}
+                    </button>
+                  ))}
+                </div>
+                <p className="public-profile-mode-line">{publicModeCopy[publicProfileMode].line}</p>
                 <form className="public-prompt" onSubmit={(event) => { event.preventDefault(); if (!clerkEnabled) enterWorkspaceApp(true); }}>
                   <label htmlFor="landing-prompt" className="sr-only">Ask NeuralNexus anything</label>
-                  <textarea id="landing-prompt" value={landingPrompt} onChange={(event) => setLandingPrompt(event.target.value)} placeholder="Ask anything — NeuralNexus starts learning how you think." />
+                  <textarea id="landing-prompt" value={landingPrompt} onChange={(event) => setLandingPrompt(event.target.value)} placeholder={publicModeCopy[publicProfileMode].prompt} />
                   <div className="public-prompt-footer">
                     <AuthStartButton ariaLabel="Add material" onEnter={() => { enterWorkspaceApp(false); setExtractorOpen(true); }}><Plus size={18} /></AuthStartButton>
                     <div className="public-prompt-tools">
@@ -1670,32 +1717,47 @@ export default function Home() {
               <div className="public-hero-orb" aria-label="NeuralNexus presence">
                 <WizardOrb size={220} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state="idle" interactive {...orbSettings} />
               </div>
-              <a className="public-scroll-cue" href="#profile">See how it works <ArrowDown size={15} /></a>
+              <a className="public-scroll-cue" href="#profile-learning">See how it works <ArrowDown size={15} /></a>
             </section>
 
             <div className={`public-story-nav ${publicStoryNavVisible ? "is-visible" : "is-hidden"}`}>
               <span>NeuralNexus</span>
               <nav aria-label="Story navigation">
-                <a href="#profile">Profile</a>
-                <a href="#engine">The Engine</a>
-                <a href="#trust">Trust</a>
+                <a href="#top">Hero</a>
+                <a href="#profile-learning">Profile Learning</a>
+                <a href="#proof">Proof</a>
+                <a href="#export">Export</a>
+                <a href="#privacy">Privacy</a>
                 <AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start</AuthStartButton>
               </nav>
             </div>
 
             <div className={`public-progress-rail ${publicHeaderScrolled ? "is-visible" : ""}`} aria-label="Page progress">
-              <a href="#profile" aria-label="Profile section" />
-              <a href="#engine" aria-label="Engine section" />
-              <a href="#trust" aria-label="Trust section" />
+              <a href="#top" aria-label="Hero section" />
+              <a href="#profile-learning" aria-label="Profile learning section" />
+              <a href="#proof" aria-label="Proof section" />
+              <a href="#export" aria-label="Export section" />
+              <a href="#privacy" aria-label="Privacy section" />
             </div>
 
             <div className={`public-scroll-dock ${publicHeaderScrolled ? "is-visible" : ""}`}>
-              <span>Build your profile as you use it.</span>
+              <span>Next: build your profile from one question.</span>
               <AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start profile <ChevronRight size={15} /></AuthStartButton>
             </div>
 
+            <div className="public-signal-stack" aria-label="Profile signals">
+              {publicSignalCards.map((card, index) => (
+                <Reveal key={card.id} className="public-signal-reveal" delay={index * 0.08}>
+                  <article className="public-signal-card">
+                    <span>{card.label}</span>
+                    <p>{card.body}</p>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
+
             <Reveal className="public-reveal">
-              <section className="public-section public-twin-section" id="profile">
+              <section className="public-section public-twin-section" id="profile-learning">
                 <div className="public-section-heading"><span className="public-eyebrow">ONE PROFILE</span><h2>Your style becomes portable.</h2><p>NeuralNexus notices how you ask, choose, edit and approve. Those signals become a profile you can inspect, correct and reuse.</p></div>
                 <div className="public-world-grid">
                   {[
@@ -1714,7 +1776,7 @@ export default function Home() {
             </Reveal>
 
             <Reveal className="public-reveal">
-              <section className="public-section public-preview-section" id="engine">
+              <section className="public-section public-preview-section" id="proof">
                 <div className="public-section-heading"><span className="public-eyebrow">THE ENGINE</span><h2>Learning you can inspect.</h2><p>NeuralNexus keeps the useful parts visible: what it remembers, what good looks like, and how your preferences become reusable.</p></div>
                 <div className="public-preview-panel">
                   <Reveal className="public-reveal-item" delay={0.08}>
@@ -1737,7 +1799,24 @@ export default function Home() {
             </Reveal>
 
             <Reveal className="public-reveal">
-              <section className="public-section public-trust-section" id="trust"><div className="public-trust-copy"><span className="public-eyebrow">TRUST BY DESIGN</span><h2>Your profile stays yours.</h2><p>Bring your own provider keys, inspect what NeuralNexus learned, and decide what can be exported.</p><button type="button" onClick={() => showPublicPage("security")}>See security and privacy <ChevronRight size={16} /></button></div><div className="public-trust-list"><span><Lock size={17} /> Explicit keys</span><span><Check size={17} /> Source-aware signals</span><span><Settings size={17} /> Permission before export</span></div></section>
+              <section className="public-section public-export-section" id="export">
+                <div className="public-section-heading">
+                  <span className="public-eyebrow">EXPORT</span>
+                  <h2>Carry the useful parts with you.</h2>
+                  <p>Turn learned tone, taste and working style into a concise profile block for the AI tools you already use.</p>
+                </div>
+                <div className="public-export-targets" role="group" aria-label="Export target preview">
+                  {["ChatGPT", "Claude", "Image AI"].map((target, index) => (
+                    <button key={target} type="button" className={index === 0 ? "is-active" : ""} onClick={() => enterWorkspaceApp(false, `Export my profile for ${target}.`)}>
+                      {target}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </Reveal>
+
+            <Reveal className="public-reveal">
+              <section className="public-section public-trust-section" id="privacy"><div className="public-trust-copy"><span className="public-eyebrow">PRIVACY</span><h2>Your profile stays yours.</h2><p>Bring your own provider keys, inspect what NeuralNexus learned, and decide what can be exported.</p><button type="button" onClick={() => showPublicPage("security")}>See security and privacy <ChevronRight size={16} /></button></div><div className="public-trust-list"><span><Lock size={17} /> Explicit keys</span><span><Check size={17} /> Source-aware signals</span><span><Settings size={17} /> Permission before export</span></div></section>
             </Reveal>
 
             <Reveal className="public-reveal">
@@ -2384,7 +2463,8 @@ export default function Home() {
                           <p>Because this pattern appeared in your recent chat: {message.memoryNotice.evidence}</p>
                           <div>
                             <button type="button" onClick={() => setProfileNoticeOpen(null)}>Keep</button>
-                            <button type="button" onClick={() => void removeProfileMemory(message.memoryNotice!.id)}>Remove</button>
+                            <button type="button" onClick={() => setActiveShelf("vault")}>Edit</button>
+                            <button type="button" onClick={() => void removeProfileMemory(message.memoryNotice!.id)}>Forget</button>
                           </div>
                         </div>
                       )}
@@ -2424,7 +2504,7 @@ export default function Home() {
               )}
 
               <motion.div className="chat-composer-shell aurora-focus" layoutId="nn-composer">
-                <div className={`free-chat-composer hero-composer af-field ${generalInput.trim() ? "is-charged" : "is-empty"} ${generalBusy ? "is-sending" : ""}`}>
+                <div className={`free-chat-composer hero-composer af-field send-state-${chatSendState} ${generalInput.trim() ? "is-charged" : "is-empty"} ${generalBusy ? "is-sending" : ""}`}>
                   <label className="chat-file-button">
                     <Upload size={16} />
                     <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readGeneralChatFiles(event.target.files)} />
@@ -2441,11 +2521,16 @@ export default function Home() {
                     placeholder="Ask a question. Cmd+Enter sends."
                     rows={3}
                   />
-                  <button className={`primary-pill chat-send-button ${generalInput.trim() ? "is-charged" : "is-empty"}`} onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
+                  <button className={`primary-pill chat-send-button send-state-${chatSendState} ${generalInput.trim() || generalAttachments.length ? "is-charged" : "is-empty"}`} onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
                     {generalBusy && <span className="thinking-button-dot" aria-hidden="true" />}
-                    {generalBusy ? "Thinking" : "Send"} <ChevronRight size={16} />
+                    {chatSendState === "sending" ? "Sending" : chatSendState === "learned" ? "Learned" : "Send"} <ChevronRight size={16} />
                   </button>
                 </div>
+                {(learningFeedback || chatSendState === "charged" || chatSendState === "learned") && (
+                  <p className={`nn-learning-feedback is-${learningFeedback ? "active" : chatSendState}`} role="status">
+                    {learningFeedback || (chatSendState === "charged" ? "Ready to send." : "Saved as editable signal.")}
+                  </p>
+                )}
               </motion.div>
           </div>
         )}

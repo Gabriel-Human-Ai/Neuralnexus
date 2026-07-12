@@ -43,13 +43,18 @@ export function OutputCard({ output, onRefine, onRegenerate, onFinalize, onFork 
   const [correctingClaimId, setCorrectingClaimId] = useState<string | null>(null);
   const [correctionText, setCorrectionText] = useState("");
   const [ackClaimId, setAckClaimId] = useState<string | null>(null);
+  const [whyClaimId, setWhyClaimId] = useState<string | null>(null);
+  const [forgottenClaims, setForgottenClaims] = useState<string[]>([]);
   const knowledgeCount = output.knowledgeIds ? output.knowledgeIds.split(",").filter(Boolean).length : 0;
-  const counts = countClaims(claims);
-  const activeClaim = claims.find((claim) => claim.id === activeClaimId) ?? null;
+  const visibleClaims = useMemo(() => claims.filter((claim) => !forgottenClaims.includes(claim.id)), [claims, forgottenClaims]);
+  const counts = countClaims(visibleClaims);
+  const activeClaim = visibleClaims.find((claim) => claim.id === activeClaimId) ?? null;
 
   useEffect(() => {
     setClaims(initialClaims);
     setMode(initialClaims.length ? "read" : "edit");
+    setForgottenClaims([]);
+    setWhyClaimId(null);
   }, [initialClaims]);
 
   useEffect(() => {
@@ -120,7 +125,7 @@ export function OutputCard({ output, onRefine, onRegenerate, onFinalize, onFork 
       </div>
       {mode === "read" && claims.length > 0 ? (
         <div className={`claim-read-mode ${trustMarks ? "" : "trust-hidden"}`} onKeyDown={(event) => { if (event.key === "Escape") setActiveClaimId(null); }}>
-          {renderClaimText(content, claims, activeClaimId, highlight, (claim) => (
+          {renderClaimText(content, visibleClaims, activeClaimId, highlight, (claim) => (
             <span
               key={claim.id}
               data-claim={claim.id}
@@ -135,20 +140,21 @@ export function OutputCard({ output, onRefine, onRegenerate, onFinalize, onFork 
           ))}
           {activeClaim && (
             <div className="claim-popover" role="dialog">
-              <ClaimPopoverContent claim={activeClaim} />
+              <div className="trust-mini-actions" aria-label="Trust actions">
+                <button type="button" onClick={() => setWhyClaimId(whyClaimId === activeClaim.id ? null : activeClaim.id)}>Why this?</button>
+                <button type="button" onClick={() => { setCorrectingClaimId(activeClaim.id); setCorrectionText(activeClaim.text); }}>Edit</button>
+                <button type="button" onClick={() => { setForgottenClaims((items) => [...items, activeClaim.id]); setActiveClaimId(null); }}>Forget</button>
+              </div>
+              {(whyClaimId === activeClaim.id || activeClaim.status !== "grounded") && <ClaimPopoverContent claim={activeClaim} />}
               {activeClaim.status === "external" && activeClaim.verifierModel && <p>Independently confirmed · {activeClaim.verifierModel}</p>}
               {activeClaim.status === "external" && !activeClaim.verifierModel && (
                 <button onClick={() => verifyClaim(activeClaim.id)} disabled={pendingClaimId === activeClaim.id}>{pendingClaimId === activeClaim.id ? "..." : "Verify"}</button>
               )}
-              {(activeClaim.status === "external" || activeClaim.status === "disputed") && (
-                correctingClaimId === activeClaim.id ? (
-                  <div className="claim-correction-row">
-                    <input value={correctionText} onChange={(event) => setCorrectionText(event.target.value)} placeholder="What's wrong / correct value" />
-                    <button onClick={() => markWrong(activeClaim)} disabled={pendingClaimId === activeClaim.id}>{pendingClaimId === activeClaim.id ? "..." : "Save"}</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setCorrectingClaimId(activeClaim.id)}>Mark wrong</button>
-                )
+              {correctingClaimId === activeClaim.id && (
+                <div className="claim-correction-row">
+                  <input value={correctionText} onChange={(event) => setCorrectionText(event.target.value)} placeholder="Rewrite this claim or note what is wrong" />
+                  <button onClick={() => markWrong(activeClaim)} disabled={pendingClaimId === activeClaim.id}>{pendingClaimId === activeClaim.id ? "..." : "Save"}</button>
+                </div>
               )}
               {ackClaimId === activeClaim.id && <span className="claim-ack"><Check size={14} /> Recorded</span>}
             </div>

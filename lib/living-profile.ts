@@ -274,6 +274,13 @@ export async function removeLivingProfileMemory(profileId: string, id: string) {
   });
 }
 
+export async function updateLivingProfileMemory(profileId: string, id: string, insight: string) {
+  return db.decisionRecord.updateMany({
+    where: { id, profileId, source: { in: ACTIVE_PROFILE_SOURCES }, status: "active" },
+    data: { chosenDesc: clean(insight, 120) },
+  });
+}
+
 export async function clearLivingProfile(profileId: string) {
   return db.decisionRecord.updateMany({
     where: { profileId, source: { in: [...ACTIVE_PROFILE_SOURCES, ...PROFILE_EVIDENCE_SOURCES] } },
