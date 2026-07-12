@@ -53,6 +53,7 @@ import { AuroraDisc } from "@/components/ui/AuroraDisc";
 import { AuraCard } from "@/components/ui/AuraCard";
 import { HeroCTA } from "@/components/ui/HeroCTA";
 import { NexusIsland } from "@/components/ui/NexusIsland";
+import { Reveal } from "@/components/ui/Reveal";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { AuthButtons, AuthStartButton } from "@/components/auth/AuthButtons";
@@ -520,7 +521,6 @@ export default function Home() {
   const [publicPage, setPublicPage] = useState<PublicPage>("home");
   const [publicMenu, setPublicMenu] = useState<PublicMenu>(null);
   const [publicMobileMenu, setPublicMobileMenu] = useState(false);
-  const [landingWorld, setLandingWorld] = useState<"life" | "work">("work");
   const [publicHeaderScrolled, setPublicHeaderScrolled] = useState(false);
   const [publicStoryNavVisible, setPublicStoryNavVisible] = useState(true);
   const [stageToolsVisible, setStageToolsVisible] = useState(true);
@@ -725,17 +725,6 @@ export default function Home() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [enteredApp]);
-
-  useEffect(() => {
-    if (enteredApp || typeof window === "undefined" || !("IntersectionObserver" in window)) return;
-    const revealObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add("is-in-view");
-      });
-    }, { threshold: 0.12, rootMargin: "0px 0px -8%" });
-    document.querySelectorAll(".public-section, .public-final-cta").forEach((element) => revealObserver.observe(element));
-    return () => revealObserver.disconnect();
-  }, [enteredApp, publicPage]);
 
   useEffect(() => {
     if (!selectedWorkspace?.id) return;
@@ -1637,11 +1626,15 @@ export default function Home() {
           <AnimatePresence>
             {publicMobileMenu && (
               <motion.div className="public-mobile-menu" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18, ease: MOTION.easeOut }}>
-                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu("solutions"); }}>Solutions <ChevronDown size={16} /></button>
-                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu("resources"); }}>Resources <ChevronDown size={16} /></button>
-                <button type="button" onClick={() => showPublicPage("enterprise")}>Enterprise</button>
-                <button type="button" onClick={() => showPublicPage("pricing")}>Pricing</button>
-                <button type="button" onClick={() => showPublicPage("security")}>Security</button>
+                <span className="public-mobile-menu-label">Navigate</span>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); startFromPublicPrompt("Build a reusable workspace for my method."); }}>Solutions <ChevronRight size={16} /></button>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); startFromPublicPrompt("Start from my existing notes, docs or templates."); }}>Resources <ChevronRight size={16} /></button>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu(null); showPublicPage("enterprise"); }}>Enterprise</button>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu(null); showPublicPage("pricing"); }}>Pricing</button>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu(null); showPublicPage("security"); }}>Security</button>
+                <div className="public-mobile-menu-auth">
+                  <AuthButtons compact onEnter={() => { setPublicMobileMenu(false); enterWorkspaceApp(false); }} />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1651,20 +1644,17 @@ export default function Home() {
           <>
             <section className="public-hero" id="top">
               <div className="public-hero-copy">
-                <span className="public-eyebrow">PERSONAL AI WORKSPACE</span>
+                <span className="public-eyebrow">YOUR AI PERSONALITY PROFILE</span>
                 <h1>NeuralNexus</h1>
-                <p>One AI Twin for the life you live and the work you shape.</p>
-                <div className="public-world-switch" role="tablist" aria-label="Explore NeuralNexus worlds">
-                  <button type="button" role="tab" aria-selected={landingWorld === "life"} className={landingWorld === "life" ? "is-active" : ""} onClick={() => setLandingWorld("life")}>Explore LIFE</button>
-                  <button type="button" role="tab" aria-selected={landingWorld === "work"} className={landingWorld === "work" ? "is-active" : ""} onClick={() => setLandingWorld("work")}>Explore WORK</button>
-                </div>
+                <p>Your AI personality, in one profile.</p>
+                <p className="public-hero-explainer">Build it just by using NeuralNexus. Then every AI — ChatGPT, Claude, image generators — instantly knows how to talk, write and create for you.</p>
                 <form className="public-prompt" onSubmit={(event) => { event.preventDefault(); if (!clerkEnabled) enterWorkspaceApp(true); }}>
-                  <label htmlFor="landing-prompt" className="sr-only">Describe what you want to build</label>
-                  <textarea id="landing-prompt" value={landingPrompt} onChange={(event) => setLandingPrompt(event.target.value)} placeholder={landingWorld === "life" ? "Describe what you want to understand..." : "Describe the method you want to build..."} />
+                  <label htmlFor="landing-prompt" className="sr-only">Ask NeuralNexus anything</label>
+                  <textarea id="landing-prompt" value={landingPrompt} onChange={(event) => setLandingPrompt(event.target.value)} placeholder="Ask anything — NeuralNexus starts learning how you think." />
                   <div className="public-prompt-footer">
                     <AuthStartButton ariaLabel="Add material" onEnter={() => { enterWorkspaceApp(false); setExtractorOpen(true); }}><Plus size={18} /></AuthStartButton>
                     <div className="public-prompt-tools">
-                      <button type="button" className="public-build-mode" onClick={() => setPublicMenu("solutions")}>{landingWorld === "life" ? "Reflect" : "Build"} <ChevronDown size={14} /></button>
+                      <button type="button" className="public-build-mode" onClick={() => setPublicMenu("solutions")}>Ask <ChevronDown size={14} /></button>
                       <AuthStartButton ariaLabel="Open Ask" onEnter={() => { enterWorkspaceApp(false); setActiveShelf("chat"); }}><Mic size={17} /></AuthStartButton>
                       <AuthStartButton className="public-submit" onEnter={() => enterWorkspaceApp(true)}>
                         <ArrowUp size={18} />
@@ -1675,50 +1665,71 @@ export default function Home() {
                 <AuthStartButton className="public-hero-cta" onEnter={() => enterWorkspaceApp(true)}>
                   Start with NeuralNexus <ChevronRight size={17} />
                 </AuthStartButton>
-                <span className="public-hero-note">Separate by default. You choose what can cross.</span>
+                <span className="public-hero-note">Learns quietly from how you use it. Yours to keep, edit, or export anytime.</span>
               </div>
-              <div className="public-hero-orb" aria-label="NeuralNexus Twin presence">
+              <div className="public-hero-orb" aria-label="NeuralNexus presence">
                 <WizardOrb size={220} hue={orbHue} speed={orbSpeed} intensity={orbIntensity} state="idle" interactive {...orbSettings} />
-                <div className="public-orb-caption"><span className="public-orb-dot" /> {landingWorld === "life" ? "LIFE context" : "WORK context"}</div>
               </div>
-              <a className="public-scroll-cue" href="#twin">See how it works <ArrowDown size={15} /></a>
+              <a className="public-scroll-cue" href="#profile">See how it works <ArrowDown size={15} /></a>
             </section>
 
             <div className={`public-story-nav ${publicStoryNavVisible ? "is-visible" : "is-hidden"}`}>
               <span>NeuralNexus</span>
               <nav aria-label="Story navigation">
-                <a href="#twin">The Twin</a>
+                <a href="#profile">Profile</a>
                 <a href="#engine">The Engine</a>
                 <a href="#trust">Trust</a>
                 <AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start</AuthStartButton>
               </nav>
             </div>
 
-            <section className="public-section public-twin-section" id="twin">
-              <div className="public-section-heading"><span className="public-eyebrow">ONE TWIN, TWO WORLDS</span><h2>Separate by default.<br />Useful everywhere you are.</h2><p>The same Twin engine can learn your patterns without mixing the life you live with the work you shape.</p></div>
-              <div className="public-world-grid">
-                <article className={landingWorld === "life" ? "is-selected" : ""} onClick={() => setLandingWorld("life")}><span className="public-section-label">LIFE</span><h3>Notice what matters to you.</h3><p>Reflections, goals and patterns stay in their own context.</p><AuthStartButton onEnter={() => { setLandingWorld("life"); enterWorkspaceApp(true, "Help me start a private LIFE workspace."); }}>Start with LIFE <ChevronRight size={16} /></AuthStartButton></article>
-                <article className={landingWorld === "work" ? "is-selected" : ""} onClick={() => setLandingWorld("work")}><span className="public-section-label">WORK</span><h3>Turn your method into a system.</h3><p>Sources, skills and outputs stay ready for repeatable work.</p><AuthStartButton onEnter={() => { setLandingWorld("work"); enterWorkspaceApp(true); }}>Start with WORK <ChevronRight size={16} /></AuthStartButton></article>
-              </div>
-            </section>
+            <Reveal>
+              <section className="public-section public-twin-section" id="profile">
+                <div className="public-section-heading"><span className="public-eyebrow">ONE PROFILE</span><h2>Your style becomes portable.</h2><p>NeuralNexus notices how you ask, choose, edit and approve. Those signals become a profile you can inspect, correct and reuse.</p></div>
+                <div className="public-world-grid">
+                  {[
+                    ["Ask naturally", "Use NeuralNexus like a normal AI. Your words reveal tone, standards and preferences."],
+                    ["Choose what fits", "Every selection and correction teaches the profile what good feels like to you."],
+                  ].map(([title, body], index) => (
+                    <Reveal key={title} delay={index * 0.08}>
+                      <article><span className="public-section-label">STEP {index + 1}</span><h3>{title}</h3><p>{body}</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start your profile <ChevronRight size={16} /></AuthStartButton></article>
+                    </Reveal>
+                  ))}
+                </div>
+              </section>
+            </Reveal>
 
-            <section className="public-section public-preview-section" id="engine">
-              <div className="public-section-heading"><span className="public-eyebrow">THE ENGINE</span><h2>Learning you can inspect.</h2><p>NeuralNexus keeps the useful parts visible: what it remembers, what good looks like, and how your method becomes reusable.</p></div>
-              <div className="public-preview-panel">
-                <div className="public-preview-window"><div className="public-window-bar"><span /><span /><span /><small>{landingWorld === "life" ? "LIFE / Today" : "WORK / Review"}</small></div><div className="public-preview-content"><div className="public-preview-orb"><span className="public-orb-dot" /></div><div><span className="public-section-label">{landingWorld === "life" ? "PATTERN REVIEW" : "WORKSPACE REVIEW"}</span><h3>{landingWorld === "life" ? "A tentative relationship, with evidence." : "A method you can run again."}</h3><p>{landingWorld === "life" ? "See the observations first. Decide whether it is useful." : "Review the source, compare the output, approve the rule."}</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>{landingWorld === "life" ? "See evidence" : "Open workspace"} <ChevronRight size={16} /></AuthStartButton></div></div></div>
-                <div className="public-preview-ledger"><span>01</span><strong>Evidence first</strong><p>Every useful suggestion shows where it came from.</p><span>02</span><strong>Your decision</strong><p>Nothing becomes a rule without your approval.</p><span>03</span><strong>Reusable output</strong><p>What works becomes part of the next run.</p></div>
-              </div>
-            </section>
+            <Reveal>
+              <section className="public-section public-preview-section" id="engine">
+                <div className="public-section-heading"><span className="public-eyebrow">THE ENGINE</span><h2>Learning you can inspect.</h2><p>NeuralNexus keeps the useful parts visible: what it remembers, what good looks like, and how your preferences become reusable.</p></div>
+                <div className="public-preview-panel">
+                  <Reveal delay={0.08}>
+                    <div className="public-preview-window"><div className="public-window-bar"><span /><span /><span /><small>Profile / Review</small></div><div className="public-preview-content"><div className="public-preview-orb"><span className="public-orb-dot" /></div><div><span className="public-section-label">PROFILE REVIEW</span><h3>A personality profile you can correct.</h3><p>Review what NeuralNexus inferred about your voice, taste and standards before you reuse it anywhere.</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Open profile <ChevronRight size={16} /></AuthStartButton></div></div></div>
+                  </Reveal>
+                  <Reveal delay={0.16}>
+                    <div className="public-preview-ledger"><span>01</span><strong>Evidence first</strong><p>Every useful suggestion shows where it came from.</p><span>02</span><strong>Your decision</strong><p>Nothing becomes a durable preference without your approval.</p><span>03</span><strong>Portable context</strong><p>What fits becomes usable in the AI tools you already use.</p></div>
+                  </Reveal>
+                </div>
+              </section>
+            </Reveal>
 
-            <section className="public-section public-engine-bands">
-              {[["Vault", "What Nexus remembers", "Sources and decisions remain attached to the work that shaped them."], ["Eye", "What good looks like", "Approved and rejected examples make your taste legible."], ["Genome", "How your method compounds", "Corrections become rules you can read, edit and reuse."]].map(([label, title, body]) => <article key={label}><span className="public-section-label">{label}</span><h3>{title}</h3><p>{body}</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Explore {label} <ChevronRight size={16} /></AuthStartButton></article>)}
-            </section>
+            <Reveal>
+              <section className="public-section public-engine-bands">
+                {[["Vault", "What NeuralNexus remembers", "Sources, choices and edits stay attached to the profile signals they shaped."], ["Eye", "What good looks like", "Approved and rejected examples make your taste legible."], ["Genome", "How your patterns compound", "Corrections become readable preferences you can edit and reuse."]].map(([label, title, body], index) => <Reveal key={label} delay={index * 0.08}><article><span className="public-section-label">{label}</span><h3>{title}</h3><p>{body}</p><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Explore {label} <ChevronRight size={16} /></AuthStartButton></article></Reveal>)}
+              </section>
+            </Reveal>
 
-            <section className="public-section public-trust-section" id="trust"><div className="public-trust-copy"><span className="public-eyebrow">TRUST BY DESIGN</span><h2>Confidence is what Nexus knows. Autonomy is what you allow.</h2><p>Bring your own provider keys, keep contexts separate, and make every permission explicit.</p><button type="button" onClick={() => showPublicPage("security")}>See security and privacy <ChevronRight size={16} /></button></div><div className="public-trust-list"><span><Lock size={17} /> Separate contexts by default</span><span><Check size={17} /> Source-aware outputs</span><span><Settings size={17} /> Permission before action</span></div></section>
+            <Reveal>
+              <section className="public-section public-trust-section" id="trust"><div className="public-trust-copy"><span className="public-eyebrow">TRUST BY DESIGN</span><h2>Your profile stays yours.</h2><p>Bring your own provider keys, inspect what NeuralNexus learned, and decide what can be exported.</p><button type="button" onClick={() => showPublicPage("security")}>See security and privacy <ChevronRight size={16} /></button></div><div className="public-trust-list"><span><Lock size={17} /> Explicit keys</span><span><Check size={17} /> Source-aware signals</span><span><Settings size={17} /> Permission before export</span></div></section>
+            </Reveal>
 
-            <section className="public-section public-pricing-preview"><div className="public-section-heading"><span className="public-eyebrow">SIMPLE START</span><h2>Start with the work that matters now.</h2><p>Begin with a workspace. Expand when the system earns a place in your workflow.</p><button type="button" onClick={() => showPublicPage("pricing")}>View plans <ChevronRight size={16} /></button></div></section>
+            <Reveal>
+              <section className="public-section public-pricing-preview"><div className="public-section-heading"><span className="public-eyebrow">SIMPLE START</span><h2>Start by using it.</h2><p>Ask a question, upload material, edit an answer. The profile grows from real preferences, not a setup quiz.</p><button type="button" onClick={() => showPublicPage("pricing")}>View plans <ChevronRight size={16} /></button></div></section>
+            </Reveal>
 
-            <section className="public-final-cta"><AuroraDisc size={32} label="NeuralNexus Twin" /><span className="public-eyebrow">YOUR AI TWIN</span><h2>Start with a method<br />you already trust.</h2><div><AuthStartButton onEnter={() => enterWorkspaceApp(true, "Help me turn my method into a workspace.")}>Start with WORK</AuthStartButton><AuthStartButton onEnter={() => enterWorkspaceApp(true, "Help me start a private LIFE workspace.")}>Start with LIFE</AuthStartButton></div></section>
+            <Reveal>
+              <section className="public-final-cta"><AuroraDisc size={32} label="NeuralNexus profile" /><span className="public-eyebrow">YOUR AI PERSONALITY PROFILE</span><h2>Build it by using it.</h2><div><AuthStartButton onEnter={() => enterWorkspaceApp(true)}>Start with NeuralNexus</AuthStartButton><button type="button" onClick={() => showPublicPage("security")}>See privacy</button></div></section>
+            </Reveal>
           </>
         )}
 
@@ -1779,7 +1790,7 @@ export default function Home() {
           <section className="public-security">
             <span>Security</span>
             <h1>Your work stays yours</h1>
-            <p>NeuralNexus is designed around explicit keys, transparent sources, trust marks and workspace-level control.</p>
+            <p>NeuralNexus is designed around explicit keys, transparent sources, trust marks and profile-level control.</p>
             <div className="public-security-grid">
               {[
                 ["Bring your own keys", "Provider credentials stay under your control."],
