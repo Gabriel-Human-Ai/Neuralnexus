@@ -9165,6 +9165,64 @@ button.shelf-row:hover {
     transform: none !important;
   }
 }
+
+/* ===== Public landing readability fixes ===== */
+.public-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: max-content !important;
+}
+
+.public-actions .public-login,
+.public-actions .public-get-started {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+.public-actions .public-login {
+  color: var(--public-ink) !important;
+  border: 1px solid var(--public-border) !important;
+  background: rgba(255,255,255,.72) !important;
+}
+
+.public-actions .public-login:hover {
+  background: #fff !important;
+  border-color: rgba(18,20,23,.22) !important;
+}
+
+.public-security-grid article {
+  color: var(--public-ink) !important;
+  background: #fff !important;
+  border-color: var(--public-border) !important;
+}
+
+.public-security-grid article strong {
+  display: block !important;
+  color: var(--public-ink) !important;
+}
+
+.public-security-grid article p {
+  display: block !important;
+  color: var(--public-secondary) !important;
+}
+
+@media (max-width: 700px) {
+  .public-actions .public-login {
+    display: inline-flex !important;
+  }
+
+  .public-actions .public-get-started {
+    display: none !important;
+  }
+
+  .public-mobile-menu .public-get-started,
+  .public-mobile-menu button {
+    display: flex !important;
+  }
+}
 /* ===== Profile pivot ===== */
 .profile-export {
   position: relative;
