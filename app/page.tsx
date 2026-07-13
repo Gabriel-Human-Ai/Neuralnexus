@@ -1093,7 +1093,13 @@ export default function Home() {
         attachments,
       }),
     });
-    const data = await response.json();
+    const raw = await response.text();
+    let data: any = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      throw new Error("I could not reach the model route. Check your login and API keys, then try again.");
+    }
     if (!response.ok) throw new Error(data.error || "No model could answer. Check Settings.");
     const memoryNotice = shouldSurfaceProfileMemory(data.profileMemories ?? []);
     return {
@@ -2444,6 +2450,11 @@ export default function Home() {
                 <button type="button" onClick={() => setSettingsOpen(true)}>Add key</button>
               </div>
             )}
+            {learningFeedback && (
+              <p className="nn-learning-feedback is-active" role="status">
+                {learningFeedback}
+              </p>
+            )}
             <ChatView
               title={selectedWorkspace?.name ? selectedWorkspace.name : "Quick chat"}
               model={generalBusy ? "Thinking" : "Wizard"}
@@ -2464,6 +2475,8 @@ export default function Home() {
                 const index = getChatMessageIndex(messageId);
                 const message = generalMessages[index];
                 if (!message) return;
+                setLearningFeedback("Preference noticed.");
+                window.setTimeout(() => setLearningFeedback(""), 1800);
                 void recordAmbientAction("choose", `Chat feedback ${signal}: ${message.content}`);
               }}
             />
