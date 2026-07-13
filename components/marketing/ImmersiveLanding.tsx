@@ -13,6 +13,7 @@
 
 import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { HighlightsExplorer } from "@/components/marketing/HighlightsExplorer";
 
 const CHEVRON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
@@ -197,6 +198,8 @@ export function ImmersiveLanding({ onGetStarted, onLogin, onPricing, onSecurity 
           </div>
         </section>
       </div>
+
+      <HighlightsExplorer />
 
       <section className="nnl-closing">
         <div className="nnl-vglow nnl-vglow-lg" />
