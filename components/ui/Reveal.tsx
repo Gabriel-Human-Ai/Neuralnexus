@@ -16,6 +16,7 @@ export function Reveal({ children, className, delay = 0, amount = 0.15 }: Reveal
   const ref = useRef<HTMLDivElement | null>(null);
   const reducedMotion = useReducedMotion();
   const [visible, setVisible] = useState(false);
+  const classes = ["nn-reveal", visible ? "is-visible" : "", className].filter(Boolean).join(" ");
 
   useEffect(() => {
     if (reducedMotion) {
@@ -45,10 +46,10 @@ export function Reveal({ children, className, delay = 0, amount = 0.15 }: Reveal
   return (
     <motion.div
       ref={ref}
-      className={className}
+      className={classes}
       initial={reducedMotion ? false : { opacity: 0, y: 16, filter: "blur(4px)" }}
       animate={visible ? { opacity: 1, y: 0, filter: "blur(0px)" } : undefined}
-      transition={{ duration: MOTION.descend, ease: MOTION.easeOut, delay }}
+      transition={{ duration: MOTION.draw, ease: MOTION.easeOut, delay }}
     >
       {children}
     </motion.div>

@@ -7,11 +7,12 @@ export function CopyButton({ text, label = "Copy", className = "" }: { text: str
   const [copied, setCopied] = useState(false);
   return (
     <button
-      className={`copy-morph ${className}`}
+      className={`copy-morph apple-copy-button ${copied ? "is-copied" : ""} ${className}`}
+      data-tip={copied ? "Copied" : label}
       onClick={async () => {
         await navigator.clipboard.writeText(text);
         setCopied(true);
-        window.setTimeout(() => setCopied(false), 800);
+        window.setTimeout(() => setCopied(false), 900);
       }}
       aria-label={copied ? "Copied" : label}
       title={copied ? "Copied" : label}

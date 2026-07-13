@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import {
@@ -521,6 +521,7 @@ export default function Home() {
   const [livingIntent, setLivingIntent] = useState("");
   const [publicPage, setPublicPage] = useState<PublicPage>("home");
   const [publicMenu, setPublicMenu] = useState<PublicMenu>(null);
+  const [publicMenuAnchor, setPublicMenuAnchor] = useState(24);
   const [publicMobileMenu, setPublicMobileMenu] = useState(false);
   const [publicHeaderScrolled, setPublicHeaderScrolled] = useState(false);
   const [publicStoryNavVisible, setPublicStoryNavVisible] = useState(true);
@@ -529,6 +530,8 @@ export default function Home() {
   const [publicProfileMode, setPublicProfileMode] = useState<PublicProfileMode>("work");
   const [learningFeedback, setLearningFeedback] = useState("");
   const publicLastScroll = useRef(0);
+  const publicHeaderRef = useRef<HTMLElement | null>(null);
+  const publicMenuDelayRef = useRef<number | null>(null);
   const stageLastScroll = useRef(0);
 
   const selectedMode = useMemo(
@@ -728,17 +731,64 @@ export default function Home() {
 
   useEffect(() => {
     if (enteredApp) return;
+    let frame = 0;
     const onScroll = () => {
-      const current = window.scrollY;
-      const delta = current - publicLastScroll.current;
-      setPublicHeaderScrolled(current > 12);
-      if (Math.abs(delta) > 4) setPublicStoryNavVisible(delta < 0 || current < 120);
-      publicLastScroll.current = current;
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        const current = window.scrollY;
+        const delta = current - publicLastScroll.current;
+        setPublicHeaderScrolled(current > 24);
+        if (Math.abs(delta) > 4) setPublicStoryNavVisible(delta < 0 || current < 120);
+        publicLastScroll.current = current;
+        frame = 0;
+      });
     };
     publicLastScroll.current = window.scrollY;
+    setPublicHeaderScrolled(window.scrollY > 24);
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, [enteredApp]);
+
+  useEffect(() => {
+    return () => {
+      if (publicMenuDelayRef.current) window.clearTimeout(publicMenuDelayRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (enteredApp) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!publicHeaderRef.current?.contains(target)) {
+        setPublicMenu(null);
+        setPublicMobileMenu(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPublicMenu(null);
+        setPublicMobileMenu(false);
+        return;
+      }
+      if (!publicMenu || (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter")) return;
+      const items = Array.from(document.querySelectorAll<HTMLButtonElement>(".public-mega button:not(:disabled)"));
+      if (!items.length) return;
+      const activeIndex = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+      if (event.key === "Enter" && items.includes(document.activeElement as HTMLButtonElement)) return;
+      event.preventDefault();
+      const nextIndex = event.key === "ArrowUp" ? Math.max(0, activeIndex - 1) : Math.min(items.length - 1, activeIndex + 1);
+      items[nextIndex]?.focus();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [enteredApp, publicMenu]);
 
   useEffect(() => {
     if (!enteredApp) return;
@@ -1559,6 +1609,22 @@ export default function Home() {
     setPublicMobileMenu(false);
   }
 
+  function openPublicMenu(menu: Exclude<PublicMenu, null>, origin?: HTMLElement | null) {
+    if (publicMenuDelayRef.current) window.clearTimeout(publicMenuDelayRef.current);
+    if (origin && publicHeaderRef.current) {
+      const originRect = origin.getBoundingClientRect();
+      const headerRect = publicHeaderRef.current.getBoundingClientRect();
+      setPublicMenuAnchor(originRect.left - headerRect.left);
+    }
+    setPublicMobileMenu(false);
+    setPublicMenu(menu);
+  }
+
+  function schedulePublicMenu(menu: Exclude<PublicMenu, null>, origin: HTMLElement) {
+    if (publicMenuDelayRef.current) window.clearTimeout(publicMenuDelayRef.current);
+    publicMenuDelayRef.current = window.setTimeout(() => openPublicMenu(menu, origin), 100);
+  }
+
   return (
     <MotionConfig reducedMotion="user" transition={MOTION.spring}>
     <svg className="nn-aurora-defs" aria-hidden="true" focusable="false">
@@ -1571,7 +1637,12 @@ export default function Home() {
     </svg>
     {!enteredApp ? (
       <main className={`public-landing public-page-${publicPage}`} onMouseLeave={() => setPublicMenu(null)}>
-        <header className={`public-nav ${publicHeaderScrolled ? "is-scrolled" : ""}`}>
+        <header
+          ref={publicHeaderRef}
+          className={`public-nav ${publicHeaderScrolled ? "is-scrolled" : ""}`}
+          data-scrolled={publicHeaderScrolled ? "true" : "false"}
+          style={{ "--mega-left": `${publicMenuAnchor}px` } as CSSProperties}
+        >
           <button className="public-brand" type="button" onClick={() => showPublicPage("home")} aria-label="NeuralNexus home">
             <AuroraDisc size={24} label={keys.BRAND_NAME?.trim() || "NeuralNexus"} />
             <strong>{keys.BRAND_NAME?.trim() || "NeuralNexus"}</strong>
@@ -1581,8 +1652,9 @@ export default function Home() {
               type="button"
               className={publicMenu === "solutions" ? "is-active" : ""}
               aria-expanded={publicMenu === "solutions"}
-              onMouseEnter={() => setPublicMenu("solutions")}
-              onClick={() => setPublicMenu(publicMenu === "solutions" ? null : "solutions")}
+              onMouseEnter={(event) => schedulePublicMenu("solutions", event.currentTarget)}
+              onFocus={(event) => openPublicMenu("solutions", event.currentTarget)}
+              onClick={(event) => openPublicMenu("solutions", event.currentTarget)}
             >
               Solutions <ChevronDown size={14} />
             </button>
@@ -1590,12 +1662,13 @@ export default function Home() {
               type="button"
               className={publicMenu === "resources" ? "is-active" : ""}
               aria-expanded={publicMenu === "resources"}
-              onMouseEnter={() => setPublicMenu("resources")}
-              onClick={() => setPublicMenu(publicMenu === "resources" ? null : "resources")}
+              onMouseEnter={(event) => schedulePublicMenu("resources", event.currentTarget)}
+              onFocus={(event) => openPublicMenu("resources", event.currentTarget)}
+              onClick={(event) => openPublicMenu("resources", event.currentTarget)}
             >
               Resources <ChevronDown size={14} />
             </button>
-            <button type="button" onClick={() => setPublicMenu("resources")}>Community</button>
+            <button type="button" onClick={(event) => openPublicMenu("resources", event.currentTarget)}>Community</button>
             <button type="button" className={publicPage === "enterprise" ? "is-current" : ""} onClick={() => showPublicPage("enterprise")}>Enterprise</button>
             <button type="button" className={publicPage === "pricing" ? "is-current" : ""} onClick={() => showPublicPage("pricing")}>Pricing</button>
             <button type="button" className={publicPage === "security" ? "is-current" : ""} onClick={() => showPublicPage("security")}>Security</button>
@@ -1603,7 +1676,7 @@ export default function Home() {
           <div className="public-actions">
             <AuthButtons onEnter={() => enterWorkspaceApp(false)} />
             <button type="button" className="public-mobile-menu-button" onClick={() => setPublicMobileMenu((open) => !open)} aria-expanded={publicMobileMenu} aria-label="Open navigation">
-              {publicMobileMenu ? <X size={20} /> : <Menu size={20} />}
+              <span className="public-hamburger-lines" aria-hidden="true"><i /><i /><i /></span>
             </button>
           </div>
           <AnimatePresence>
@@ -1614,7 +1687,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: -8, scale: 0.985 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.985 }}
-                transition={{ duration: 0.18, ease: MOTION.easeOut }}
+                transition={{ duration: MOTION.fast, ease: MOTION.easeOut }}
                 onMouseEnter={() => setPublicMenu(publicMenu)}
               >
                 {publicMenu === "solutions" ? (
@@ -1659,7 +1732,7 @@ export default function Home() {
           </AnimatePresence>
           <AnimatePresence>
             {publicMobileMenu && (
-              <motion.div className="public-mobile-menu" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18, ease: MOTION.easeOut }}>
+              <motion.div className="public-mobile-menu" initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={MOTION.springSoft}>
                 <span className="public-mobile-menu-label">Navigate</span>
                 <button type="button" onClick={() => { setPublicMobileMenu(false); startFromPublicPrompt("Build a reusable workspace for my method."); }}>Solutions <ChevronRight size={16} /></button>
                 <button type="button" onClick={() => { setPublicMobileMenu(false); startFromPublicPrompt("Start from my existing notes, docs or templates."); }}>Resources <ChevronRight size={16} /></button>
@@ -2299,11 +2372,16 @@ export default function Home() {
                               <strong>Strict facts</strong>
                               <small>External claims get cross-examined by a second provider before you see them.</small>
                             </span>
-                            <input
-                              type="checkbox"
-                              checked={keys[`STRICT_FACTS_${selectedWorkspace.id}`] === "1"}
-                              onChange={(event) => setStrictFacts(selectedWorkspace.id, event.target.checked)}
-                            />
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={keys[`STRICT_FACTS_${selectedWorkspace.id}`] === "1"}
+                              className="nn-switch apple-switch"
+                              data-on={keys[`STRICT_FACTS_${selectedWorkspace.id}`] === "1" ? "true" : "false"}
+                              onClick={() => setStrictFacts(selectedWorkspace.id, keys[`STRICT_FACTS_${selectedWorkspace.id}`] !== "1")}
+                            >
+                              <span className="nn-switch__knob" />
+                            </button>
                           </label>
                           <div className="check-chip-row">
                             {checklist.map((check) => (

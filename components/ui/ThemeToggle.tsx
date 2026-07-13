@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useId, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { MOTION } from "@/lib/motion";
 
 type Theme = "light" | "dark" | "system";
 
@@ -34,7 +35,9 @@ export function applyTheme(next: Theme, origin?: { x: number; y: number }) {
 
 export function ThemeToggle() {
   const ref = useRef<HTMLButtonElement | null>(null);
+  const maskId = useId();
   const [theme, setTheme] = useState<Theme>("light");
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     const stored = (localStorage.getItem("nn-theme") as Theme | null) || "system";
@@ -42,6 +45,8 @@ export function ThemeToggle() {
   }, []);
 
   const active = theme === "system" ? (typeof window !== "undefined" ? resolvedTheme("system") : "light") : theme;
+  const isDark = active === "dark";
+  const iconTransition = reducedMotion ? { duration: 0 } : MOTION.springSoft;
 
   function toggle() {
     const next: Theme = active === "dark" ? "light" : "dark";
@@ -51,14 +56,44 @@ export function ThemeToggle() {
   }
 
   return (
-    <button ref={ref} className={`theme-toggle scenic-theme-toggle is-${active}`} type="button" onClick={toggle} aria-label={`Switch to ${active === "dark" ? "light" : "dark"} theme`}>
-      <span className="scenic-theme-toggle__sky" aria-hidden="true">
-        <motion.span className="scenic-theme-toggle__sun" animate={{ x: active === "dark" ? 34 : 0, y: active === "dark" ? 14 : 0, opacity: active === "dark" ? 0 : 1 }} transition={{ type: "spring", stiffness: 220, damping: 24 }} />
-        <motion.span className="scenic-theme-toggle__moon" animate={{ x: active === "dark" ? 0 : -34, y: active === "dark" ? 0 : 12, opacity: active === "dark" ? 1 : 0 }} transition={{ type: "spring", stiffness: 220, damping: 24 }} />
-        <span className="scenic-theme-toggle__stars" />
-        <span className="scenic-theme-toggle__dune dune-a" />
-        <span className="scenic-theme-toggle__dune dune-b" />
-      </span>
+    <button ref={ref} className={`theme-toggle scenic-theme-toggle apple-theme-toggle is-${active}`} type="button" onClick={toggle} aria-label={`Switch to ${active === "dark" ? "light" : "dark"} theme`}>
+      <motion.svg className="apple-theme-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <mask id={maskId}>
+          <rect width="24" height="24" fill="white" />
+          <motion.circle cx={isDark ? 11 : 18} cy={isDark ? 7 : -18} r="7" fill="black" transition={iconTransition} />
+        </mask>
+        <motion.circle
+          cx="12"
+          cy="12"
+          r={isDark ? 7 : 5}
+          fill="currentColor"
+          mask={`url(#${maskId})`}
+          transition={iconTransition}
+        />
+        <motion.g className="apple-theme-rays" stroke="currentColor" strokeWidth="2" strokeLinecap="round" animate={{ opacity: isDark ? 0 : 1 }} transition={reducedMotion ? { duration: 0 } : { duration: MOTION.fast }}>
+          {[
+            [12, 3, 12, 1],
+            [12, 23, 12, 21],
+            [3, 12, 1, 12],
+            [23, 12, 21, 12],
+            [5.64, 5.64, 4.22, 4.22],
+            [19.78, 19.78, 18.36, 18.36],
+            [18.36, 5.64, 19.78, 4.22],
+            [4.22, 19.78, 5.64, 18.36],
+          ].map(([x1, y1, x2, y2], index) => (
+            <motion.line
+              key={`${x1}-${y1}`}
+              className="apple-theme-ray"
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              animate={{ scale: isDark ? 0 : 1, opacity: isDark ? 0 : 1 }}
+              transition={reducedMotion ? { duration: 0 } : { ...MOTION.springSoft, delay: isDark ? 0 : index * 0.02 }}
+            />
+          ))}
+        </motion.g>
+      </motion.svg>
     </button>
   );
 }
