@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 
 const CHECK = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -27,9 +28,13 @@ const PLANS = [
     cta: "Start Studio", featured: false, perSeat: true },
 ];
 
-type Props = { onSelectPlan?: (planId: string, billing: "monthly" | "yearly") => void };
+type Props = {
+  onSelectPlan?: (planId: string, billing: "monthly" | "yearly") => void;
+  onGetStarted?: () => void;
+  onLogin?: () => void;
+};
 
-export function PricingPage({ onSelectPlan }: Props) {
+export function PricingPage({ onSelectPlan, onGetStarted, onLogin }: Props) {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const segRef = useRef<HTMLDivElement | null>(null);
   const pillRef = useRef<HTMLSpanElement | null>(null);
@@ -56,6 +61,7 @@ export function PricingPage({ onSelectPlan }: Props) {
   return (
     <div className="nnp-root">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <MarketingHeader current="pricing" onGetStarted={onGetStarted} onLogin={onLogin} />
       <div className="nnp-wrap">
         <div className="nnp-head">
           <div className="nnp-eyebrow nnp-mono">Pricing</div>

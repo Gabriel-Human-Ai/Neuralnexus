@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 
 type Solution = { tag: string; title: string; body: string };
 
@@ -28,9 +29,12 @@ const STEPS = [
   { n: "03", t: "You take it anywhere", d: "One click into ChatGPT, Claude, image models and more." },
 ];
 
-type Props = { onGetStarted?: () => void };
+type Props = {
+  onGetStarted?: () => void;
+  onLogin?: () => void;
+};
 
-export function SolutionsPage({ onGetStarted }: Props) {
+export function SolutionsPage({ onGetStarted, onLogin }: Props) {
   const revealRefs = useRef<HTMLElement[]>([]);
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -50,6 +54,7 @@ export function SolutionsPage({ onGetStarted }: Props) {
   return (
     <div className="nns-root">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <MarketingHeader current="solutions" onGetStarted={onGetStarted} onLogin={onLogin} />
       <div className="nns-wrap">
         <div className="nns-head nns-rv" ref={rv}>
           <div className="nns-eyebrow nns-mono">Solutions</div>
