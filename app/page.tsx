@@ -65,6 +65,7 @@ import { ShelfPanel } from "@/components/altitude/ShelfPanel";
 import { PresenceLine } from "@/components/altitude/PresenceLine";
 import { DecisionStream, type StreamItem } from "@/components/altitude/DecisionStream";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
+import { Hero } from "@/components/marketing/Hero";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -1635,7 +1636,14 @@ export default function Home() {
         </linearGradient>
       </defs>
     </svg>
-    {!enteredApp ? (
+    {!enteredApp && publicPage === "home" ? (
+      <Hero
+        onGetStarted={() => enterWorkspaceApp(true)}
+        onLogin={() => enterWorkspaceApp(false)}
+        onPricing={() => showPublicPage("pricing")}
+        onSecurity={() => showPublicPage("security")}
+      />
+    ) : !enteredApp ? (
       <main className={`public-landing public-page-${publicPage}`} onMouseLeave={() => setPublicMenu(null)}>
         <header
           ref={publicHeaderRef}
