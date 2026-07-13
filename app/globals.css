@@ -672,6 +672,36 @@ button { font-family: inherit; cursor: pointer; }
   }
 }
 
+/* CTA contrast guard: keep the bright header action readable in every theme. */
+.public-nav .public-get-started,
+.public-nav .public-get-started:link,
+.public-nav .public-get-started:visited,
+.public-nav button.public-get-started,
+.nnl-hdr .public-get-started,
+.nnh-hdr .public-get-started,
+.nnm-header .public-get-started {
+  background: #f5f5f7 !important;
+  border-color: rgba(245, 245, 247, 0.88) !important;
+  color: #14100e !important;
+  text-shadow: none !important;
+}
+
+.public-nav .public-get-started *,
+.public-nav .public-get-started svg,
+.nnl-hdr .public-get-started *,
+.nnh-hdr .public-get-started *,
+.nnm-header .public-get-started * {
+  color: #14100e !important;
+  stroke: #14100e !important;
+}
+
+.public-nav .public-get-started:hover,
+.nnl-hdr .public-get-started:hover,
+.nnh-hdr .public-get-started:hover,
+.nnm-header .public-get-started:hover {
+  background: #ffffff !important;
+}
+
 /* ============================================================================
    STABILITY PASS — theme, headers, app chrome
    Keep this last so older experimental layers cannot reintroduce transparent
