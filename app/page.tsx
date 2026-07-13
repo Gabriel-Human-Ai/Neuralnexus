@@ -55,7 +55,6 @@ import { HeroCTA } from "@/components/ui/HeroCTA";
 import { NexusIsland } from "@/components/ui/NexusIsland";
 import { Reveal } from "@/components/ui/Reveal";
 import { ThemeSegmentedControl, ThemeToggle } from "@/components/ui/ThemeToggle";
-import { MessageActions } from "@/components/chat/MessageActions";
 import { AuthButtons, AuthStartButton } from "@/components/auth/AuthButtons";
 import { BILLING, PLANS, YEARLY_DISCOUNT, monthlyPrice, type BillingCycle } from "@/lib/pricing";
 import { useTypingGlow } from "@/lib/useTypingGlow";
@@ -67,6 +66,7 @@ import { DecisionStream, type StreamItem } from "@/components/altitude/DecisionS
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import { ImmersiveLanding } from "@/components/marketing/ImmersiveLanding";
 import { HomeView } from "@/components/app/AppShell-HomeView";
+import { ChatView, type ChatMessage as AppChatMessage } from "@/components/app/ChatView";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -615,13 +615,17 @@ export default function Home() {
     { id: "taste", label: "Taste learned", body: "Choices and edits become editable standards, not hidden memory." },
     { id: "export", label: "Export ready", body: "When the profile has enough signal, carry it into the AI tools you use." },
   ];
-  const chatSendState = generalBusy
-    ? "sending"
-    : generalInput.trim() || generalAttachments.length
-      ? "charged"
-      : generalMessages.some((message) => message.memoryNotice)
-        ? "learned"
-        : "empty";
+  const appChatMessages = useMemo<AppChatMessage[]>(() => generalMessages.map((message, index) => ({
+    id: `chat-${index}`,
+    role: message.role === "assistant" ? "ai" : "user",
+    content: message.content,
+    savedInsight: message.memoryNotice?.insight,
+  })), [generalMessages]);
+
+  function getChatMessageIndex(messageId: string) {
+    const index = Number(messageId.replace("chat-", ""));
+    return Number.isFinite(index) ? index : -1;
+  }
 
   useEffect(() => {
     void loadData();
@@ -1109,6 +1113,22 @@ export default function Home() {
     setGeneralBusy(true);
     try {
       const answer = await askWizard(userContent, attachments);
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer.content, memoryNotice: answer.memoryNotice }]);
+    } catch (error: any) {
+      setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not answer. Check your API keys in Settings." }]);
+    } finally {
+      setGeneralBusy(false);
+    }
+  }
+
+  async function sendGeneralChatText(input: string) {
+    const userContent = input.trim();
+    if (!userContent || generalBusy) return;
+    setGeneralMessages((messages) => [...messages, { role: "user", content: userContent }]);
+    setGeneralInput("");
+    setGeneralBusy(true);
+    try {
+      const answer = await askWizard(userContent, [], generalMessages.slice(-8));
       setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer.content, memoryNotice: answer.memoryNotice }]);
     } catch (error: any) {
       setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not answer. Check your API keys in Settings." }]);
@@ -2416,130 +2436,37 @@ export default function Home() {
         )}
 
         {view === "chat" && (
-          <div className={`aurora-chat ${generalMessages.length === 0 ? "is-zero" : "has-messages"} ${generalBusy ? "is-generating" : ""}`}>
+          <div className={`aurora-chat app-chat-view-shell ${generalBusy ? "is-generating" : ""}`}>
             {generalBusy && <div className="generation-edge" aria-hidden="true" />}
-            <div className="chat-topbar">
-              <strong>{selectedWorkspace?.name ? selectedWorkspace.name : "Quick chat"}</strong>
-              <details className="chat-menu">
-                <summary aria-label="Chat options">⋯</summary>
-                <button type="button" onClick={() => setGeneralMessages([])} disabled={generalMessages.length === 0}>Clear conversation</button>
-                <button type="button">Export</button>
-              </details>
-            </div>
-
-            {generalMessages.length === 0 && (
-              <section className="chat-zero-copy">
-                <p>Hello, {userName || "there"}</p>
-                <h1>What should your AI learn about you today?</h1>
-              </section>
+            {!apiKeyReady && (
+              <div className="key-notice-chip">
+                <span>Connect a model to get answers.</span>
+                <button type="button" onClick={() => setSettingsOpen(true)}>Add key</button>
+              </div>
             )}
-
-            <section className="chat-stream" aria-live="polite">
-              {generalMessages.map((message, index) => (
-                <article key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
-                  {message.role === "assistant" && (
-                    <div className="assistant-provenance">
-                      <AuroraDisc size={20} />
-                      <span>{message.model || "Wizard"}</span>
-                    </div>
-                  )}
-                  <p className={message.role === "assistant" && index === generalMessages.length - 1 && generalBusy ? "is-streaming" : ""}>{message.content}</p>
-                  {message.role === "assistant" && (
-                    <MessageActions
-                      text={message.content}
-                      onCopy={() => void recordAmbientAction("copy", message.content)}
-                      onRegenerate={() => void regenerateChatMessage(index)}
-                      onEdit={() => editChatMessage(message)}
-                      disabled={generalBusy}
-                    />
-                  )}
-                  {message.memoryNotice && (
-                    <div className="profile-memory-line">
-                      <button
-                        type="button"
-                        className="profile-memory-summary"
-                        onClick={() => setProfileNoticeOpen(profileNoticeOpen === message.memoryNotice?.id ? null : message.memoryNotice?.id ?? null)}
-                        aria-expanded={profileNoticeOpen === message.memoryNotice.id}
-                      >
-                        <span className="profile-memory-dot" aria-hidden="true" />
-                        <strong>Saved to your profile</strong>
-                        <span>{message.memoryNotice.insight}</span>
-                      </button>
-                      {profileNoticeOpen === message.memoryNotice.id && (
-                        <div className="profile-memory-popover">
-                          <strong>{message.memoryNotice.insight}</strong>
-                          <p>Because this pattern appeared in your recent chat: {message.memoryNotice.evidence}</p>
-                          <div>
-                            <button type="button" onClick={() => setProfileNoticeOpen(null)}>Keep</button>
-                            <button type="button" onClick={() => setActiveShelf("vault")}>Edit</button>
-                            <button type="button" onClick={() => void removeProfileMemory(message.memoryNotice!.id)}>Forget</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </article>
-              ))}
-              {generalBusy && (
-                <div className="thinking-indicator" role="status" aria-live="polite">
-                  <AuroraDisc size={20} />
-                  <span>Thinking through your request</span>
-                  <i />
-                  <i />
-                  <i />
-                </div>
-              )}
-            </section>
-
-              {generalAttachments.length > 0 && (
-                <div className="source-list chat-attachment-list">
-                  {generalAttachments.map((source) => (
-                    <div key={source.id} className="source-chip">
-                      {source.kind === "image" ? <ImageIcon size={15} /> : source.kind === "text" ? <FileText size={15} /> : <FileIcon size={15} />}
-                      <span>{source.name}</span>
-                      <button onClick={() => setGeneralAttachments((items) => items.filter((item) => item.id !== source.id))} aria-label={`Remove ${source.name}`}><X size={13} /></button>
-                      {source.dataUrl && <img src={source.dataUrl} alt="" />}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!apiKeyReady && (
-                <div className="key-notice-chip">
-                  <span>Connect a model to get answers.</span>
-                  <button type="button" onClick={() => setSettingsOpen(true)}>Add key</button>
-                </div>
-              )}
-
-              <motion.div className="chat-composer-shell aurora-focus" layoutId="nn-composer">
-                <div className={`free-chat-composer hero-composer af-field send-state-${chatSendState} ${generalInput.trim() ? "is-charged" : "is-empty"} ${generalBusy ? "is-sending" : ""}`}>
-                  <label className="chat-file-button">
-                    <Upload size={16} />
-                    <input type="file" multiple accept=".txt,.md,.csv,.json,.html,.css,.js,.ts,.tsx,.pdf,image/*" onChange={(event) => event.target.files && void readGeneralChatFiles(event.target.files)} />
-                  </label>
-                  <textarea
-                    value={generalInput}
-                    onChange={(event) => setGeneralInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                        event.preventDefault();
-                        void sendGeneralChat();
-                      }
-                    }}
-                    placeholder="Ask a question. Cmd+Enter sends."
-                    rows={3}
-                  />
-                  <button className={`primary-pill chat-send-button send-state-${chatSendState} ${generalInput.trim() || generalAttachments.length ? "is-charged" : "is-empty"}`} onClick={() => void sendGeneralChat()} disabled={generalBusy || (!generalInput.trim() && generalAttachments.length === 0)}>
-                    {generalBusy && <span className="thinking-button-dot" aria-hidden="true" />}
-                    {chatSendState === "sending" ? "Sending" : chatSendState === "learned" ? "Learned" : "Send"} <ChevronRight size={16} />
-                  </button>
-                </div>
-                {(learningFeedback || chatSendState === "charged" || chatSendState === "learned") && (
-                  <p className={`nn-learning-feedback is-${learningFeedback ? "active" : chatSendState}`} role="status">
-                    {learningFeedback || (chatSendState === "charged" ? "Ready to send." : "Saved as editable signal.")}
-                  </p>
-                )}
-              </motion.div>
+            <ChatView
+              title={selectedWorkspace?.name ? selectedWorkspace.name : "Quick chat"}
+              model={generalBusy ? "Thinking" : "Wizard"}
+              messages={appChatMessages}
+              onSend={(text) => void sendGeneralChatText(text)}
+              onCopy={(messageId) => {
+                const index = getChatMessageIndex(messageId);
+                const message = generalMessages[index];
+                if (!message) return;
+                void navigator.clipboard?.writeText(message.content).catch(() => {});
+                void recordAmbientAction("copy", message.content);
+              }}
+              onRegenerate={(messageId) => {
+                const index = getChatMessageIndex(messageId);
+                if (index >= 0) void regenerateChatMessage(index);
+              }}
+              onFeedback={(messageId, signal) => {
+                const index = getChatMessageIndex(messageId);
+                const message = generalMessages[index];
+                if (!message) return;
+                void recordAmbientAction("choose", `Chat feedback ${signal}: ${message.content}`);
+              }}
+            />
           </div>
         )}
 
