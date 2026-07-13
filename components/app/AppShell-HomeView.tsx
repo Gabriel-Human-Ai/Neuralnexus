@@ -123,7 +123,8 @@ export function HomeView({
   ];
 
   return (
-    <div className="nna-home">
+    <div className="nna-home nna-home-standalone">
+      <style>{CSS}</style>
       <div className="nna-home-orb" />
       <div className="nna-home-eyebrow nna-mono">Start here</div>
       <h1 className="nna-home-h1">
