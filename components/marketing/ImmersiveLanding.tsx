@@ -30,6 +30,7 @@ const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 type Props = {
   onGetStarted?: () => void;
   onLogin?: () => void;
+  onSolutions?: () => void;
   onPricing?: () => void;
   onSecurity?: () => void;
 };
@@ -62,7 +63,7 @@ function LandingGetStartedButton({ children, className, onGetStarted }: { childr
   );
 }
 
-export function ImmersiveLanding({ onGetStarted, onLogin, onPricing, onSecurity }: Props) {
+export function ImmersiveLanding({ onGetStarted, onLogin, onSolutions, onPricing, onSecurity }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
   const progRef = useRef<HTMLDivElement | null>(null);
@@ -122,7 +123,7 @@ export function ImmersiveLanding({ onGetStarted, onLogin, onPricing, onSecurity 
         <div className="nnl-hdr-in">
           <div className="nnl-brand"><div className="nnl-disc" /><span className="nnl-bname">NeuralNexus</span></div>
           <nav className="nnl-nav">
-            <button type="button" className="nnl-nav-item" onClick={scrollToStory}>Solutions</button>
+            <button type="button" className="nnl-nav-item" onClick={onSolutions ?? scrollToStory}>Solutions</button>
             <button type="button" className="nnl-nav-item" onClick={onPricing}>Pricing</button>
             <button type="button" className="nnl-nav-item" onClick={onSecurity}>Security</button>
           </nav>

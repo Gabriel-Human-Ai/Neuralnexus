@@ -1640,7 +1640,8 @@ export default function Home() {
       <ImmersiveLanding
         onGetStarted={() => enterWorkspaceApp(true)}
         onLogin={() => enterWorkspaceApp(false)}
-        onPricing={() => showPublicPage("pricing")}
+        onSolutions={() => { window.location.href = "/solutions"; }}
+        onPricing={() => { window.location.href = "/pricing"; }}
         onSecurity={() => showPublicPage("security")}
       />
     ) : !enteredApp ? (
