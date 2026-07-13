@@ -257,8 +257,8 @@ export function Hero({ onGetStarted, onLogin, onPricing, onSecurity }: HeroProps
 const CSS = `
 .nnh-root{--e:cubic-bezier(0.22,1,0.36,1);font-family:var(--font-ui),system-ui,sans-serif;color:var(--ink)}
 .nnh-root *{box-sizing:border-box}
-.nnh-hdr{position:fixed;top:0;left:0;right:0;z-index:100;height:72px;display:flex;align-items:center;padding:0 clamp(20px,5vw,40px);border-bottom:1px solid transparent;transition:height .24s var(--e),background .24s var(--e),box-shadow .24s var(--e),border-color .24s var(--e)}
-.nnh-hdr.is-scrolled{height:60px;background:color-mix(in srgb,var(--canvas) 82%,transparent);backdrop-filter:blur(12px) saturate(1.2);-webkit-backdrop-filter:blur(12px) saturate(1.2);border-bottom-color:var(--hairline);box-shadow:var(--shadow-sm)}
+.nnh-hdr{position:fixed;top:0;left:0;right:0;z-index:100;height:72px;display:flex;align-items:center;padding:0 clamp(20px,5vw,40px);border-bottom:1px solid rgba(255,255,255,0.04);background:rgba(12,9,8,0.35);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);color:#F5F5F7;transition:height .24s var(--e),background .24s var(--e),box-shadow .24s var(--e),border-color .24s var(--e)}
+.nnh-hdr.is-scrolled{height:60px;background:rgba(12,9,8,0.72);border-bottom-color:rgba(255,255,255,0.06);box-shadow:var(--shadow-sm)}
 .nnh-hdr-in{width:100%;max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
 .nnh-brand{display:flex;align-items:center;gap:10px;cursor:pointer;transition:opacity .15s var(--e)}
 .nnh-brand:hover{opacity:.7}
@@ -266,14 +266,14 @@ const CSS = `
 .nnh-brand-name{font-weight:600;font-size:16px;letter-spacing:-.02em}
 .nnh-nav{display:flex;align-items:center;gap:4px}
 @media(max-width:768px){.nnh-nav{display:none}}
-.nnh-nav-item{appearance:none;border:0;background:transparent;font-family:inherit;padding:8px 12px;font-size:15px;font-weight:500;color:var(--secondary);cursor:pointer;border-radius:8px;transition:color .15s var(--e),background .15s var(--e)}
-.nnh-nav-item:hover{color:var(--ink);background:var(--surface-2)}
+.nnh-nav-item{appearance:none;border:0;background:transparent;font-family:inherit;padding:8px 12px;font-size:15px;font-weight:500;color:rgba(245,245,247,0.68);cursor:pointer;border-radius:8px;transition:color .15s var(--e),background .15s var(--e)}
+.nnh-nav-item:hover{color:#F5F5F7;background:rgba(255,255,255,0.08)}
 .nnh-actions{display:flex;align-items:center;gap:12px}
 @media(max-width:560px){.nnh-actions{gap:8px}.nnh-actions .nnh-btn-quiet{display:none}.nnh-actions .nnh-btn-primary{height:38px;padding:0 14px;font-size:14px}}
 .nnh-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 18px;border-radius:999px;font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:transform .16s var(--e),box-shadow .16s var(--e),background .16s var(--e)}
 .nnh-btn:active{transform:scale(.97)}
-.nnh-btn-quiet{background:transparent;color:var(--ink);border-color:var(--hairline)}
-.nnh-btn-quiet:hover{background:var(--surface-2)}
+.nnh-btn-quiet{background:rgba(255,255,255,0.02);color:#F5F5F7;border-color:rgba(255,255,255,0.13)}
+.nnh-btn-quiet:hover{background:rgba(255,255,255,0.08)}
 .nnh-btn-primary{background:var(--action);color:var(--action-text);box-shadow:inset 0 1px 0 rgba(255,255,255,.15),var(--shadow-sm);padding:0 20px}
 .nnh-btn-primary:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
 .nnh-btn-lg{height:48px;font-size:16px}

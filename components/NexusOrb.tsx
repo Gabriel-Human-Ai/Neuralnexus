@@ -227,7 +227,6 @@ export function NexusOrb({
     }
 
     render(performance.now());
-    if (!reduce) raf = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(raf);

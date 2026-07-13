@@ -78,20 +78,20 @@ export function MarketingHeader({ current = "home", onGetStarted, onLogin }: Mar
 }
 
 const CSS = `
-.nnm-header{--e:cubic-bezier(0.22,1,0.36,1);position:fixed;top:0;left:0;right:0;z-index:120;height:64px;display:flex;align-items:center;padding:0 clamp(20px,5vw,40px);border-bottom:1px solid var(--hairline);background:color-mix(in srgb,var(--canvas) 86%,transparent);backdrop-filter:blur(16px) saturate(1.25);-webkit-backdrop-filter:blur(16px) saturate(1.25);font-family:var(--font-ui),system-ui,sans-serif;color:var(--ink)}
+.nnm-header{--e:cubic-bezier(0.22,1,0.36,1);position:fixed;top:0;left:0;right:0;z-index:120;height:64px;display:flex;align-items:center;padding:0 clamp(20px,5vw,40px);border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(12,9,8,0.72);backdrop-filter:blur(16px) saturate(1.25);-webkit-backdrop-filter:blur(16px) saturate(1.25);font-family:var(--font-ui),system-ui,sans-serif;color:#F5F5F7}
 .nnm-header *{box-sizing:border-box}
 .nnm-inner{width:100%;max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px}
-.nnm-brand{display:inline-flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-size:16px;font-weight:600;letter-spacing:-.02em;white-space:nowrap}
+.nnm-brand{display:inline-flex;align-items:center;gap:10px;color:#F5F5F7;text-decoration:none;font-size:16px;font-weight:600;letter-spacing:-.02em;white-space:nowrap}
 .nnm-disc{width:24px;height:24px;border-radius:50%;background-image:linear-gradient(135deg,var(--aurora-a),var(--aurora-b));box-shadow:inset 0 1px 2px rgba(255,255,255,.35)}
 .nnm-nav{display:flex;align-items:center;justify-content:center;gap:4px;flex:1}
-.nnm-nav-item{display:inline-flex;align-items:center;min-height:38px;padding:0 12px;border-radius:10px;color:var(--secondary);text-decoration:none;font-size:15px;font-weight:500;transition:color .16s var(--e),background .16s var(--e)}
-.nnm-nav-item:hover,.nnm-nav-item.is-active{color:var(--ink);background:var(--surface-2)}
+.nnm-nav-item{display:inline-flex;align-items:center;min-height:38px;padding:0 12px;border-radius:10px;color:rgba(245,245,247,0.68);text-decoration:none;font-size:15px;font-weight:500;transition:color .16s var(--e),background .16s var(--e)}
+.nnm-nav-item:hover,.nnm-nav-item.is-active{color:#F5F5F7;background:rgba(255,255,255,0.08)}
 .nnm-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;white-space:nowrap}
 .nnm-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 18px;border-radius:999px;border:1px solid transparent;font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;text-decoration:none;transition:transform .16s var(--e),box-shadow .16s var(--e),background .16s var(--e),border-color .16s var(--e)}
 .nnm-btn:active{transform:scale(.97)}
 .nnm-btn:disabled{opacity:.55;cursor:default}
-.nnm-btn-quiet{background:transparent;color:var(--ink);border-color:var(--hairline)}
-.nnm-btn-quiet:hover{background:var(--surface-2);border-color:var(--hairline-strong)}
+.nnm-btn-quiet{background:rgba(255,255,255,0.02);color:#F5F5F7;border-color:rgba(255,255,255,0.13)}
+.nnm-btn-quiet:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2)}
 .nnm-btn-primary{background:var(--action);color:var(--action-text);box-shadow:inset 0 1px 0 rgba(255,255,255,.15),var(--shadow-sm);padding:0 20px}
 .nnm-btn-primary:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
 .nnm-chev{display:inline-flex;width:15px;height:15px;transition:transform .16s var(--e)}

@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { applyTheme } from "@/components/ui/ThemeToggle";
 
 /* ---------- icons ---------- */
 const IconHome = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" strokeLinecap="round" /></svg>;
@@ -40,7 +41,7 @@ export function AppShell({
 }) {
   const toggleTheme = () => {
     const r = document.documentElement;
-    r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(r.dataset.theme === "dark" ? "light" : "dark");
   };
   const nav: { id: View; label: string; icon: ReactNode }[] = [
     { id: "home", label: "Home", icon: IconHome },
@@ -167,7 +168,7 @@ export function HomeView({
 }
 
 const CSS = `
-.nna-app{--e:cubic-bezier(0.22,1,0.36,1);font-family:var(--font-ui),system-ui,sans-serif;color:var(--ink);display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
+.nna-app{--e:cubic-bezier(0.22,1,0.36,1);font-family:var(--font-ui),system-ui,sans-serif;color:var(--ink);background:var(--nn-bg);display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
 .nna-app *{box-sizing:border-box}
 .nna-mono{font-family:var(--font-mono),monospace}
 @media(max-width:768px){.nna-app{grid-template-columns:1fr}.nna-side{display:none}}
@@ -183,15 +184,15 @@ const CSS = `
 .nna-item svg{width:18px;height:18px;flex-shrink:0}
 .nna-foot{margin-top:auto;display:flex;flex-direction:column;gap:2px}
 .nna-sep{height:1px;background:var(--hairline);margin:12px 4px}
-.nna-main{overflow:hidden;display:flex;flex-direction:column}
-.nna-topbar{height:60px;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:0 24px;border-bottom:1px solid var(--hairline);flex-shrink:0}
+.nna-main{overflow:hidden;display:flex;flex-direction:column;background:var(--nn-bg)}
+.nna-topbar{height:60px;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:0 24px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(12,9,8,0.72);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);color:#F5F5F7;flex-shrink:0}
 .nna-status{margin-right:auto;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary);padding:6px 12px;background:var(--surface-2);border-radius:999px}
 .nna-status-dot{width:7px;height:7px;border-radius:50%;background:#3ECf8e}
-.nna-tb-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--hairline);background:var(--surface);color:var(--ink);font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:.15s var(--e)}
-.nna-tb-btn:hover{background:var(--surface-2)}
+.nna-tb-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.13);background:rgba(255,255,255,0.03);color:#F5F5F7;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:.15s var(--e)}
+.nna-tb-btn:hover{background:rgba(255,255,255,0.08)}
 .nna-kbd{color:var(--muted)}
-.nna-tb-icon{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--hairline);background:var(--surface);cursor:pointer;color:var(--secondary);transition:.15s var(--e)}
-.nna-tb-icon:hover{background:var(--surface-2);color:var(--ink)}
+.nna-tb-icon{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.13);background:rgba(255,255,255,0.03);cursor:pointer;color:rgba(245,245,247,0.7);transition:.15s var(--e)}
+.nna-tb-icon:hover{background:rgba(255,255,255,0.08);color:#F5F5F7}
 .nna-tb-icon svg{width:16px;height:16px}
 .nna-avatar{width:34px;height:34px;border-radius:50%;background:var(--aurora);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600}
 .nna-content{flex:1;overflow-y:auto}

@@ -15,6 +15,10 @@
    konsolidiert aus den 7 verstreuten :root-Blöcken in EINEN)
    --------------------------------------------------------------------------- */
 :root[data-theme="light"] {
+  --nn-bg: #F5F5F7;
+  --nn-fg: #14100E;
+  --nn-surface: #FFFFFF;
+  --nn-accent: rgb(201,160,92);
   --canvas: #FAFAFC;
   --surface: #FFFFFF;
   --surface-2: #F1F1F4;
@@ -37,8 +41,12 @@
 }
 
 :root[data-theme="dark"] {
-  --canvas: #0A0A0C;
-  --surface: #141417;
+  --nn-bg: #0C0908;
+  --nn-fg: #F5F5F7;
+  --nn-surface: #14100E;
+  --nn-accent: rgb(201,160,92);
+  --canvas: #0C0908;
+  --surface: #14100E;
   --surface-2: #1C1C21;
   --sidebar: #0E0E11;
   --ink: #F5F5F7;
@@ -114,6 +122,8 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  background: var(--nn-bg);
+  color: var(--nn-fg);
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -125,8 +135,8 @@ body {
   font-family: var(--font-ui), system-ui, sans-serif;
   font-size: var(--text-body);
   line-height: var(--lh-body);
-  color: var(--ink);
-  background: var(--canvas);
+  color: var(--nn-fg);
+  background: var(--nn-bg);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -659,6 +669,121 @@ button { font-family: inherit; cursor: pointer; }
     background: transparent !important;
     color: var(--ink) !important;
     font: 600 17px/1 var(--font-ui) !important;
+  }
+}
+
+/* ============================================================================
+   STABILITY PASS — theme, headers, app chrome
+   Keep this last so older experimental layers cannot reintroduce transparent
+   headers, light flashes, or oversized mobile command chrome.
+   ============================================================================ */
+html,
+body,
+.nn-shell,
+.nn-stage,
+.nna-app,
+.nna-main,
+.public-landing,
+.nnl-root,
+.nnp-root,
+.nns-root {
+  background: var(--nn-bg) !important;
+  color: var(--nn-fg) !important;
+}
+
+[data-theme="light"] .public-landing,
+[data-theme="light"] .nnp-root,
+[data-theme="light"] .nns-root {
+  background: var(--nn-bg) !important;
+  color: var(--nn-fg) !important;
+}
+
+.nnl-hdr,
+.nnh-hdr,
+.nnm-header,
+.public-nav,
+.nna-topbar {
+  background: rgba(12, 9, 8, 0.72) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  color: #F5F5F7 !important;
+  backdrop-filter: blur(16px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+}
+
+.nnl-hdr:not(.is-scrolled),
+.nnh-hdr:not(.is-scrolled) {
+  background: rgba(12, 9, 8, 0.35) !important;
+}
+
+.nnl-hdr a,
+.nnl-hdr button,
+.nnh-hdr a,
+.nnh-hdr button,
+.nnm-header a,
+.nnm-header button,
+.public-nav a,
+.public-nav button,
+.nna-topbar button {
+  color: #F5F5F7 !important;
+}
+
+.nnl-nav-item,
+.nnh-nav-item,
+.nnm-nav-item,
+.public-menu-button {
+  color: rgba(245,245,247,0.68) !important;
+}
+
+.nnl-nav-item:hover,
+.nnh-nav-item:hover,
+.nnm-nav-item:hover,
+.nnm-nav-item.is-active,
+.public-menu-button:hover,
+.public-menu-button[aria-expanded="true"] {
+  color: #F5F5F7 !important;
+  background: rgba(255,255,255,0.08) !important;
+}
+
+.stage-tools {
+  position: fixed !important;
+  top: max(14px, calc(env(safe-area-inset-top) + 8px)) !important;
+  right: max(14px, env(safe-area-inset-right)) !important;
+  left: auto !important;
+  z-index: 180 !important;
+}
+
+.stage-tools .theme-toggle,
+.stage-tools .scenic-theme-toggle,
+.stage-tools .command-launcher {
+  border-color: rgba(255,255,255,0.13) !important;
+  background: rgba(12, 9, 8, 0.72) !important;
+  color: #F5F5F7 !important;
+  backdrop-filter: blur(16px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+}
+
+@media (max-width: 700px) {
+  .stage-tools,
+  .stage-tools.is-hidden {
+    top: max(10px, calc(env(safe-area-inset-top) + 6px)) !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  .stage-tools .command-launcher,
+  .stage-tools .app-auth-actions {
+    display: none !important;
+  }
+
+  .stage-tools .theme-toggle,
+  .stage-tools .scenic-theme-toggle {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 26px !important;
+    min-height: 26px !important;
   }
 }
 
@@ -11030,11 +11155,6 @@ button.shelf-row:hover {
   font-size: 13px !important;
 }
 
-.app-auth-actions .cl-userButtonBox {
-  width: 32px;
-  height: 32px;
-}
-
 .auth-logout {
   color: var(--secondary) !important;
 }
@@ -12004,28 +12124,6 @@ button.shelf-row:hover {
 
 .public-mobile-menu {
   z-index: 130 !important;
-}
-
-body .cl-card [class*="cl-footer"],
-body .cl-card [class*="cl-footerPages"],
-body .cl-card [class*="cl-footerAction"] {
-  background: #ffffff !important;
-  background-image: none !important;
-  color: #4D5661 !important;
-  border-color: rgba(18,20,23,.10) !important;
-}
-
-body .cl-card [class*="cl-footer"] *,
-body .cl-card [class*="cl-footerPages"] *,
-body .cl-card [class*="cl-footerAction"] * {
-  color: #4D5661 !important;
-  opacity: 1 !important;
-}
-
-body .cl-card [class*="cl-footer"] a,
-body .cl-card [class*="cl-footer"] button,
-body .cl-card [class*="cl-footerActionLink"] {
-  color: #3157D5 !important;
 }
 
 /* ===== Narrative UX layer: profile story, signals, trust controls ===== */

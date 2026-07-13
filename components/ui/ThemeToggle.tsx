@@ -16,6 +16,7 @@ export function applyTheme(next: Theme, origin?: { x: number; y: number }) {
     const resolved = next === "system" ? resolvedTheme(next) : next;
     document.documentElement.dataset.theme = resolved;
     document.documentElement.dataset.themeMode = next;
+    document.documentElement.style.colorScheme = resolved;
     localStorage.setItem("nn-theme", next);
     void fetch("/api/settings", {
       method: "POST",
@@ -36,11 +37,11 @@ export function applyTheme(next: Theme, origin?: { x: number; y: number }) {
 export function ThemeToggle() {
   const ref = useRef<HTMLButtonElement | null>(null);
   const maskId = useId();
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
-    const stored = (localStorage.getItem("nn-theme") as Theme | null) || "system";
+    const stored = (localStorage.getItem("nn-theme") as Theme | null) || "dark";
     setTheme(stored);
   }, []);
 
@@ -99,9 +100,9 @@ export function ThemeToggle() {
 }
 
 export function ThemeSegmentedControl() {
-  const [theme, setTheme] = useState<Theme>("system");
+  const [theme, setTheme] = useState<Theme>("dark");
   useEffect(() => {
-    setTheme((localStorage.getItem("nn-theme") as Theme | null) || "system");
+    setTheme((localStorage.getItem("nn-theme") as Theme | null) || "dark");
   }, []);
   return (
     <div className="theme-segmented" role="group" aria-label="Appearance">

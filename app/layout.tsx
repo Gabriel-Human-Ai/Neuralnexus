@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     apple: "/icon.svg",
   },
 };
-export const viewport: Viewport = { themeColor: "#FAFAFC" };
+export const viewport: Viewport = { themeColor: "#0C0908" };
 
 const clerkAppearance = {
   variables: {
@@ -107,11 +107,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 
   return (
-    <html lang="en" className={`${ui.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="en" data-theme="dark" className={`${ui.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("nn-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");var r=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t;document.documentElement.dataset.theme=r;document.documentElement.dataset.themeMode=t}catch(e){document.documentElement.dataset.theme="light";document.documentElement.dataset.themeMode="light"}})()`,
+            __html: `(function(){try{var t=localStorage.getItem("nn-theme")||"dark";var r=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t;var d=document.documentElement;d.dataset.theme=r;d.dataset.themeMode=t;d.style.colorScheme=r}catch(e){document.documentElement.dataset.theme="dark";document.documentElement.dataset.themeMode="dark";document.documentElement.style.colorScheme="dark"}})()`,
           }}
         />
       </head>
