@@ -66,6 +66,7 @@ import { PresenceLine } from "@/components/altitude/PresenceLine";
 import { DecisionStream, type StreamItem } from "@/components/altitude/DecisionStream";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import { ImmersiveLanding } from "@/components/marketing/ImmersiveLanding";
+import { HomeView } from "@/components/app/AppShell-HomeView";
 
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then((module) => module.SettingsModal), {
   ssr: false,
@@ -1438,6 +1439,58 @@ export default function Home() {
     setView("usage");
   }
 
+  async function runAppHomeSend(text: string, mode: StartPath) {
+    const intent = text.trim();
+    const path = startPaths.find((item) => item.id === mode) ?? activeStartPath;
+
+    setSelectedStartPath(mode);
+    setLivingIntent(intent);
+    void recordAmbientAction("choose", intent || path.title);
+
+    if (mode === "ask") {
+      setActiveShelf(null);
+      setView("chat");
+      if (!intent) return;
+      if (!apiKeyReady) {
+        setGeneralInput(intent);
+        return;
+      }
+      setGeneralMessages((messages) => [...messages, { role: "user", content: intent }]);
+      setGeneralInput("");
+      setLivingIntent("");
+      setGeneralBusy(true);
+      try {
+        const answer = await askWizard(intent, [], generalMessages.slice(-8));
+        setGeneralMessages((messages) => [...messages, { role: "assistant", content: answer.content, memoryNotice: answer.memoryNotice }]);
+      } catch (error: any) {
+        setGeneralMessages((messages) => [...messages, { role: "assistant", content: error.message ?? "I could not answer. Check your API keys in Settings." }]);
+      } finally {
+        setGeneralBusy(false);
+      }
+      return;
+    }
+
+    if (mode === "build") {
+      if (intent) {
+        setWorkspaceIntent(intent);
+        setWorkspaceSourceNote(intent);
+        setWizardStep("audience");
+      } else {
+        setWizardStep("type");
+      }
+      setActiveShelf(null);
+      setWizardOpen(true);
+      return;
+    }
+
+    if (intent) {
+      await recordAmbientAction("choose", `Teach profile: ${intent}`);
+    }
+    setLivingIntent("");
+    setActiveShelf("vault");
+    setView("usage");
+  }
+
   const commandItems = useMemo<CommandItem[]>(() => {
     const navigate = (target: View): (() => void) => () => {
       if (target === "settings") setSettingsOpen(true);
@@ -2056,147 +2109,15 @@ export default function Home() {
         <AnimatePresence mode="wait">
         <motion.div key={`${altitude.level}-${view}`} className="altitude-layer" {...altitudeLayerMotion}>
         {view === "home" && (
-          <div className="nn-home altitude-orbit living-start">
-            <section className="orbit-core" aria-label="Overview">
-              {showHomeOrb && (
-                <div className="orbit-orb">
-                  <WizardOrb
-                    size={hasWorkspaces ? 220 : 240}
-                    hue={orbHue}
-                    speed={orbSpeed}
-                    intensity={orbIntensity}
-                    state={livingIntent.trim() ? "listening" : hasWorkspaces ? "thinking" : "idle"}
-                    interactive
-                    {...orbSettings}
-                  />
-                </div>
-              )}
-              <div className="living-start-copy">
-                <span className="object-label">START HERE</span>
-                <h1>{hasWorkspaces ? "What should Nexus help with now?" : "What should NeuralNexus understand about you?"}</h1>
-                <p>{hasWorkspaces ? "Choose one path. The rest stays out of your way." : "Ask, build or teach. One clear move is enough to start."}</p>
-              </div>
-            </section>
-
-            <section className="living-composer-card" aria-label="Choose what to do first">
-              <div className="living-path-switch" role="tablist" aria-label="Start mode">
-                {startPaths.map((path) => {
-                  const Icon = path.icon;
-                  const active = selectedStartPath === path.id;
-                  return (
-                    <button
-                      key={path.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      className={active ? "is-active" : ""}
-                      onClick={() => setSelectedStartPath(path.id)}
-                    >
-                      <Icon size={17} />
-                      <span>{path.id === "ask" ? "Ask" : path.id === "build" ? "Build" : "Teach"}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <form
-                className={`living-composer ${livingIntent.trim() ? "is-writing" : ""}`}
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void runLivingStart();
-                }}
-              >
-                <div className="living-composer-prompt">
-                  <ActiveStartIcon size={20} />
-                  <textarea
-                    value={livingIntent}
-                    onChange={(event) => setLivingIntent(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                        event.preventDefault();
-                        void runLivingStart();
-                      }
-                    }}
-                    placeholder={
-                      selectedStartPath === "ask"
-                        ? "Ask anything, or attach files in the chat..."
-                        : selectedStartPath === "build"
-                          ? "Describe the method or outcome you want to turn into a workspace..."
-                          : "Describe how you like to think, write, decide or create..."
-                    }
-                    rows={3}
-                  />
-                </div>
-                <div className="living-composer-footer">
-                  <div>
-                    <strong>{activeStartPath.title}</strong>
-                    <span>{livingIntent.trim() ? "Nexus will use this as the first clue." : activeStartPath.body}</span>
-                  </div>
-                  <button type="submit">
-                    {activeStartPath.actionLabel}
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </form>
-
-              <div className="living-next-preview" aria-live="polite">
-                <span className="living-preview-dot" />
-                <strong>{activeStartPath.kicker}</strong>
-                <p>
-                  {selectedStartPath === "ask"
-                    ? "A clean chat opens. Answers can be copied, regenerated, edited and saved as profile signals."
-                    : selectedStartPath === "build"
-                      ? "A guided flow asks one question at a time and creates the workspace structure."
-                      : "Your profile opens so you can inspect what NeuralNexus has learned and export it when useful."}
-                </p>
-              </div>
-            </section>
-
-            {hasWorkspaces && (
-              <section className="orbit-workspace-field" aria-label="Workspace field">
-                {projects.slice(0, 8).map((project) => {
-                  const mode = inferMode(project);
-                  return (
-                    <button
-                      key={project.id}
-                      className="orbit-workspace-object"
-                      onClick={() => descendToSystem(project.id)}
-                      disabled={transitionLocked}
-                    >
-                      <span className="nn-chip-emboss">WORKSPACE</span>
-                      <strong>{project.name}</strong>
-                      <small>{mode.output}</small>
-                    </button>
-                  );
-                })}
-                {projects.length > 8 && (
-                  <button className="orbit-workspace-object is-quiet" onClick={() => setActiveShelf("vault")}>
-                    All workspaces
-                  </button>
-                )}
-              </section>
-            )}
-
-            <section className="living-feature-map" aria-label="Where things live">
-              <span className="object-label">WHERE THINGS LIVE</span>
-              <div>
-                {featureMap.map((item) => (
-                  <button key={item.label} type="button" onClick={item.action}>
-                    <strong>{item.label}</strong>
-                    <span>{item.benefit}</span>
-                    <small>{item.text}</small>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="home-context-strip living-context-strip" aria-label="Workspace context">
-              <button onClick={() => setActiveShelf("vault")}><RollingNumber value={projects.length} /> workspaces</button>
-              <button onClick={() => setActiveShelf("skills")}><RollingNumber value={skills.length} /> skills</button>
-              <button onClick={() => setActiveShelf("vault")}><RollingNumber value={formatUsd(usage.month)} /> this month</button>
-              <button onClick={() => setWhyOpen(true)}>{POSITIONING_UI.home.whyLabel}</button>
-            </section>
-          </div>
+          <HomeView
+            hasHistory={hasWorkspaces}
+            onSend={(text, mode) => void runAppHomeSend(text, mode)}
+            quickSuggestions={[
+              "Ask a normal question",
+              "Build a workspace from my method",
+              "Teach NeuralNexus how I like to work",
+            ]}
+          />
         )}
 
         {altitude.level === 1 && selectedWorkspace && (
