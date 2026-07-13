@@ -1663,7 +1663,7 @@ export default function Home() {
               aria-expanded={publicMenu === "solutions"}
               onMouseEnter={(event) => schedulePublicMenu("solutions", event.currentTarget)}
               onFocus={(event) => openPublicMenu("solutions", event.currentTarget)}
-              onClick={(event) => openPublicMenu("solutions", event.currentTarget)}
+              onClick={() => { window.location.href = "/solutions"; }}
             >
               Solutions <ChevronDown size={14} />
             </button>
@@ -1679,7 +1679,7 @@ export default function Home() {
             </button>
             <button type="button" onClick={(event) => openPublicMenu("resources", event.currentTarget)}>Community</button>
             <button type="button" className={publicPage === "enterprise" ? "is-current" : ""} onClick={() => showPublicPage("enterprise")}>Enterprise</button>
-            <button type="button" className={publicPage === "pricing" ? "is-current" : ""} onClick={() => showPublicPage("pricing")}>Pricing</button>
+            <button type="button" className={publicPage === "pricing" ? "is-current" : ""} onClick={() => { window.location.href = "/pricing"; }}>Pricing</button>
             <button type="button" className={publicPage === "security" ? "is-current" : ""} onClick={() => showPublicPage("security")}>Security</button>
           </nav>
           <div className="public-actions">
@@ -1703,17 +1703,17 @@ export default function Home() {
                   <>
                     <div className="public-mega-main">
                       <span className="public-mega-label">Who is it for?</span>
-                      <button type="button" onClick={() => startFromPublicPrompt("Build a reusable strategy workspace for founders.")}><strong>Founders</strong><span>Turn your method into a system.</span></button>
-                      <button type="button" onClick={() => startFromPublicPrompt("Build a client-ready marketing workspace.")}><strong>Marketers</strong><span>Campaigns, voice and launch assets.</span></button>
-                      <button type="button" onClick={() => startFromPublicPrompt("Build a sales enablement workspace.")}><strong>Sales</strong><span>Offers, objections and demos.</span></button>
-                      <button type="button" onClick={() => startFromPublicPrompt("Build an operations workspace for repeated decisions.")}><strong>Ops</strong><span>Systems that run the same way twice.</span></button>
-                      <button type="button" onClick={() => startFromPublicPrompt("Build a product strategy workspace.")}><strong>Product teams</strong><span>Research, decisions and briefs.</span></button>
-                      <button type="button" onClick={() => startFromPublicPrompt("Build a design critique workspace.")}><strong>Designers</strong><span>Critique, consistency and standards.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Founders</strong><span>Turn your method into a system.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Marketers</strong><span>Campaigns, voice and launch assets.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Sales</strong><span>Offers, objections and demos.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Ops</strong><span>Systems that run the same way twice.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Product teams</strong><span>Research, decisions and briefs.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Designers</strong><span>Critique, consistency and standards.</span></button>
                     </div>
                     <aside className="public-mega-side">
                       <span className="public-mega-label">Use cases</span>
-                      <button type="button" onClick={() => startFromPublicPrompt("Prototype a workspace from a rough method.")}><strong>Instant workspace</strong><span>From prompt, PDF or method.</span></button>
-                      <button type="button" onClick={() => startFromPublicPrompt("Improve existing work with quality checks.")}><strong>Improve output</strong><span>Review, verify and revise.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Instant workspace</strong><span>From prompt, PDF or method.</span></button>
+                      <button type="button" onClick={() => { window.location.href = "/solutions"; }}><strong>Improve output</strong><span>Review, verify and revise.</span></button>
                     </aside>
                   </>
                 ) : (
@@ -1743,10 +1743,10 @@ export default function Home() {
             {publicMobileMenu && (
               <motion.div className="public-mobile-menu" initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={MOTION.springSoft}>
                 <span className="public-mobile-menu-label">Navigate</span>
-                <button type="button" onClick={() => { setPublicMobileMenu(false); startFromPublicPrompt("Build a reusable workspace for my method."); }}>Solutions <ChevronRight size={16} /></button>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); window.location.href = "/solutions"; }}>Solutions <ChevronRight size={16} /></button>
                 <button type="button" onClick={() => { setPublicMobileMenu(false); startFromPublicPrompt("Start from my existing notes, docs or templates."); }}>Resources <ChevronRight size={16} /></button>
                 <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu(null); showPublicPage("enterprise"); }}>Enterprise</button>
-                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu(null); showPublicPage("pricing"); }}>Pricing</button>
+                <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu(null); window.location.href = "/pricing"; }}>Pricing</button>
                 <button type="button" onClick={() => { setPublicMobileMenu(false); setPublicMenu(null); showPublicPage("security"); }}>Security</button>
                 <div className="public-mobile-menu-auth">
                   <AuthButtons compact onEnter={() => { setPublicMobileMenu(false); enterWorkspaceApp(false); }} />
@@ -1902,7 +1902,7 @@ export default function Home() {
             </Reveal>
 
             <Reveal className="public-reveal">
-              <section className="public-section public-pricing-preview"><div className="public-section-heading"><span className="public-eyebrow">SIMPLE START</span><h2>Start by using it.</h2><p>Ask a question, upload material, edit an answer. The profile grows from real preferences, not a setup quiz.</p><button type="button" onClick={() => showPublicPage("pricing")}>View plans <ChevronRight size={16} /></button></div></section>
+              <section className="public-section public-pricing-preview"><div className="public-section-heading"><span className="public-eyebrow">SIMPLE START</span><h2>Start by using it.</h2><p>Ask a question, upload material, edit an answer. The profile grows from real preferences, not a setup quiz.</p><button type="button" onClick={() => { window.location.href = "/pricing"; }}>View plans <ChevronRight size={16} /></button></div></section>
             </Reveal>
 
             <Reveal className="public-reveal">

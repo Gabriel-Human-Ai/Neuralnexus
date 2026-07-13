@@ -4507,7 +4507,10 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .nn-boot-counter { font: 500 12px/1 var(--font-mono); letter-spacing: 0.14em; }
 #nn-boot::after { content: ""; animation: bootCounter 1.2s linear forwards; }
 @keyframes bootCounter { 0% { opacity: 1; } 100% { opacity: 0; } }
-body:has(.nn-shell) #nn-boot { opacity: 0; filter: blur(6px); pointer-events: none; }
+body:has(.nn-shell) #nn-boot,
+body:has(.nnl-root) #nn-boot,
+body:has(.nnp-root) #nn-boot,
+body:has(.nns-root) #nn-boot { opacity: 0; filter: blur(6px); pointer-events: none; }
 
 .mobile-tabbar { background: var(--surface) !important; border: 1px solid var(--hairline) !important; box-shadow: var(--shadow-md) !important; }
 .mobile-tabbar button { color: var(--muted) !important; }
